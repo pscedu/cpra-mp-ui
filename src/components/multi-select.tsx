@@ -1,0 +1,49 @@
+import { useSignal } from "@preact/signals";
+import { TriangleDownIcon } from "@primer/octicons-react";
+
+import { Button, SelectPanel } from "@primer/react";
+
+export default function MultiSelect({
+  items,
+  label,
+  placeholder = null,
+  selectedItems,
+  setSelectedItems,
+}) {
+  const filter = useSignal("");
+  const open = useSignal(false);
+
+  const filteredItems = items.filter((item) =>
+    item.text?.toLowerCase().startsWith(filter.value.toLowerCase())
+  );
+
+  return (
+    <>
+      <SelectPanel
+        title={label}
+        // subtitle="Description"
+        renderAnchor={({
+          children,
+          "aria-labelledby": ariaLabelledBy,
+          ...anchorProps
+        }) => (
+          <Button
+            trailingAction={TriangleDownIcon}
+            aria-labelledby={` ${ariaLabelledBy}`}
+            {...anchorProps}
+            aria-haspopup="dialog"
+          >
+            {children ?? label}
+          </Button>
+        )}
+        placeholderText={placeholder || "Filter items"}
+        open={open.value}
+        onOpenChange={(value) => (open.value = value)}
+        items={filteredItems}
+        selected={selectedItems}
+        onSelectedChange={setSelectedItems}
+        onFilterChange={(value) => (filter.value = value)}
+      />
+    </>
+  );
+}

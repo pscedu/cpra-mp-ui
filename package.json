@@ -1,0 +1,25 @@
+{
+	"name": "@cpra/mp-ui",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "vite build",
+		"preview": "vite preview"
+	},
+	"dependencies": {
+		"@preact/signals": "^1.3.0",
+		"@primer/octicons-react": "^19.12.0",
+		"@primer/react": "^37.5.0",
+		"preact": "^10.13.1",
+		"preact-iso": "^2.8.1",
+		"preact-render-to-string": "^6.5.11"
+	},
+	"devDependencies": {
+		"@preact/preset-vite": "^2.5.0",
+		"eslint": "^8.57.1",
+		"eslint-config-preact": "^1.5.0",
+		"typescript": "^5.6.3",
+		"vite": "^4.3.2"
+	}
+}
