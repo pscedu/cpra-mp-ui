@@ -45,3 +45,28 @@ export function makeMap<T>(
   for (let item of items) result[item[key]] = item;
   return result;
 }
+
+export function extractValues(values) {
+  const result = [];
+  for (let value of values) {
+    if (Array.isArray(value)) {
+      let [current, end] = value;
+      if (typeof value[0] === "number") {
+        while (current <= end) {
+          result.push(current++);
+        }
+      } else {
+        // let [currentDate, endDate] = [current, end].map(
+        //   (dateStr) => new Date(`${dateStr}T00:00:00`)
+        // );
+        // while (currentDate <= endDate) {
+        //   result.push(new Date(currentDate.valueOf()));
+        //   currentDate.setDate(currentDate.getDate() + 1);
+        // }
+      }
+    } else {
+      result.push(value);
+    }
+  }
+  return result;
+}

@@ -4,7 +4,7 @@ import { computed, effect, signal } from "@preact/signals";
 import { getDatasets } from "./dataset";
 import { Dimension, getStructure } from "./structure";
 import { SelectItem } from "./types";
-import { getApiJson } from "./utils";
+import { extractValues, getApiJson } from "./utils";
 
 export const PortalState = createContext(null);
 
@@ -69,7 +69,7 @@ export function createPortalState() {
         for (let response of responses) {
           for (let dimensionName in response.choices) {
             if (filterDimensionNames.value.includes(dimensionName)) {
-              const values = response.choices[dimensionName];
+              const values = extractValues(response.choices[dimensionName]);
               if (dimensionName in choices) {
                 choices[dimensionName] = choices[dimensionName].filter(
                   (value) => values.includes(value)
