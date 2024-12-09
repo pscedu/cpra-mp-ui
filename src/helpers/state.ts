@@ -4,7 +4,7 @@ import { computed, effect, signal } from "@preact/signals";
 import { getDatasets } from "./dataset";
 import { Dimension, getStructure } from "./structure";
 import { SelectItem } from "./types";
-import { extractValues, getApiJson } from "./utils";
+import { extractValues, getApiJson, mergeOr } from "./utils";
 
 export const PortalState = createContext(null);
 
@@ -27,6 +27,66 @@ export function createPortalState() {
   const filterChoices = signal({});
   const catalogResponses = signal([]);
 
+  // Query the catalog API for each selected dataset when the selected
+  // datasets or dimension values change.
+  const queryCatalog = (requestedFilters) => {
+    (async () => {
+      if (datasets.value && datasets.value.length && structure.value) {
+        const responses = await Promise.all(
+          datasets.value.map((dataset) => {
+            const requiredDimensions = filterDimensions.value.filter(
+              (dimension) => {
+                const variable = structure.value.variablesMap[dataset.variable];
+                if (
+                  dimension.name == "calendar_date" &&
+                  ["daily", "monthly"].includes(dataset.time_unit)
+                )
+                  return true;
+                if (
+                  dimension.name == "calendar_year" &&
+                  ["annual", "decadal"].includes(dataset.time_unit)
+                )
+                  return true;
+                return (
+                  dimension.required ||
+                  variable.required_dimensions?.includes(dimension.name)
+                );
+              }
+            );
+            const params = [];
+            for (let dimension of requiredDimensions)
+              for (let value of requestedFilters[dimension.name] || [])
+                params.push(
+                  `${dimension.name}=${encodeURIComponent(value.toString())}`
+                );
+
+            let requestPath = `datasets/${dataset.variable}/${dataset.grid}/${dataset.time_unit}/catalog.json`;
+            if (params.length) requestPath += `?${params.join("&")}`;
+
+            // TODO: Include query string params.
+            return getApiJson(requestPath);
+          })
+        );
+
+        const newFilters = mergeOr(
+          responses.map((response) => response.results),
+          filterDimensionNames.value,
+          extractValues
+        );
+
+        const choices = mergeOr(
+          responses.map((response) => response.choices),
+          filterDimensionNames.value,
+          extractValues
+        );
+
+        filters.value = newFilters;
+        filterChoices.value = choices;
+        catalogResponses.value = responses;
+      }
+    })();
+  };
+
   // Ensure there is always at least one dataset selected.
   effect(() => {
     if (
@@ -35,60 +95,7 @@ export function createPortalState() {
       datasets.value.length == 0
     )
       datasets.value = [allDatasets.value[0]];
-  });
-
-  // Query the catalog API for each selected dataset when the selected
-  // datasets or dimension values change.
-  effect(() => {
-    (async () => {
-      if (datasets.value && datasets.value.length && structure.value) {
-        const responses = await Promise.all(
-          datasets.value.map((dataset) => {
-            const requiredDimensions = filterDimensions.value.filter(
-              (dimension) => {
-                const variable = structure.value.variablesMap[dataset.variable];
-                return (
-                  dimension.required ||
-                  variable.required_dimensions?.includes(dimension.name)
-                );
-              }
-            );
-            const params = {};
-            for (let dimension of requiredDimensions)
-              if (dimension.name in filters.value)
-                params[dimension.name] = filters.value[dimension.name];
-
-            // TODO: Include query string params.
-            return getApiJson(
-              `datasets/${dataset.variable}/${dataset.grid}/${dataset.time_unit}/catalog.json`
-            );
-          })
-        );
-
-        const choices = {};
-        for (let response of responses) {
-          for (let dimensionName in response.choices) {
-            if (filterDimensionNames.value.includes(dimensionName)) {
-              const values = extractValues(response.choices[dimensionName]);
-              if (dimensionName in choices) {
-                choices[dimensionName] = choices[dimensionName].filter(
-                  (value) => values.includes(value)
-                );
-                // TODO: Create an alert and revert the filters if a dimension has
-                // no common values.
-              } else {
-                choices[dimensionName] = values;
-              }
-            }
-          }
-        }
-
-        // TODO: Update filter values based on the catalog results.
-
-        filterChoices.value = choices;
-        catalogResponses.value = responses;
-      }
-    })();
+    queryCatalog(filters.peek());
   });
 
   // Dimensions representing a filter (not dataset or metadata).
@@ -175,16 +182,17 @@ export function createPortalState() {
     datasets.value = (Array.isArray(items) ? items : [items]).map(
       (item) => allDatasets.value[datasetItems.value.indexOf(item)]
     );
+    queryCatalog(filters.value);
   };
 
   const setFilterChoicesSelectedItems = (
     dimensionName: string,
     items: SelectItem[]
   ) => {
-    filters.value = {
+    queryCatalog({
       ...filters.value,
       [dimensionName]: items.map((item) => item.value),
-    };
+    });
   };
 
   return {

@@ -70,3 +70,25 @@ export function extractValues(values) {
   }
   return result;
 }
+
+export function mergeOr(
+  objects: any[],
+  keys: string[] = null,
+  extractFn: Function = (value) => value
+) {
+  const result = {};
+  for (let obj of objects) {
+    for (let key in obj) {
+      if (!keys || keys.includes(key)) {
+        const values = extractFn(obj[key]);
+        if (key in result) {
+          for (let value of values)
+            if (!result[key].includes(value)) result[key].push(value);
+        } else {
+          result[key] = values;
+        }
+      }
+    }
+  }
+  return result;
+}
