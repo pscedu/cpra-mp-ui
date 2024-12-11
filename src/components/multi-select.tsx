@@ -32,6 +32,7 @@ export default function MultiSelect({
             aria-labelledby={` ${ariaLabelledBy}`}
             {...anchorProps}
             aria-haspopup="dialog"
+            sx={{ marginBottom: 2 }}
           >
             {children ?? label}
           </Button>
@@ -43,6 +44,10 @@ export default function MultiSelect({
         selected={selectedItems}
         onSelectedChange={setSelectedItems}
         onFilterChange={(value) => (filter.value = value)}
+        overlayProps={{
+          width: "small",
+          maxHeight: "large",
+        }}
       />
     </>
   );

@@ -1,0 +1,12 @@
+.mapContainer {
+  height: 100vh;
+  position: relative;
+  width: 100%;
+}
+.map {
+  bottom: 0;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}

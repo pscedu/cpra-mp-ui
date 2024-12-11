@@ -161,7 +161,10 @@ export class Structure {
         return false;
       for (let dataset of datasets) {
         let variable = this.variablesMap[dataset.variable];
-        if ((variable.required_dimensions || []).includes(dataset.variable))
+        if (
+          dimension.required ||
+          (variable.required_dimensions || []).includes(dataset.variable)
+        )
           return true;
         if (
           ["daily", "monthly"].includes(dataset.time_unit) &&
