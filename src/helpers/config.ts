@@ -1,1 +1,1 @@
-export const apiBaseUrl = "https://cpra-mpdp.bridges2.psc.edu/v1";
+export const apiBaseUrl = "https://api.mpdp.coastal.la.gov/v1";
