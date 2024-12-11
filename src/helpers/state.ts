@@ -3,13 +3,14 @@ import { useContext } from "preact/hooks";
 import { batch, computed, effect, signal } from "@preact/signals";
 import { apiBaseUrl } from "./config";
 import { getDatasets } from "./dataset";
-import { getBaseStyle, getDataStyle } from "./mapstyle";
+import { getBaseStyle } from "./mapstyle";
 import { Dimension, getStructure } from "./structure";
 import { SelectItem } from "./types";
 import {
   extractValues,
   getApiJson,
-  getFiltersQueryString,
+  getFilterParams,
+  makeQueryString,
   mergeOr,
 } from "./utils";
 
@@ -47,9 +48,8 @@ export function createPortalState() {
               dataset,
             ]);
 
-            const qs = getFiltersQueryString(
-              requiredDimensions,
-              requestedFilters
+            const qs = makeQueryString(
+              getFilterParams(requiredDimensions, requestedFilters)
             );
             const requestPath = `datasets/${dataset.variable}/${dataset.grid}/${dataset.time_unit}/catalog.json${qs}`;
             return getApiJson(requestPath);
@@ -172,16 +172,31 @@ export function createPortalState() {
     return datasets.value[0];
   });
 
+  const mapGrid = computed(() => {
+    if (!mapDataset.value || !structure.value) return null;
+    return structure.value.gridsMap[mapDataset.value.grid];
+  });
+
+  const mapVariable = computed(() => {
+    if (!mapDataset.value || !structure.value) return null;
+    return structure.value.variablesMap[mapDataset.value.variable];
+  });
+
+  const mapLegend = computed(() => {
+    if (!mapVariable.value || !structure.value) return null;
+    return structure.value.legendsMap[mapVariable.value.legend];
+  });
+
   const mapCatalogResponse = computed(() => {
     if (!catalogResponses.value.length) return null;
     // TODO: Allow user to select the active dataset.
     return catalogResponses.value[0];
   });
 
-  const mapQueryString = computed(() => {
+  const mapFilterParams = computed(() => {
     const ds = mapDataset.value;
     const cr = mapCatalogResponse.value;
-    if (!ds || !cr) return "";
+    if (!ds || !cr || !structure.value) return [];
 
     const requiredDimensions = structure.value.getRequiredDimensions([ds]);
 
@@ -191,14 +206,15 @@ export function createPortalState() {
     for (let dimension of requiredDimensions)
       selectedFilters[dimension.name] = [cr.results[dimension.name][0]];
 
-    return getFiltersQueryString(requiredDimensions, selectedFilters);
+    return getFilterParams(requiredDimensions, selectedFilters);
   });
 
+  // Dataset style
   const datasetStyle = computed(() => {
     const noData = { sources: {}, layers: [] };
     const ds = mapDataset.value;
-    const qs = mapQueryString.value;
-    if (!ds || !qs.length || !structure.value) return noData;
+    const params = mapFilterParams.value;
+    if (!ds || !params.length || !structure.value) return noData;
 
     const grid = structure.value.gridsMap[ds.grid];
     if (grid.grid_type === "raster") {
@@ -213,7 +229,7 @@ export function createPortalState() {
             ],
             maxzoom: 13,
             type: "raster",
-            tiles: [`${tileUrl}${qs}`],
+            tiles: [`${tileUrl}${makeQueryString(params)}`],
             tileSize: 256,
           },
         },

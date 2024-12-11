@@ -93,10 +93,16 @@ export function mergeOr(
   return result;
 }
 
-export function getFiltersQueryString(requiredDimensions, filters) {
+export function getFilterParams(requiredDimensions, filters) {
   const params = [];
   for (let dimension of requiredDimensions)
     for (let value of filters[dimension.name] || [])
-      params.push(`${dimension.name}=${encodeURIComponent(value.toString())}`);
-  return params.length ? `?${params.join("&")}` : "";
+      params.push([dimension.name, value]);
+  return params;
+}
+
+export function makeQueryString(params: [string, any][]) {
+  return params.length
+    ? `?${params.map(([key, value]) => `${key}=${encodeURIComponent(value.toString())}`).join("&")}`
+    : "";
 }
