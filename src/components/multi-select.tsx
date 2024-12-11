@@ -41,8 +41,8 @@ export default function MultiSelect({
         open={open.value}
         onOpenChange={(value) => (open.value = value)}
         items={filteredItems}
-        selected={selectedItems}
-        onSelectedChange={setSelectedItems}
+        selected={selectedItems.length ? selectedItems[0] : null}
+        onSelectedChange={(item) => setSelectedItems([item])}
         onFilterChange={(value) => (filter.value = value)}
         overlayProps={{
           width: "small",
