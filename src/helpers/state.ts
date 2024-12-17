@@ -1,9 +1,8 @@
 import { createContext } from "preact";
 import { useContext } from "preact/hooks";
 import { batch, computed, effect, signal } from "@preact/signals";
-import { apiBaseUrl } from "./config";
 import { getDatasets } from "./dataset";
-import { getBaseStyle, rasterStyle } from "./mapstyle";
+import { getBaseStyle, rasterStyle, vectorStyle } from "./mapstyle";
 import { Dimension, getStructure } from "./structure";
 import { SelectItem } from "./types";
 import {
@@ -224,7 +223,10 @@ export function createPortalState() {
         params,
       });
     } else {
-      return noData;
+      return vectorStyle({
+        dataset: ds,
+        legend: mapLegend.value,
+      });
     }
   });
 

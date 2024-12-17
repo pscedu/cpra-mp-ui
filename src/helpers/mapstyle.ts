@@ -4,23 +4,15 @@ import { makeQueryString } from "./utils";
 
 const colorRamp = (legend) => {
   const ramp = [];
-  for (let level of legend) {
-    if (level[2] !== null) {
-      ramp.push(level[0]);
-      if (level[2] !== undefined) ramp.push(level[2]);
-    }
+  let foundBound = false;
+  for (let { color, upper_bound } of legend.break_points) {
+    foundBound = foundBound || upper_bound !== null;
+    if (!foundBound) continue;
+    ramp.push(color);
+    if (upper_bound !== null) ramp.push(upper_bound);
   }
   return ramp;
 };
-
-const staticTileUrls = (serviceName) =>
-  ["a", "b", "c", "d"].map(
-    (letter) =>
-      `${staticTilesBaseUrl.replace(
-        /\/\//g,
-        `//${letter}.`
-      )}/${serviceName}/tiles/{z}/{x}/{y}.png`
-  );
 
 const linearZoom = (min, max) => {
   return ["interpolate", ["linear"], ["zoom"], 6, min, 12, max];
@@ -52,18 +44,19 @@ const rasterSource = ({
   };
 };
 
-// const vectorSource = (serviceName, promoteId) => ({
-//   type: "vector",
-//   url: `${baseUrl}/${serviceName}`,
-//   promoteId,
-// });
+const vectorSource = ({ gridName, promoteId = "id" }) => ({
+  type: "vector",
+  url: `${staticTilesBaseUrl}/${gridName}`,
+  promoteId,
+});
 
 export function getBaseStyle() {
   return {
     sources: {
-      "basemap-raster": rasterSource({
-        tileUrls: staticTileUrls("basemap-raster"),
-      }),
+      "basemap-raster": {
+        type: "raster",
+        url: `${staticTilesBaseUrl}/basemap-raster`,
+      },
       "basemap-vector": {
         type: "vector",
         url: `${staticTilesBaseUrl}/basemap-vector`,
@@ -212,135 +205,85 @@ export function rasterStyle({
   };
 }
 
-// export function vectorStyle({
-//   lineColors = ["#DDDDDD", "#666666"],
-//   lineWidths = [0.5, 3],
-//   order = 6000,
-// } = {}) {
-//   return function ({ geographicUnit }, { legend }) {
-//     const ramp = colorRamp(legend);
-//     const layers = [];
-//     const isPoint = geographicUnit == "extraction_point";
-//     if (isPoint)
-//       layers.push(
-//         {
-//           id: "geography-fill",
-//           type: "circle",
-//           source: "geography-vector",
-//           "source-layer": geographicUnit,
-//           paint: {
-//             "circle-color": [
-//               "case",
-//               ["==", ["feature-state", "value"], null],
-//               "transparent",
-//               ["step", ["feature-state", "value"], ...ramp],
-//             ],
-//             "circle-radius": 5,
-//             "circle-stroke-color": linearZoom(...lineColors),
-//             "circle-stroke-width": linearZoom(...lineWidths),
-//           },
-//           order,
-//         },
-//         {
-//           id: "geography-selected",
-//           type: "circle",
-//           source: "geography-vector",
-//           "source-layer": geographicUnit,
-//           paint: {
-//             "circle-color": "transparent",
-//             "circle-radius": 5,
-//             "circle-stroke-color": [
-//               "coalesce",
-//               ["feature-state", "selected"],
-//               "transparent",
-//             ],
-//             "circle-stroke-width": 3,
-//           },
-//           order: order + 2,
-//         }
-//       );
-//     else
-//       layers.push(
-//         {
-//           id: "geography-fill",
-//           type: "fill",
-//           source: "geography-vector",
-//           "source-layer": geographicUnit,
-//           paint: {
-//             "fill-color": [
-//               "case",
-//               ["==", ["feature-state", "value"], null],
-//               "transparent",
-//               ["step", ["feature-state", "value"], ...ramp],
-//             ],
-//           },
-//           order,
-//         },
-//         {
-//           id: "geography-line",
-//           type: "line",
-//           source: "geography-vector",
-//           "source-layer": geographicUnit,
-//           paint: {
-//             "line-color": linearZoom(...lineColors),
-//             "line-width": linearZoom(...lineWidths),
-//           },
-//           order: order + 1,
-//         },
-//         {
-//           id: "geography-selected",
-//           type: "line",
-//           source: "geography-vector",
-//           "source-layer": geographicUnit,
-//           paint: {
-//             "line-color": [
-//               "coalesce",
-//               ["feature-state", "selected"],
-//               "transparent",
-//             ],
-//             "line-offset": 1.5,
-//             "line-width": 3,
-//           },
-//           order: order + 2,
-//         }
-//       );
+export function vectorStyle({
+  dataset,
+  lineColors = ["#DDDDDD", "#666666"],
+  lineWidths = [0.5, 3],
+  order = 6000,
+  legend,
+}) {
+  const ramp = colorRamp(legend);
+  const layers = [];
 
-//     if (
-//       [
-//         "block_group",
-//         "clara",
-//         "ecoregion",
-//         "extraction_point",
-//         "hydro_compartment",
-//         "parish",
-//       ].includes(geographicUnit)
-//     )
-//       layers.push({
-//         id: "geography-label",
-//         type: "symbol",
-//         source: "geography-vector",
-//         "source-layer": `${geographicUnit}${isPoint ? "" : "_label"}`,
-//         minzoom: 9,
-//         layout: {
-//           "text-field": ["get", isPoint ? "id" : "label"],
-//           "text-offset": isPoint ? [0, -1.2] : [0, 0],
-//           "text-size": 12,
-//           "text-font": ["literal", ["Franklin Gothic Demi Regular"]],
-//         },
-//         paint: {
-//           "text-halo-blur": 0.5,
-//           "text-color": "#000000",
-//           "text-halo-color": "#ffffff",
-//           "text-halo-width": 2,
-//         },
-//         order: 100001,
-//       });
+  layers.push(
+    {
+      id: "data-fill",
+      type: "fill",
+      source: "data-vector",
+      "source-layer": "boundary",
+      paint: {
+        "fill-color": [
+          "case",
+          ["==", ["feature-state", "value"], null],
+          "transparent",
+          ["step", ["feature-state", "value"], ...ramp],
+        ],
+      },
+      order,
+    },
+    {
+      id: "data-line",
+      type: "line",
+      source: "data-vector",
+      "source-layer": "boundary",
+      paint: {
+        "line-color": linearZoom(...lineColors),
+        "line-width": linearZoom(...lineWidths),
+      },
+      order: order + 1,
+    },
+    {
+      id: "data-selected",
+      type: "line",
+      source: "data-vector",
+      "source-layer": "boundary",
+      paint: {
+        "line-color": [
+          "coalesce",
+          ["feature-state", "selected"],
+          "transparent",
+        ],
+        "line-offset": 1.5,
+        "line-width": 3,
+      },
+      order: order + 2,
+    },
+    {
+      id: "data-label",
+      type: "symbol",
+      source: "data-vector",
+      "source-layer": "label",
+      minzoom: 9,
+      layout: {
+        "text-field": ["get", "label"],
+        "text-offset": [0, 0],
+        "text-size": 12,
+        "text-font": ["literal", ["Franklin Gothic Demi Regular"]],
+      },
+      paint: {
+        "text-halo-blur": 0.5,
+        "text-color": "#000000",
+        "text-halo-color": "#ffffff",
+        "text-halo-width": 2,
+      },
+      order: 100001,
+    }
+  );
 
-//     return {
-//       sources: {
-//         "geography-vector": vectorSource("geography-vector2", "id"),
-//       },
-//       layers,
-//     };
-//   };
-// }
+  return {
+    sources: {
+      "data-vector": vectorSource({ gridName: dataset.grid }),
+    },
+    layers,
+  };
+}
