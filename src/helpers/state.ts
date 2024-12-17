@@ -3,7 +3,7 @@ import { useContext } from "preact/hooks";
 import { batch, computed, effect, signal } from "@preact/signals";
 import { apiBaseUrl } from "./config";
 import { getDatasets } from "./dataset";
-import { getBaseStyle } from "./mapstyle";
+import { getBaseStyle, rasterStyle } from "./mapstyle";
 import { Dimension, getStructure } from "./structure";
 import { SelectItem } from "./types";
 import {
@@ -218,30 +218,12 @@ export function createPortalState() {
 
     const grid = structure.value.gridsMap[ds.grid];
     if (grid.grid_type === "raster") {
-      const tileUrl = `${apiBaseUrl}/datasets/${ds.variable}/${ds.grid}/${ds.time_unit}/data/{z}/{x}/{y}.png`;
-      return {
-        sources: {
-          "data-raster": {
-            // TODO: Calculate the correct bounds and max zoom from the grid.
-            bounds: [
-              -94.00080091962352, 28.70426878930118, -87.51148588666453,
-              31.048795426051505,
-            ],
-            maxzoom: 13,
-            type: "raster",
-            tiles: [`${tileUrl}${makeQueryString(params)}`],
-            tileSize: 256,
-          },
-        },
-        layers: [
-          {
-            type: "raster",
-            id: "data-raster",
-            source: "data-raster",
-            order: 6000,
-          },
+      return rasterStyle({
+        grid,
+        tileUrls: [
+          `${apiBaseUrl}/datasets/${ds.variable}/${ds.grid}/${ds.time_unit}/data/{z}/{x}/{y}.png${makeQueryString(params)}`,
         ],
-      };
+      });
     } else {
       return noData;
     }
