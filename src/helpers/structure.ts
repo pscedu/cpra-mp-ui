@@ -163,7 +163,7 @@ export class Structure {
         let variable = this.variablesMap[dataset.variable];
         if (
           dimension.required ||
-          (variable.required_dimensions || []).includes(dataset.variable)
+          (variable.required_dimensions || []).includes(dimension.name)
         )
           return true;
         if (

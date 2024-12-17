@@ -1,4 +1,5 @@
-import { getApiNdJson } from "./utils";
+import { apiBaseUrl } from "./config";
+import { getApiNdJson, makeQueryString } from "./utils";
 
 export class Dataset {
   variable: string;
@@ -9,6 +10,18 @@ export class Dataset {
     this.variable = variable;
     this.grid = grid;
     this.time_unit = time_unit;
+  }
+
+  getBaseUrl() {
+    return `${apiBaseUrl}/datasets/${this.variable}/${this.grid}/${this.time_unit}`;
+  }
+
+  getDataUrl(format: string, params: [string, any][]) {
+    return `${this.getBaseUrl()}/data.${format}${makeQueryString(params)}`;
+  }
+
+  getTileUrl(format: string, params: [string, any][]) {
+    return `${this.getBaseUrl()}/data/{z}/{x}/{y}.${format}${makeQueryString(params)}`;
   }
 }
 

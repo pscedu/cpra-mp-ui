@@ -15,13 +15,14 @@ export async function getApiJson(relativeUrl: string) {
   }
 }
 
-export async function getApiNdJson(relativeUrl: string) {
-  const response = await fetch(`${apiBaseUrl}/${relativeUrl}`, {
+export async function getApiNdJson(url: string) {
+  const absoluteUrl = url.startsWith("http") ? url : `${apiBaseUrl}/${url}`;
+  const response = await fetch(absoluteUrl, {
     headers: { accept: "application/x-ndjson" },
   });
   if (response.status < 200 || response.status > 299) {
     console.error(
-      `Received status ${response.status} while loading ${relativeUrl}`
+      `Received status ${response.status} while loading ${absoluteUrl}`
     );
     return [];
   } else {
@@ -31,7 +32,7 @@ export async function getApiNdJson(relativeUrl: string) {
         .filter((line) => line.length > 0)
         .map((line) => JSON.parse(line));
     } catch (error) {
-      console.error(`Error while loading ${relativeUrl}: ${error}`);
+      console.error(`Error while loading ${absoluteUrl}: ${error}`);
       return [];
     }
   }

@@ -30,10 +30,7 @@ const rasterSource = ({
   tileSize = 256,
   tileUrls = [],
 }) => {
-  if (dataset)
-    tileUrls = [
-      `${apiBaseUrl}/datasets/${dataset.variable}/${dataset.grid}/${dataset.time_unit}/data/{z}/{x}/{y}.png${makeQueryString(params)}`,
-    ];
+  if (dataset) tileUrls = [dataset.getTileUrl("png", params)];
   // TODO: Calculate the correct bounds and max zoom from the grid.
   return {
     bounds,

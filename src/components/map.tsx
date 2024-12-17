@@ -9,7 +9,7 @@ import { Spinner } from "@primer/react";
 
 // Map using MapLibre GL.
 export default function Map() {
-  const { mapDataLoading, mapStyle } = usePortalState();
+  const { mapDataLoading, mapFeatureState, mapStyle } = usePortalState();
 
   const container = useRef(null);
   const map = useRef(null);
@@ -66,12 +66,28 @@ export default function Map() {
   useEffect(() => {
     if (container.current) {
       if (map.current) {
-        map.current.setStyle(mapStyle.value);
+        map.current.setStyle(mapStyle.value, { diff: true });
       } else {
         initMap();
       }
     }
   }, [container.current, mapStyle.value]);
+
+  // Update the map feature state when new data are loaded.
+  useEffect(() => {
+    if (map.current) {
+      for (let featureId in mapFeatureState.value)
+        if (featureId.match(/^[0-9]+$/))
+          map.current.setFeatureState(
+            {
+              source: "data-vector",
+              sourceLayer: "boundary",
+              id: parseInt(featureId),
+            },
+            { value: mapFeatureState.value[featureId] }
+          );
+    }
+  }, [mapFeatureState.value]);
 
   // Clean up the map before the component unloads.
   useEffect(() => {

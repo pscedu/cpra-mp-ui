@@ -8,6 +8,7 @@ import { SelectItem } from "./types";
 import {
   extractValues,
   getApiJson,
+  getApiNdJson,
   getFilterParams,
   makeQueryString,
   mergeOr,
@@ -35,6 +36,7 @@ export function createPortalState() {
   const catalogResponses = signal([]);
 
   const mapDataLoading = signal(false);
+  const mapFeatureState = signal({});
 
   // Query the catalog API for each selected dataset when the selected
   // datasets or dimension values change.
@@ -186,6 +188,18 @@ export function createPortalState() {
     return structure.value.legendsMap[mapVariable.value.legend];
   });
 
+  const mapDataUrl = computed(() => {
+    if (
+      !mapDataset.value ||
+      !mapGrid.value ||
+      !mapFilterParams.value ||
+      !mapFilterParams.value.length ||
+      mapGrid.value.grid_type === "raster"
+    )
+      return null;
+    return mapDataset.value.getDataUrl("ndjson", mapFilterParams.value);
+  });
+
   const mapCatalogResponse = computed(() => {
     if (!catalogResponses.value.length) return null;
     // TODO: Allow user to select the active dataset.
@@ -270,6 +284,22 @@ export function createPortalState() {
     });
   };
 
+  // Update map feature state when the dataset or filters change.
+  effect(() => {
+    (async () => {
+      if (mapDataUrl.value) {
+        const data = await getApiNdJson(mapDataUrl.value);
+        if (data.length === 1) {
+          mapFeatureState.value = data[0];
+        } else {
+          console.error(`Expected 1 row, received ${data.length}`, data);
+        }
+      } else {
+        mapFeatureState.value = {};
+      }
+    })();
+  });
+
   return {
     activeFilterDimensions,
     allDatasets,
@@ -279,6 +309,7 @@ export function createPortalState() {
     filterChoicesItems,
     filterChoicesSelectedItems,
     mapDataLoading,
+    mapFeatureState,
     mapStyle,
     setDatasetSelectedItems,
     setFilterChoicesSelectedItems,
