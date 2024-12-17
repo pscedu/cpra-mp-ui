@@ -220,9 +220,8 @@ export function createPortalState() {
     if (grid.grid_type === "raster") {
       return rasterStyle({
         grid,
-        tileUrls: [
-          `${apiBaseUrl}/datasets/${ds.variable}/${ds.grid}/${ds.time_unit}/data/{z}/{x}/{y}.png${makeQueryString(params)}`,
-        ],
+        dataset: ds,
+        params,
       });
     } else {
       return noData;

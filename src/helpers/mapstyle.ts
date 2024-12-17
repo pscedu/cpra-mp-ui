@@ -1,5 +1,6 @@
 import { apiBaseUrl, staticTilesBaseUrl } from "./config";
 import { RasterStyleOptions } from "./types";
+import { makeQueryString } from "./utils";
 
 const colorRamp = (legend) => {
   const ramp = [];
@@ -30,11 +31,17 @@ const rasterSource = ({
     -94.00080091962352, 28.70426878930118, -87.51148588666453,
     31.048795426051505,
   ],
+  dataset = null,
   grid = null,
   maxZoom = 13,
+  params = [],
   tileSize = 256,
   tileUrls = [],
 }) => {
+  if (dataset)
+    tileUrls = [
+      `${apiBaseUrl}/datasets/${dataset.variable}/${dataset.grid}/${dataset.time_unit}/data/{z}/{x}/{y}.png${makeQueryString(params)}`,
+    ];
   // TODO: Calculate the correct bounds and max zoom from the grid.
   return {
     bounds,
@@ -172,10 +179,12 @@ export function getBaseStyle() {
 
 export function rasterStyle({
   bounds,
+  dataset,
   grid,
   layerName = "data-raster",
   maxZoom,
   order = 6000,
+  params,
   sourceName = "data-raster",
   tileSize,
   tileUrls,
@@ -184,8 +193,10 @@ export function rasterStyle({
     sources: {
       [sourceName]: rasterSource({
         bounds,
+        dataset,
         grid,
         maxZoom,
+        params,
         tileSize,
         tileUrls,
       }),
