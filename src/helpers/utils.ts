@@ -107,3 +107,7 @@ export function makeQueryString(params: [string, any][]) {
     ? `?${params.map(([key, value]) => `${key}=${encodeURIComponent(value.toString())}`).join("&")}`
     : "";
 }
+
+export function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}

@@ -1,5 +1,5 @@
-import { Dataset } from "./dataset";
-import { getApiJson, makeMap } from "./utils";
+import { apiBaseUrl, staticTilesBaseUrl } from "./config";
+import { getApiJson, getApiNdJson, makeMap, makeQueryString } from "./utils";
 
 export class DimensionValue<T> {
   value: T;
@@ -54,10 +54,10 @@ export class Variable {
   model: string;
   subroutine: string;
   unit: string | null;
-  legend: string | null;
-  geographic_units: string[] | null;
-  time_units: string[] | null;
-  required_dimensions: string[] | null;
+  legend: Legend | null;
+  geographic_units: string[];
+  time_units: string[];
+  required_dimensions: Dimension<any>[];
 
   constructor({
     name,
@@ -102,6 +102,18 @@ export class Grid {
     this.height = height;
     this.width = width;
   }
+
+  isRaster() {
+    return this.grid_type === "raster";
+  }
+
+  isVector() {
+    return this.grid_type === "vector";
+  }
+
+  getTileUrl() {
+    return this.isVector() ? `${staticTilesBaseUrl}/${this.name}` : null;
+  }
 }
 
 export class LegendBreakPoint {
@@ -126,7 +138,43 @@ export class Legend {
   }
 }
 
+export class Dataset {
+  variable: Variable;
+  grid: Grid;
+  time_unit: string;
+
+  constructor({
+    variable,
+    grid,
+    time_unit,
+  }: {
+    variable: Variable;
+    grid: Grid;
+    time_unit: string;
+  }) {
+    this.variable = variable;
+    this.grid = grid;
+    this.time_unit = time_unit;
+  }
+
+  getBaseUrl() {
+    return `${apiBaseUrl}/datasets/${this.variable.name}/${this.grid.name}/${this.time_unit}`;
+  }
+
+  getDataUrl(params: [string, any][], format: string) {
+    return `${this.getBaseUrl()}/data.${format}${makeQueryString(params)}`;
+  }
+
+  getTileUrl(params: [string, any][]) {
+    return (
+      this.grid.getTileUrl() ||
+      `${this.getBaseUrl()}/data/{z}/{x}/{y}.png${makeQueryString(params)}`
+    );
+  }
+}
+
 export class Structure {
+  datasets: Dataset[];
   dimensions: Dimension<string | number>[];
   dimensionsMap: { [key: string]: Dimension<any> };
   variables: Variable[];
@@ -136,16 +184,38 @@ export class Structure {
   legends: Legend[];
   legendsMap: { [key: string]: Legend };
 
-  constructor(dimensions, variables, grids, legends) {
+  constructor(datasets, dimensions, variables, grids, legends) {
     this.dimensions = dimensions.map((dimension) => new Dimension(dimension));
-    this.variables = variables.map((variable) => new Variable(variable));
-    this.grids = grids.map((grid) => new Grid(grid));
-    this.legends = legends.map((legend) => new Legend(legend));
-
     this.dimensionsMap = makeMap(this.dimensions);
-    this.variablesMap = makeMap(this.variables);
+
+    this.grids = grids.map((grid) => new Grid(grid));
     this.gridsMap = makeMap(this.grids);
+
+    this.legends = legends.map((legend) => new Legend(legend));
     this.legendsMap = makeMap(this.legends);
+
+    this.variables = variables.map(
+      (variable) =>
+        new Variable({
+          ...variable,
+          legend: variable.legend ? this.legendsMap[variable.legend] : null,
+          required_dimensions: variable.required_dimensions
+            ? variable.required_dimensions.map(
+                (dimensionName) => this.dimensionsMap[dimensionName]
+              )
+            : [],
+        })
+    );
+    this.variablesMap = makeMap(this.variables);
+
+    this.datasets = datasets.map(
+      (dataset) =>
+        new Dataset({
+          variable: this.variablesMap[dataset.variable],
+          grid: this.gridsMap[dataset.grid],
+          time_unit: dataset.time_unit,
+        })
+    );
   }
 
   getRequiredDimensions(
@@ -160,10 +230,10 @@ export class Structure {
       )
         return false;
       for (let dataset of datasets) {
-        let variable = this.variablesMap[dataset.variable];
+        let variable = this.variablesMap[dataset.variable.name];
         if (
           dimension.required ||
-          (variable.required_dimensions || []).includes(dimension.name)
+          (variable.required_dimensions || []).includes(dimension)
         )
           return true;
         if (
@@ -183,10 +253,17 @@ export class Structure {
 }
 
 export async function getStructure() {
-  const endpoints = ["dimensions", "variables", "grids", "legends"];
+  const datasetsData = getApiNdJson("datasets.ndjson");
+  const staticData = ["dimensions", "variables", "grids", "legends"].map(
+    (endpoint) => getApiJson(`${endpoint}.json`)
+  );
   return new Structure(
-    ...((await Promise.all(
-      endpoints.map((endpoint) => getApiJson(`${endpoint}.json`))
-    )) as [object, object, object, object])
+    ...((await Promise.all([datasetsData, ...staticData])) as [
+      object,
+      object,
+      object,
+      object,
+      object,
+    ])
   );
 }

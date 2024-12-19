@@ -1,8 +1,6 @@
 import { createContext } from "preact";
 import { useContext } from "preact/hooks";
 import { batch, computed, effect, signal } from "@preact/signals";
-import { getDatasets } from "./dataset";
-import { getBaseStyle, rasterStyle, vectorStyle } from "./mapstyle";
 import { Dimension, getStructure } from "./structure";
 import { SelectItem } from "./types";
 import {
@@ -28,15 +26,14 @@ function dataSignal(loadFn: Function, defaultValue = null) {
 
 export function createPortalState() {
   const structure = dataSignal(getStructure);
-  const allDatasets = dataSignal(getDatasets);
 
   const datasets = signal([]);
   const filters = signal({});
   const filterChoices = signal({});
   const catalogResponses = signal([]);
 
-  const mapDataLoading = signal(false);
-  const mapFeatureState = signal({});
+  const mapFeatureValues = signal({});
+  const mapFeatureValuesLoading = signal(false);
 
   // Query the catalog API for each selected dataset when the selected
   // datasets or dimension values change.
@@ -52,7 +49,7 @@ export function createPortalState() {
             const qs = makeQueryString(
               getFilterParams(requiredDimensions, requestedFilters)
             );
-            const requestPath = `datasets/${dataset.variable}/${dataset.grid}/${dataset.time_unit}/catalog.json${qs}`;
+            const requestPath = `datasets/${dataset.variable.name}/${dataset.grid.name}/${dataset.time_unit}/catalog.json${qs}`;
             return getApiJson(requestPath);
           })
         );
@@ -78,12 +75,8 @@ export function createPortalState() {
 
   // Ensure there is always at least one dataset selected.
   effect(() => {
-    if (
-      allDatasets.value &&
-      allDatasets.value.length > 0 &&
-      datasets.value.length == 0
-    )
-      datasets.value = [allDatasets.value[0]];
+    if (structure.value && datasets.value.length == 0)
+      datasets.value = [structure.value.datasets[0]];
     queryCatalog(filters.peek());
   });
 
@@ -135,11 +128,11 @@ export function createPortalState() {
 
   // SelectItems representing all available datasets.
   const datasetItems = computed(() =>
-    allDatasets.value && structure.value
-      ? allDatasets.value.map(
+    structure.value
+      ? structure.value.datasets.map(
           (dataset): SelectItem => ({
-            text: structure.value.variablesMap[dataset.variable].label,
-            description: `${dataset.grid},${dataset.time_unit}`,
+            text: dataset.variable.label,
+            description: `${dataset.grid.name},${dataset.time_unit}`,
           })
         )
       : []
@@ -147,13 +140,14 @@ export function createPortalState() {
 
   // SelectItems representing the selected datasets.
   const datasetSelectedItems = computed((): SelectItem[] =>
-    allDatasets.value &&
+    structure.value &&
     datasets.value &&
     datasetItems.value &&
     datasets.value.length &&
     datasetItems.value.length
       ? datasets.value.map(
-          (dataset) => datasetItems.value[allDatasets.value.indexOf(dataset)]
+          (dataset) =>
+            datasetItems.value[structure.value.datasets.indexOf(dataset)]
         )
       : []
   );
@@ -173,31 +167,14 @@ export function createPortalState() {
     return datasets.value[0];
   });
 
-  const mapGrid = computed(() => {
-    if (!mapDataset.value || !structure.value) return null;
-    return structure.value.gridsMap[mapDataset.value.grid];
-  });
-
-  const mapVariable = computed(() => {
-    if (!mapDataset.value || !structure.value) return null;
-    return structure.value.variablesMap[mapDataset.value.variable];
-  });
-
-  const mapLegend = computed(() => {
-    if (!mapVariable.value || !structure.value) return null;
-    return structure.value.legendsMap[mapVariable.value.legend];
-  });
-
   const mapDataUrl = computed(() => {
     if (
       !mapDataset.value ||
-      !mapGrid.value ||
       !mapFilterParams.value ||
-      !mapFilterParams.value.length ||
-      mapGrid.value.grid_type === "raster"
+      mapDataset.value.grid.grid_type === "raster"
     )
       return null;
-    return mapDataset.value.getDataUrl("ndjson", mapFilterParams.value);
+    return mapDataset.value.getDataUrl(mapFilterParams.value, "ndjson");
   });
 
   const mapCatalogResponse = computed(() => {
@@ -209,7 +186,7 @@ export function createPortalState() {
   const mapFilterParams = computed(() => {
     const ds = mapDataset.value;
     const cr = mapCatalogResponse.value;
-    if (!ds || !cr || !structure.value) return [];
+    if (!ds || !cr || !structure.value) return null;
 
     const requiredDimensions = structure.value.getRequiredDimensions([ds]);
 
@@ -222,52 +199,38 @@ export function createPortalState() {
     return getFilterParams(requiredDimensions, selectedFilters);
   });
 
+  const mapTileUrl = computed(() =>
+    mapDataset.value && mapFilterParams.value
+      ? mapDataset.value.getTileUrl(mapFilterParams.value)
+      : null
+  );
+
   // Dataset style
-  const datasetStyle = computed(() => {
-    const noData = { sources: {}, layers: [] };
-    const ds = mapDataset.value;
-    const params = mapFilterParams.value;
-    if (!ds || !params.length || !structure.value) return noData;
+  // const datasetStyle = computed(() => {
+  //   const noData = { sources: {}, layers: [] };
+  //   const ds = mapDataset.value;
+  //   const params = mapFilterParams.value;
+  //   if (!ds || !params.length || !structure.value) return noData;
 
-    const grid = structure.value.gridsMap[ds.grid];
-    if (grid.grid_type === "raster") {
-      return rasterStyle({
-        grid,
-        dataset: ds,
-        params,
-      });
-    } else {
-      return vectorStyle({
-        dataset: ds,
-        legend: mapLegend.value,
-      });
-    }
-  });
-
-  // Map style
-  const mapStyle = computed(() => {
-    const baseStyle = getBaseStyle();
-    const sources = { ...baseStyle.sources, ...datasetStyle.value.sources };
-    const layers = [...baseStyle.layers, ...datasetStyle.value.layers];
-    layers.sort((a, b) => a.order - b.order);
-
-    const origin = document.location.origin;
-    return {
-      version: 8,
-      glyphs: `${origin}/style/glyphs/{fontstack}/{range}.pbf`,
-      sources,
-      layers,
-      transition: {
-        duration: 0,
-        delay: 0,
-      },
-    };
-  });
+  //   const grid = structure.value.gridsMap[ds.grid];
+  //   if (grid.grid_type === "raster") {
+  //     return rasterStyle({
+  //       grid,
+  //       dataset: ds,
+  //       params,
+  //     });
+  //   } else {
+  //     return vectorStyle({
+  //       dataset: ds,
+  //       legend: mapLegend.value,
+  //     });
+  //   }
+  // });
 
   const setDatasetSelectedItems = (items: SelectItem[]) => {
     batch(() => {
       datasets.value = (Array.isArray(items) ? items : [items]).map(
-        (item) => allDatasets.value[datasetItems.value.indexOf(item)]
+        (item) => structure.value.datasets[datasetItems.value.indexOf(item)]
       );
       catalogResponses.value = [];
     });
@@ -288,29 +251,33 @@ export function createPortalState() {
   effect(() => {
     (async () => {
       if (mapDataUrl.value) {
+        mapFeatureValuesLoading.value = true;
         const data = await getApiNdJson(mapDataUrl.value);
         if (data.length === 1) {
-          mapFeatureState.value = data[0];
+          batch(() => {
+            mapFeatureValues.value = data[0];
+            mapFeatureValuesLoading.value = false;
+          });
         } else {
           console.error(`Expected 1 row, received ${data.length}`, data);
         }
       } else {
-        mapFeatureState.value = {};
+        mapFeatureValues.value = {};
       }
     })();
   });
 
   return {
     activeFilterDimensions,
-    allDatasets,
     datasetItems,
     datasetSelectedItems,
     datasets,
     filterChoicesItems,
     filterChoicesSelectedItems,
-    mapDataLoading,
-    mapFeatureState,
-    mapStyle,
+    mapDataset,
+    mapFeatureValues,
+    mapFeatureValuesLoading,
+    mapTileUrl,
     setDatasetSelectedItems,
     setFilterChoicesSelectedItems,
     structure,

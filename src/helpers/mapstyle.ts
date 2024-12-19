@@ -1,6 +1,5 @@
-import { apiBaseUrl, staticTilesBaseUrl } from "./config";
-import { RasterStyleOptions } from "./types";
-import { makeQueryString } from "./utils";
+import { staticTilesBaseUrl } from "./config";
+import { StyleSpecification } from "maplibre-gl";
 
 const colorRamp = (legend) => {
   const ramp = [];
@@ -18,20 +17,15 @@ const linearZoom = (min, max) => {
   return ["interpolate", ["linear"], ["zoom"], 6, min, 12, max];
 };
 
-const rasterSource = ({
+export const rasterSource = ({
   bounds = [
     -94.00080091962352, 28.70426878930118, -87.51148588666453,
     31.048795426051505,
   ],
-  dataset = null,
-  grid = null,
   maxZoom = 13,
-  params = [],
   tileSize = 256,
   tileUrls = [],
 }) => {
-  if (dataset) tileUrls = [dataset.getTileUrl("png", params)];
-  // TODO: Calculate the correct bounds and max zoom from the grid.
   return {
     bounds,
     maxzoom: maxZoom,
@@ -41,14 +35,17 @@ const rasterSource = ({
   };
 };
 
-const vectorSource = ({ gridName, promoteId = "id" }) => ({
+export const vectorSource = ({ gridName, promoteId = "id" }) => ({
   type: "vector",
   url: `${staticTilesBaseUrl}/${gridName}`,
   promoteId,
 });
 
-export function getBaseStyle() {
+export function getBaseStyle(): StyleSpecification {
+  const origin = document.location.origin;
   return {
+    version: 8,
+    glyphs: `${origin}/style/glyphs/{fontstack}/{range}.pbf`,
     sources: {
       "basemap-raster": {
         type: "raster",
@@ -66,7 +63,6 @@ export function getBaseStyle() {
         paint: {
           "background-color": "#ffffff",
         },
-        order: 0,
       },
       {
         id: "state",
@@ -76,7 +72,6 @@ export function getBaseStyle() {
         paint: {
           "fill-color": "#d6d6d6",
         },
-        order: 1,
       },
       {
         id: "state-screen",
@@ -88,7 +83,6 @@ export function getBaseStyle() {
           "fill-color": "#ffffff",
           "fill-opacity": 0.4,
         },
-        order: 2,
       },
       {
         id: "water-not-in-icm",
@@ -98,13 +92,11 @@ export function getBaseStyle() {
         paint: {
           "fill-color": "#ffffff",
         },
-        order: 5000,
       },
       {
         id: "initial-conditions-water",
         type: "raster",
         source: "basemap-raster",
-        order: 5001,
       },
       {
         id: "levee",
@@ -116,7 +108,6 @@ export function getBaseStyle() {
           "line-opacity": 0.5,
           "line-width": 0.667,
         },
-        order: 10000,
       },
       {
         id: "road-secondary",
@@ -129,7 +120,6 @@ export function getBaseStyle() {
           "line-opacity": 0.5,
           "line-width": 1.333,
         },
-        order: 10001,
       },
       {
         id: "road-primary",
@@ -141,7 +131,6 @@ export function getBaseStyle() {
           "line-color": "#a4a4a4",
           "line-width": 1.333,
         },
-        order: 10002,
       },
       {
         id: "label",
@@ -161,62 +150,39 @@ export function getBaseStyle() {
         paint: {
           "text-color": "#444444",
         },
-        order: 100000,
       },
     ],
-  };
-}
-
-export function rasterStyle({
-  bounds,
-  dataset,
-  grid,
-  layerName = "data-raster",
-  maxZoom,
-  order = 6000,
-  params,
-  sourceName = "data-raster",
-  tileSize,
-  tileUrls,
-}: RasterStyleOptions) {
-  return {
-    sources: {
-      [sourceName]: rasterSource({
-        bounds,
-        dataset,
-        grid,
-        maxZoom,
-        params,
-        tileSize,
-        tileUrls,
-      }),
+    transition: {
+      duration: 0,
+      delay: 0,
     },
-    layers: [
-      {
-        type: "raster",
-        id: layerName,
-        source: sourceName,
-        order,
-      },
-    ],
   };
 }
 
-export function vectorStyle({
-  dataset,
+export function rasterLayers({ layerId, sourceId }) {
+  return [
+    {
+      type: "raster",
+      id: layerId,
+      source: sourceId,
+    },
+  ];
+}
+
+export function vectorLayers({
+  layerId,
   lineColors = ["#DDDDDD", "#666666"],
   lineWidths = [0.5, 3],
-  order = 6000,
   legend,
+  sourceId,
 }) {
   const ramp = colorRamp(legend);
-  const layers = [];
 
-  layers.push(
+  return [
     {
-      id: "data-fill",
+      id: `${layerId}-fill`,
       type: "fill",
-      source: "data-vector",
+      source: sourceId,
       "source-layer": "boundary",
       paint: {
         "fill-color": [
@@ -226,23 +192,21 @@ export function vectorStyle({
           ["step", ["feature-state", "value"], ...ramp],
         ],
       },
-      order,
     },
     {
-      id: "data-line",
+      id: `${layerId}-line`,
       type: "line",
-      source: "data-vector",
+      source: sourceId,
       "source-layer": "boundary",
       paint: {
-        "line-color": linearZoom(...lineColors),
-        "line-width": linearZoom(...lineWidths),
+        "line-color": linearZoom(...(lineColors as [string, string])),
+        "line-width": linearZoom(...(lineWidths as [number, number])),
       },
-      order: order + 1,
     },
     {
-      id: "data-selected",
+      id: `${layerId}-selected`,
       type: "line",
-      source: "data-vector",
+      source: sourceId,
       "source-layer": "boundary",
       paint: {
         "line-color": [
@@ -253,12 +217,11 @@ export function vectorStyle({
         "line-offset": 1.5,
         "line-width": 3,
       },
-      order: order + 2,
     },
     {
-      id: "data-label",
+      id: `${layerId}-label`,
       type: "symbol",
-      source: "data-vector",
+      source: sourceId,
       "source-layer": "label",
       minzoom: 9,
       layout: {
@@ -273,14 +236,6 @@ export function vectorStyle({
         "text-halo-color": "#ffffff",
         "text-halo-width": 2,
       },
-      order: 100001,
-    }
-  );
-
-  return {
-    sources: {
-      "data-vector": vectorSource({ gridName: dataset.grid }),
     },
-    layers,
-  };
+  ];
 }

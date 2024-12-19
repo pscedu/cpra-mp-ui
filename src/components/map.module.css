@@ -1,5 +1,5 @@
 .mapContainer {
-  height: 100vh;
+  height: calc(100vh - 60px);
   position: relative;
   width: 100%;
 }
@@ -9,4 +9,11 @@
   position: absolute;
   top: 0;
   width: 100%;
+}
+.spinner {
+  left: 10px;
+  pointer-events: none;
+  position: absolute;
+  top: 10px;
+  z-index: 100000;
 }
