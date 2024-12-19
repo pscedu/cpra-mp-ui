@@ -205,28 +205,6 @@ export function createPortalState() {
       : null
   );
 
-  // Dataset style
-  // const datasetStyle = computed(() => {
-  //   const noData = { sources: {}, layers: [] };
-  //   const ds = mapDataset.value;
-  //   const params = mapFilterParams.value;
-  //   if (!ds || !params.length || !structure.value) return noData;
-
-  //   const grid = structure.value.gridsMap[ds.grid];
-  //   if (grid.grid_type === "raster") {
-  //     return rasterStyle({
-  //       grid,
-  //       dataset: ds,
-  //       params,
-  //     });
-  //   } else {
-  //     return vectorStyle({
-  //       dataset: ds,
-  //       legend: mapLegend.value,
-  //     });
-  //   }
-  // });
-
   const setDatasetSelectedItems = (items: SelectItem[]) => {
     batch(() => {
       datasets.value = (Array.isArray(items) ? items : [items]).map(
