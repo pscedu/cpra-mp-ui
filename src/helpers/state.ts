@@ -49,8 +49,37 @@ export function createPortalState() {
               dataset,
             ]);
 
+            // Create a copy of the filters specific to this dataset so we can make
+            // changes without impacting other datasets.
+            const queryFilers = { ...requestedFilters };
+
+            // Handle changing from daily/monthly datasets to annual/decadal datasets
+            // and vice-versa.
+            if (
+              "calendar_day" in queryFilers &&
+              ["annual", "decadal"].includes(dataset.time_unit)
+            ) {
+              queryFilers["calendar_year"] = queryFilers["calendar_day"].map(
+                (dateStr) => {
+                  let year = parseInt(dateStr.substr(0, 4));
+                  if (dataset.time_unit === "decadal")
+                    year = Math.round(year / 10) * 10;
+                  return year;
+                }
+              );
+              delete queryFilers["calendar_day"];
+            } else if (
+              "calendar_year" in queryFilers &&
+              ["daily", "monthly"].includes(dataset.time_unit)
+            ) {
+              queryFilers["calendar_day"] = queryFilers["calendar_year"].map(
+                (year) => `${year}-01-01`
+              );
+              delete queryFilers["calendar_year"];
+            }
+
             const qs = makeQueryString(
-              getFilterParams(requiredDimensions, requestedFilters)
+              getFilterParams(requiredDimensions, queryFilers)
             );
             const requestPath = `datasets/${dataset.variable.name}/${dataset.grid.name}/${dataset.time_unit}/catalog.json${qs}`;
             return getApiJson(requestPath);
