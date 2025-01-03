@@ -306,6 +306,7 @@ export function createPortalState() {
     setTimeValues,
     structure,
     timeChoices,
+    timeDimension,
     timeValues,
   };
 }
