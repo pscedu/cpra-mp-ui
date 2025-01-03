@@ -61,7 +61,9 @@ export function extractValues(values) {
           (dateStr) => new Date(`${dateStr}T00:00:00`)
         );
         while (currentDate <= endDate) {
-          result.push(new Date(currentDate.valueOf()));
+          result.push(
+            new Date(currentDate.valueOf()).toISOString().split("T")[0]
+          );
           currentDate.setDate(currentDate.getDate() + 1);
         }
       }

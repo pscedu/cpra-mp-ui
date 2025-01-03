@@ -209,16 +209,14 @@ export class Structure {
     this.variablesMap = makeMap(this.variables);
 
     // FIXME: Remove the filter below once the user interface supports date selection.
-    this.datasets = datasets
-      .filter((dataset) => !["daily", "monthly"].includes(dataset.time_unit))
-      .map(
-        (dataset) =>
-          new Dataset({
-            variable: this.variablesMap[dataset.variable],
-            grid: this.gridsMap[dataset.grid],
-            time_unit: dataset.time_unit,
-          })
-      );
+    this.datasets = datasets.map(
+      (dataset) =>
+        new Dataset({
+          variable: this.variablesMap[dataset.variable],
+          grid: this.gridsMap[dataset.grid],
+          time_unit: dataset.time_unit,
+        })
+    );
   }
 
   getRequiredDimensions(
