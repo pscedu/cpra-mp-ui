@@ -138,7 +138,7 @@ export default function Map() {
     // We update the source when the dataset changes (even though the tile URL might
     // be the same) to make sure the feature state gets cleared.
     if (tilesChanged || datasetChanged) addSource(tileUrl, dataset);
-    if (tilesChanged || legendChanged) {
+    if (tilesChanged || legendChanged || datasetChanged) {
       addLayers(dataset);
       datasetChanged ? cleanup() : scheduleCleanup(dataset);
     }
@@ -149,7 +149,6 @@ export default function Map() {
 
   const updateFeatureValues = () => {
     const featureValues = mapFeatureValues.value;
-    // console.log("update feature state", featureState);
     const sourceId = getSourceId();
     if (map.current.getSource(sourceId))
       for (let featureId in featureValues)
