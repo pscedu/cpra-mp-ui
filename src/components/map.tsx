@@ -14,12 +14,9 @@ import { sleep } from "../helpers/utils";
 import style from "./map.module.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 
-import { Spinner } from "@primer/react";
-import { useSignal } from "@preact/signals";
-
 // Map using MapLibre GL.
 export default function Map() {
-  const { mapDataset, mapFeatureValues, mapFeatureValuesLoading, mapTileUrl } =
+  const { mapDataset, mapFeatureValues, mapTileUrl, mapTilesLoading } =
     usePortalState();
 
   const container = useRef(null);
@@ -28,9 +25,6 @@ export default function Map() {
   const prevDataset = useRef(null);
   const dataSourceIdx = useRef(0);
   const dataLayerIdx = useRef(0);
-  const tilesLoading = useSignal(false);
-
-  const dataLoading = mapFeatureValuesLoading.value || tilesLoading.value;
 
   const initMap = () => {
     map.current = new GLMap({
@@ -41,8 +35,8 @@ export default function Map() {
       zoom: 8,
     });
 
-    map.current.on("data", () => (tilesLoading.value = true));
-    map.current.on("idle", () => (tilesLoading.value = false));
+    map.current.on("data", () => (mapTilesLoading.value = true));
+    map.current.on("idle", () => (mapTilesLoading.value = false));
   };
 
   const addLayerClickHandlers = (layerId) => {
@@ -88,7 +82,7 @@ export default function Map() {
   const getLayerId = () => `data-layer-${dataLayerIdx.current}`;
 
   const addSource = (tileUrl: string, dataset: Dataset) => {
-    tilesLoading.value = true;
+    mapTilesLoading.value = true;
     dataSourceIdx.current++;
     const source = dataset.grid.isVector()
       ? vectorSource({ gridName: dataset.grid.name })
@@ -206,11 +200,6 @@ export default function Map() {
   return (
     <div class={style.mapContainer}>
       <div class={style.map} ref={container} />
-      {dataLoading ? (
-        <div class={style.spinner}>
-          <Spinner size="medium" sx={{ color: "black" }} />
-        </div>
-      ) : null}
     </div>
   );
 }

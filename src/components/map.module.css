@@ -10,10 +10,3 @@
   top: 0;
   width: 100%;
 }
-.spinner {
-  left: 10px;
-  pointer-events: none;
-  position: absolute;
-  top: 10px;
-  z-index: 100000;
-}

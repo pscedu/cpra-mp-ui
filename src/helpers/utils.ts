@@ -57,13 +57,13 @@ export function extractValues(values) {
           result.push(current++);
         }
       } else {
-        // let [currentDate, endDate] = [current, end].map(
-        //   (dateStr) => new Date(`${dateStr}T00:00:00`)
-        // );
-        // while (currentDate <= endDate) {
-        //   result.push(new Date(currentDate.valueOf()));
-        //   currentDate.setDate(currentDate.getDate() + 1);
-        // }
+        let [currentDate, endDate] = [current, end].map(
+          (dateStr) => new Date(`${dateStr}T00:00:00`)
+        );
+        while (currentDate <= endDate) {
+          result.push(new Date(currentDate.valueOf()));
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
       }
     } else {
       result.push(value);

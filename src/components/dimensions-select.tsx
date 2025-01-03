@@ -4,7 +4,7 @@ import MultiSelect from "./multi-select";
 
 export default function DimensionsSelect() {
   const {
-    activeFilterDimensions,
+    activeSelectDimensions,
     datasetItems,
     datasetSelectedItems,
     filterChoicesItems,
@@ -21,7 +21,7 @@ export default function DimensionsSelect() {
         selectedItems={datasetSelectedItems.value}
         setSelectedItems={setDatasetSelectedItems}
       />
-      {activeFilterDimensions.value.map((dimension, i) => (
+      {activeSelectDimensions.value.map((dimension, i) => (
         <MultiSelect
           label={`Select ${dimension.label.toLowerCase()}`}
           items={filterChoicesItems.value[i]}

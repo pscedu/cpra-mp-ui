@@ -31,9 +31,12 @@ export function createPortalState() {
   const filters = signal({});
   const filterChoices = signal({});
   const catalogResponses = signal([]);
+  const timeValues = signal([]);
+  let timeValuesTimeout = null;
 
   const mapFeatureValues = signal({});
   const mapFeatureValuesLoading = signal(false);
+  const mapTilesLoading = signal(false);
 
   // Query the catalog API for each selected dataset when the selected
   // datasets or dimension values change.
@@ -66,9 +69,13 @@ export function createPortalState() {
           extractValues
         );
 
-        filters.value = newFilters;
-        filterChoices.value = choices;
-        catalogResponses.value = responses;
+        batch(() => {
+          filters.value = newFilters;
+          filterChoices.value = choices;
+          catalogResponses.value = responses;
+          const timeDim = timeDimension.peek();
+          if (timeDim) timeValues.value = newFilters[timeDim.name];
+        });
       }
     })();
   };
@@ -96,7 +103,7 @@ export function createPortalState() {
 
   // Object mapping filter dimension names to SelectItems for choices.
   const filterChoicesItems = computed((): SelectItem[][] =>
-    activeFilterDimensions.value.map((dimension) => {
+    activeSelectDimensions.value.map((dimension) => {
       if (dimension.values) {
         return dimension.values
           .filter((dv) =>
@@ -119,7 +126,7 @@ export function createPortalState() {
   // Object mapping filter dimension names to SelectItems for selected choices.
   const filterChoicesSelectedItems = computed((): SelectItem[][] =>
     filterChoicesItems.value.map((items, i) => {
-      const dimension = activeFilterDimensions.value[i];
+      const dimension = activeSelectDimensions.value[i];
       return items.filter((item) =>
         (filters.value[dimension.name] || []).includes(item.value)
       );
@@ -159,6 +166,20 @@ export function createPortalState() {
           (dimension) => dimension.name in filterChoices.value
         )
       : []
+  );
+
+  // Select item dimensions.
+  const activeSelectDimensions = computed((): Dimension<any>[] =>
+    activeFilterDimensions.value.filter(
+      (dimension) => !dimension.name.startsWith("calendar_")
+    )
+  );
+
+  // Time dimensions.
+  const activeTimeDimensions = computed((): Dimension<any>[] =>
+    activeFilterDimensions.value.filter((dimension) =>
+      dimension.name.startsWith("calendar_")
+    )
   );
 
   const mapDataset = computed(() => {
@@ -205,6 +226,29 @@ export function createPortalState() {
       : null
   );
 
+  const timeDimension = computed(() =>
+    activeTimeDimensions.value.length ? activeTimeDimensions.value[0] : null
+  );
+
+  const timeChoices = computed(() =>
+    timeDimension.value
+      ? (filterChoices.value || {})[timeDimension.value.name] || []
+      : []
+  );
+
+  const setTimeValues = (values) => {
+    timeValues.value = values;
+    if (timeValuesTimeout) clearTimeout(timeValuesTimeout);
+    timeValuesTimeout = setTimeout(
+      () =>
+        queryCatalog({
+          ...filters.value,
+          [timeDimension.value.name]: values,
+        }),
+      250
+    );
+  };
+
   const setDatasetSelectedItems = (items: SelectItem[]) => {
     batch(() => {
       datasets.value = (Array.isArray(items) ? items : [items]).map(
@@ -246,7 +290,7 @@ export function createPortalState() {
   });
 
   return {
-    activeFilterDimensions,
+    activeSelectDimensions,
     datasetItems,
     datasetSelectedItems,
     datasets,
@@ -256,9 +300,13 @@ export function createPortalState() {
     mapFeatureValues,
     mapFeatureValuesLoading,
     mapTileUrl,
+    mapTilesLoading,
     setDatasetSelectedItems,
     setFilterChoicesSelectedItems,
+    setTimeValues,
     structure,
+    timeChoices,
+    timeValues,
   };
 }
 
