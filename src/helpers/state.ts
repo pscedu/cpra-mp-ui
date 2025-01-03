@@ -245,7 +245,7 @@ export function createPortalState() {
           ...filters.value,
           [timeDimension.value.name]: values,
         }),
-      100
+      250
     );
   };
 
