@@ -1,4 +1,4 @@
-import { apiBaseUrl } from "./config";
+import { apiBaseUrl, selectionColors } from "./config";
 
 export async function getApiJson(relativeUrl: string) {
   const response = await fetch(`${apiBaseUrl}/${relativeUrl}`, {
@@ -113,3 +113,25 @@ export function makeQueryString(params: [string, any][]) {
 export function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/**
+ * Adjust a color by changing its luminosity.
+ * @param {string} color - Hexadecimal color code.
+ * @param {number} amount - Value to add to the red, green, and blue channels.
+ * @returns {string} - Hexadecimal representation of the adjusted color.
+ */
+export const adjustColor = (color: string, amount: number) =>
+  `#${color.replace(/../g, (color) =>
+    `0${Math.min(255, Math.max(0, parseInt(color, 16) + amount)).toString(
+      16
+    )}`.substr(-2)
+  )}`;
+
+/**
+ * Get the color for a selected geography.
+ * @param {number} i - Dataset index.
+ * @param {number} adjustment - Luminosity adjustment.
+ * @returns
+ */
+export const getSelectionColor = (i: number, adjustment?: number) =>
+  adjustColor(selectionColors[i] || "000000", adjustment || 0);

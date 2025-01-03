@@ -9,15 +9,20 @@ import {
   vectorSource,
 } from "../helpers/mapstyle";
 import { Dataset } from "../helpers/structure";
-import { sleep } from "../helpers/utils";
+import { getSelectionColor, sleep } from "../helpers/utils";
 
 import style from "./map.module.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 // Map using MapLibre GL.
 export default function Map() {
-  const { mapDataset, mapFeatureValues, mapTileUrl, mapTilesLoading } =
-    usePortalState();
+  const {
+    mapDataset,
+    mapFeatureValues,
+    mapTileUrl,
+    mapTilesLoading,
+    selectedGeographies,
+  } = usePortalState();
 
   const container = useRef(null);
   const map = useRef(null);
@@ -40,8 +45,6 @@ export default function Map() {
   };
 
   const addLayerClickHandlers = (layerId) => {
-    // map.current.on("data", () => {});
-
     // map.current.on("contextmenu", "geography-fill", (e) => {
     //   // Stop propagation of the click event so that it doesn't cause the context menu
     //   // to close.
@@ -54,18 +57,16 @@ export default function Map() {
     //   };
     // });
 
-    // map.current.on("click", "geography-fill", (e) => {
-    //   if (e.features) {
-    //     const newGeographies = geographies.peek().slice();
-    //     for (let feature of e.features) {
-    //       let idx = newGeographies.indexOf(feature.id);
-    //       idx === -1
-    //         ? newGeographies.push(feature.id)
-    //         : newGeographies.splice(idx, 1);
-    //     }
-    //     geographies.value = newGeographies;
-    //   }
-    // });
+    map.current.on("click", layerId, (e) => {
+      if (e.features) {
+        const geos = selectedGeographies.peek().slice();
+        for (let feature of e.features) {
+          let idx = geos.indexOf(feature.id);
+          idx === -1 ? geos.push(feature.id) : geos.splice(idx, 1);
+        }
+        selectedGeographies.value = geos;
+      }
+    });
     map.current.on(
       "mousemove",
       layerId,
@@ -103,7 +104,10 @@ export default function Map() {
         })
       : rasterLayers(ids);
 
-    for (let layer of layers) map.current.addLayer(layer, "levee");
+    for (let layer of layers) {
+      map.current.addLayer(layer, "levee");
+      addLayerClickHandlers(layer.id);
+    }
   };
 
   const cleanup = () => {
@@ -127,13 +131,14 @@ export default function Map() {
   const updateStyle = () => {
     const tileUrl = mapTileUrl.value;
     const dataset = mapDataset.value;
-    // console.log("update style", tileUrl, dataset);
 
     const tilesChanged = tileUrl !== prevTileUrl.current;
     const datasetChanged = dataset !== prevDataset.current;
     const legendChanged =
       !prevDataset.current ||
       dataset.variable.legend !== prevDataset.current.variable.legend;
+    const gridChanged =
+      prevDataset.current && dataset.grid !== prevDataset.current.grid;
 
     // We update the source when the dataset changes (even though the tile URL might
     // be the same) to make sure the feature state gets cleared.
@@ -143,24 +148,31 @@ export default function Map() {
       datasetChanged ? cleanup() : scheduleCleanup(dataset);
     }
 
+    // Reset geography selection when the grid changes.
+    if (gridChanged) selectedGeographies.value = [];
+
     prevTileUrl.current = tileUrl;
     prevDataset.current = mapDataset.value;
   };
 
-  const updateFeatureValues = () => {
-    const featureValues = mapFeatureValues.value;
+  const updateFeatureState = () => {
     const sourceId = getSourceId();
     if (map.current.getSource(sourceId))
-      for (let featureId in featureValues)
-        if (featureId.match(/^[0-9]+$/))
+      for (let featureId in mapFeatureValues.value)
+        if (featureId.match(/^[0-9]+$/)) {
+          let geoIdx = selectedGeographies.value.indexOf(featureId);
           map.current.setFeatureState(
             {
               source: sourceId,
               sourceLayer: "boundary",
-              id: parseInt(featureId),
+              id: featureId,
             },
-            { value: featureValues[featureId] }
+            {
+              selected: geoIdx >= 0 ? getSelectionColor(geoIdx) : null,
+              value: mapFeatureValues.value[featureId],
+            }
           );
+        }
   };
 
   const ensureStyleLoaded = async () => {
@@ -181,13 +193,13 @@ export default function Map() {
     })();
   }, [mapDataset.value, mapTileUrl.value]);
 
-  // Update the map feature state when new data are loaded.
+  // Update the map feature state when new data are loaded or the selection changes.
   useEffect(() => {
     (async () => {
       await ensureStyleLoaded();
-      updateFeatureValues();
+      updateFeatureState();
     })();
-  }, [mapFeatureValues.value]);
+  }, [mapFeatureValues.value, selectedGeographies.value]);
 
   // Clean up the map before the component unloads.
   useEffect(() => {

@@ -38,6 +38,8 @@ export function createPortalState() {
   const mapFeatureValuesLoading = signal(false);
   const mapTilesLoading = signal(false);
 
+  const selectedGeographies = signal([]);
+
   // Query the catalog API for each selected dataset when the selected
   // datasets or dimension values change.
   const queryCatalog = (requestedFilters) => {
@@ -330,6 +332,7 @@ export function createPortalState() {
     mapFeatureValuesLoading,
     mapTileUrl,
     mapTilesLoading,
+    selectedGeographies,
     setDatasetSelectedItems,
     setFilterChoicesSelectedItems,
     setTimeValues,
