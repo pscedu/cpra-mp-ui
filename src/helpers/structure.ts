@@ -198,7 +198,9 @@ export class Structure {
       (variable) =>
         new Variable({
           ...variable,
-          legend: variable.legend ? this.legendsMap[variable.legend] : null,
+          legend: variable.legend
+            ? this.legendsMap[variable.legend]
+            : this.legendsMap.default,
           required_dimensions: variable.required_dimensions
             ? variable.required_dimensions.map(
                 (dimensionName) => this.dimensionsMap[dimensionName]
@@ -207,8 +209,6 @@ export class Structure {
         })
     );
     this.variablesMap = makeMap(this.variables);
-
-    // FIXME: Remove the filter below once the user interface supports date selection.
     this.datasets = datasets.map(
       (dataset) =>
         new Dataset({
