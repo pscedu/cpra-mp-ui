@@ -1,6 +1,7 @@
 import { createContext } from "preact";
 import { useContext } from "preact/hooks";
 import { batch, computed, effect, signal } from "@preact/signals";
+import { loadUser, saveUser } from "./auth";
 import { Dimension, getStructure } from "./structure";
 import { SelectItem } from "./types";
 import {
@@ -26,6 +27,9 @@ function dataSignal(loadFn: Function, defaultValue = null) {
 
 export function createPortalState() {
   const structure = dataSignal(getStructure);
+
+  const user = signal(loadUser());
+  const avatarCacheKey = signal(new Date().getTime());
 
   const datasets = signal([]);
   const filters = signal({});
@@ -320,8 +324,14 @@ export function createPortalState() {
     })();
   });
 
+  // Save user information to local storage when it changes.
+  effect(() => {
+    saveUser(user.value);
+  });
+
   return {
     activeSelectDimensions,
+    avatarCacheKey,
     datasetItems,
     datasetSelectedItems,
     datasets,
@@ -340,6 +350,7 @@ export function createPortalState() {
     timeChoices,
     timeDimension,
     timeValues,
+    user,
   };
 }
 
