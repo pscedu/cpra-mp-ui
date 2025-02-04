@@ -1,4 +1,5 @@
 import { launchGravatarEditor } from "../helpers/avatar";
+import { clickupUrl } from "../helpers/config";
 import { usePortalState } from "../helpers/state";
 
 import { ActionList, PageHeader, PageLayout, Token } from "@primer/react";
@@ -50,7 +51,14 @@ export default function ProfilePage() {
                 </ActionList.LeadingVisual>
                 Edit avatar
               </ActionList.Item>
-              <ActionList.Item>
+              <ActionList.Item
+                inactiveText={
+                  user.value.clickupId ? "Clickup account linked" : undefined
+                }
+                onSelect={() =>
+                  (window.location.href = `${clickupUrl}?access_token=${encodeURIComponent(user.value.accessToken)}`)
+                }
+              >
                 <ActionList.LeadingVisual>
                   <CommentIcon />
                 </ActionList.LeadingVisual>

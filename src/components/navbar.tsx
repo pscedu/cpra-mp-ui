@@ -1,3 +1,4 @@
+import { loginUrl } from "../helpers/config";
 import { usePortalState } from "../helpers/state";
 
 import { Button, Header } from "@primer/react";
@@ -22,7 +23,7 @@ export default function NavBar() {
         {user.value ? (
           <UserMenu />
         ) : (
-          <Button as="a" variant="invisible" href="http://localhost:5000/login">
+          <Button as="a" variant="invisible" href={loginUrl}>
             Login
           </Button>
         )}

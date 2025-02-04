@@ -42,19 +42,27 @@ export function completeLogin(
 
   (async () => {
     user.value = {
-      username: decoded.sub,
-      name: decoded.name,
+      accessToken: query.access_token,
+      clickupId: decoded.clickup,
       email: decoded.email,
       emailHash: await getEmailHash(decoded.email),
-      clickup: decoded.clickup,
-      accessToken: query.access_token,
+      name: decoded.name,
       refreshToken: query.refresh_token,
+      username: decoded.sub,
     };
 
     route("/");
   })();
 }
 
-export function linkClickup({ route, query }) {
-  console.log(query);
+export function linkClickup({ route, query }, { user }) {
+  if (query.status === "success") {
+    user.value = {
+      ...user.value,
+      clickupId: query.clickup_id,
+    };
+  } else {
+    // TODO: Add error handling for failed link operation.
+  }
+  route("/profile");
 }

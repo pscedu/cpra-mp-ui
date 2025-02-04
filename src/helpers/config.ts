@@ -1,5 +1,8 @@
 export const apiBaseUrl = "https://api.mpdp.coastal.la.gov/v1";
-export const staticTilesBaseUrl = `https://api.mpdp.coastal.la.gov/tiles`;
+export const staticTilesBaseUrl = "https://api.mpdp.coastal.la.gov/tiles";
+export const loginUrl = "https://api.mpdp.coastal.la.gov/v1/management/login";
+export const clickupUrl =
+  "https://api.mpdp.coastal.la.gov/v1/management/clickup";
 export const selectionColors = [
   "ff0000",
   "0aefff",
