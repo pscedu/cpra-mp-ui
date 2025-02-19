@@ -99,8 +99,9 @@ export default function TimeSelect() {
         <Range
           label="Select your value"
           step={1}
+          disabled={choices.length < 2}
           min={0}
-          max={choices.length - 1}
+          max={choices.length > 1 ? choices.length - 1 : 1}
           values={values}
           onChange={(idxs) => setTimeValues(idxs.map((idx) => choices[idx]))}
           renderTrack={({ props, children }) => (
