@@ -88,16 +88,30 @@ export class Grid {
   name: string;
   grid_type: string;
   crs: string;
-  geographies: number | null;
+  idMin: number | null;
+  idMax: number | null;
+  idCount: number | null;
   bounds: number | null;
   height: number | null;
   width: number | null;
 
-  constructor({ name, grid_type, crs, geographies, bounds, height, width }) {
+  constructor({
+    name,
+    grid_type,
+    crs,
+    id_max,
+    id_min,
+    id_count,
+    bounds,
+    height,
+    width,
+  }) {
     this.name = name;
     this.grid_type = grid_type;
     this.crs = crs;
-    this.geographies = geographies;
+    this.idMax = id_max;
+    this.idMin = id_min;
+    this.idCount = id_count;
     this.bounds = bounds;
     this.height = height;
     this.width = width;
@@ -170,6 +184,12 @@ export class Dataset {
       this.grid.getTileUrl() ||
       `${this.getBaseUrl()}/data/{z}/{x}/{y}.png${makeQueryString(params)}`
     );
+  }
+
+  getTimeColumn() {
+    return ["annual", "decadal"].includes(this.time_unit)
+      ? "calendar_year"
+      : "calendar_day";
   }
 }
 

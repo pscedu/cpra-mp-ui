@@ -158,21 +158,20 @@ export default function Map() {
   const updateFeatureState = () => {
     const sourceId = getSourceId();
     if (map.current.getSource(sourceId))
-      for (let featureId in mapFeatureValues.value)
-        if (featureId.match(/^[0-9]+$/)) {
-          let geoIdx = selectedGeographies.value.indexOf(featureId);
-          map.current.setFeatureState(
-            {
-              source: sourceId,
-              sourceLayer: "boundary",
-              id: featureId,
-            },
-            {
-              selected: geoIdx >= 0 ? getSelectionColor(geoIdx) : null,
-              value: mapFeatureValues.value[featureId],
-            }
-          );
-        }
+      for (let { geography, value } of mapFeatureValues.value) {
+        let geoIdx = selectedGeographies.value.indexOf(geography);
+        map.current.setFeatureState(
+          {
+            source: sourceId,
+            sourceLayer: "boundary",
+            id: geography,
+          },
+          {
+            selected: geoIdx >= 0 ? getSelectionColor(geoIdx) : null,
+            value,
+          }
+        );
+      }
   };
 
   const ensureStyleLoaded = async () => {

@@ -230,7 +230,10 @@ export function createPortalState() {
       mapDataset.value.grid.grid_type === "raster"
     )
       return null;
-    return mapDataset.value.getDataUrl(mapFilterParams.value, "ndjson");
+    return mapDataset.value.getDataUrl(
+      mapFilterParams.value.concat([["select", "geography,value"]]),
+      "ndjson"
+    );
   });
 
   const mapCatalogResponse = computed(() => {
@@ -310,16 +313,20 @@ export function createPortalState() {
       if (mapDataUrl.value) {
         mapFeatureValuesLoading.value = true;
         const data = await getApiNdJson(mapDataUrl.value);
-        if (data.length === 1) {
+        const grid = mapDataset.value.grid;
+        if (grid.idCount === null || data.length === grid.idCount) {
           batch(() => {
-            mapFeatureValues.value = data[0];
+            mapFeatureValues.value = data;
             mapFeatureValuesLoading.value = false;
           });
         } else {
-          console.error(`Expected 1 row, received ${data.length}`, data);
+          console.error(
+            `Expected ${grid.idCount} rows, received ${data.length}`,
+            data
+          );
         }
       } else {
-        mapFeatureValues.value = {};
+        mapFeatureValues.value = [];
       }
     })();
   });
