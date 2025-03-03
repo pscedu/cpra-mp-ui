@@ -61,8 +61,9 @@ export default function Map() {
       if (e.features) {
         const geos = selectedGeographies.peek().slice();
         for (let feature of e.features) {
-          let idx = geos.indexOf(feature.id);
-          idx === -1 ? geos.push(feature.id) : geos.splice(idx, 1);
+          let featureId = parseInt(feature.id);
+          let idx = geos.indexOf(featureId);
+          idx === -1 ? geos.push(featureId) : geos.splice(idx, 1);
         }
         selectedGeographies.value = geos;
       }
