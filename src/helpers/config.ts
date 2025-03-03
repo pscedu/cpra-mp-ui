@@ -1,4 +1,4 @@
-export const apiBaseUrl = "http://localhost:8000/v1";
+export const apiBaseUrl = "https://cpra-mpdp.bridges2.psc.edu/api/v1";
 export const staticTilesBaseUrl = "https://api.mpdp.coastal.la.gov/tiles";
 export const loginUrl = "https://api.mpdp.coastal.la.gov/v1/management/login";
 export const clickupUrl =
