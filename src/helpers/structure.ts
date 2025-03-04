@@ -171,6 +171,16 @@ export class Dataset {
       `${this.getBaseUrl()}/data/{z}/{x}/{y}.png${makeQueryString(params)}`
     );
   }
+
+  getTimeColumn() {
+    return ["annual", "decadal"].includes(this.time_unit)
+      ? "calendar_year"
+      : "calendar_day";
+  }
+
+  getVisualizationUrl(params: [string, any][], visualizationType: string) {
+    return `${this.getBaseUrl()}/visualization/${visualizationType}.json${makeQueryString(params)}`;
+  }
 }
 
 export class Structure {
