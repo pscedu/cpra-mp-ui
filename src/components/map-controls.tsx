@@ -4,27 +4,14 @@ import { Box, Spinner } from "@primer/react";
 import { CheckCircleFillIcon } from "@primer/octicons-react";
 
 import TimeSelect from "./time-select";
+import FloatingPanel from "./floating-panel";
 
 export default function MapControls() {
   const { mapFeatureValuesLoading, mapTilesLoading } = usePortalState();
   const dataLoading = mapFeatureValuesLoading.value || mapTilesLoading.value;
 
   return (
-    <Box
-      sx={{
-        backgroundColor: "canvas.subtle",
-        borderColor: "border.default",
-        borderStyle: "solid",
-        borderWidth: 1,
-        display: "flex",
-        flexDirection: "row",
-        left: "15px",
-        p: 2,
-        position: "absolute",
-        top: "15px",
-        width: "calc(100% - 30px)",
-      }}
-    >
+    <FloatingPanel position="top" padding={2}>
       <Box
         sx={{
           alignItems: "center",
@@ -41,6 +28,6 @@ export default function MapControls() {
         )}
       </Box>
       <TimeSelect />
-    </Box>
+    </FloatingPanel>
   );
 }

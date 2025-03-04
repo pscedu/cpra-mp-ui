@@ -1,7 +1,11 @@
 import { apiBaseUrl, selectionColors } from "./config";
 
 export async function getApiJson(relativeUrl: string) {
-  const response = await fetch(`${apiBaseUrl}/${relativeUrl}`, {
+  const url = relativeUrl.startsWith(apiBaseUrl)
+    ? relativeUrl
+    : `${apiBaseUrl}/${relativeUrl}`;
+
+  const response = await fetch(url, {
     headers: { accept: "application/json" },
   });
   if (response.status < 200 || response.status > 299) {

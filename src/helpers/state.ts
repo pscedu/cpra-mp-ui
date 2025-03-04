@@ -43,6 +43,8 @@ export function createPortalState() {
   const mapTilesLoading = signal(false);
 
   const selectedGeographies = signal([]);
+  const visualizationType = signal("time-series-line");
+  const visualizationSpec = signal(null);
 
   // Query the catalog API for each selected dataset when the selected
   // datasets or dimension values change.
@@ -258,6 +260,14 @@ export function createPortalState() {
     return getFilterParams(requiredDimensions, selectedFilters);
   });
 
+  const visualizationFilterParams = computed(() =>
+    mapFilterParams.value && selectedGeographies.value.length > 0
+      ? mapFilterParams.value
+          .filter(([param, _value]) => !param.startsWith("calendar_"))
+          .concat([["geography", selectedGeographies.value]])
+      : null
+  );
+
   const mapTileUrl = computed(() =>
     mapDataset.value && mapFilterParams.value
       ? mapDataset.value.getTileUrl(mapFilterParams.value)
@@ -273,6 +283,15 @@ export function createPortalState() {
       ? (filterChoices.value || {})[timeDimension.value.name] || []
       : []
   );
+
+  const visualizationSpecUrl = computed(() => {
+    return visualizationFilterParams.value && visualizationType.value
+      ? mapDataset.value.getVisualizationUrl(
+          visualizationFilterParams.value,
+          visualizationType.value
+        )
+      : null;
+  });
 
   const setTimeValues = (values) => {
     timeValues.value = values;
@@ -336,6 +355,14 @@ export function createPortalState() {
     saveUser(user.value);
   });
 
+  // Load the visualization spec when the URL changes.
+  effect(() => {
+    (async () =>
+      (visualizationSpec.value = visualizationSpecUrl.value
+        ? await getApiJson(visualizationSpecUrl.value)
+        : null))();
+  });
+
   return {
     activeSelectDimensions,
     avatarCacheKey,
@@ -358,6 +385,7 @@ export function createPortalState() {
     timeDimension,
     timeValues,
     user,
+    visualizationSpec,
   };
 }
 

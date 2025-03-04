@@ -191,6 +191,10 @@ export class Dataset {
       ? "calendar_year"
       : "calendar_day";
   }
+
+  getVisualizationUrl(params: [string, any][], visualizationType: string) {
+    return `${this.getBaseUrl()}/visualization/${visualizationType}.json${makeQueryString(params)}`;
+  }
 }
 
 export class Structure {
