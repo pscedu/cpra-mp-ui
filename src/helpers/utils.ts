@@ -1,4 +1,5 @@
 import { apiBaseUrl, selectionColors } from "./config";
+import { Dataset } from "./structure";
 
 export async function getApiJson(relativeUrl: string) {
   const url = relativeUrl.startsWith(apiBaseUrl)
@@ -51,24 +52,26 @@ export function makeMap<T>(
   return result;
 }
 
-export function extractValues(values) {
+export function extractValues(values, step = 1, day = null) {
   const result = [];
   for (let value of values) {
     if (Array.isArray(value)) {
       let [current, end] = value;
       if (typeof value[0] === "number") {
         while (current <= end) {
-          result.push(current++);
+          result.push(current);
+          current += step;
         }
       } else {
         let [currentDate, endDate] = [current, end].map(
           (dateStr) => new Date(`${dateStr}T00:00:00`)
         );
         while (currentDate <= endDate) {
-          result.push(
-            new Date(currentDate.valueOf()).toISOString().split("T")[0]
-          );
-          currentDate.setDate(currentDate.getDate() + 1);
+          if (day === null || currentDate.getDate() === day)
+            result.push(
+              new Date(currentDate.valueOf()).toISOString().split("T")[0]
+            );
+          currentDate.setDate(currentDate.getDate() + step);
         }
       }
     } else {
@@ -78,16 +81,26 @@ export function extractValues(values) {
   return result;
 }
 
-export function mergeOr(
-  objects: any[],
-  keys: string[] = null,
-  extractFn: Function = (value) => value
-) {
+export function extractCatalogObject(obj: any, dataset: Dataset) {
+  const result = {};
+  for (let key in obj) {
+    let step = 1;
+    let day = null;
+    if (key.startsWith("calendar_")) {
+      if (dataset.time_unit == "decadal") step = 10;
+      if (dataset.time_unit == "monthly") day = 1;
+    }
+    result[key] = extractValues(obj[key], step, day);
+  }
+  return result;
+}
+
+export function mergeOr(objects: any[], keys: string[] = null) {
   const result = {};
   for (let obj of objects) {
     for (let key in obj) {
       if (!keys || keys.includes(key)) {
-        const values = extractFn(obj[key]);
+        const values = obj[key];
         if (key in result) {
           for (let value of values)
             if (!result[key].includes(value)) result[key].push(value);
