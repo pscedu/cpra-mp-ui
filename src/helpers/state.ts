@@ -5,7 +5,7 @@ import { loadUser, saveUser } from "./auth";
 import { Dimension, getStructure } from "./structure";
 import { SelectItem } from "./types";
 import {
-  extractValues,
+  extractCatalogObject,
   getApiJson,
   getApiNdJson,
   getFilterParams,
@@ -95,15 +95,17 @@ export function createPortalState() {
         );
 
         const newFilters = mergeOr(
-          responses.map((response) => response.results),
-          filterDimensionNames.value,
-          extractValues
+          responses.map((response, i) =>
+            extractCatalogObject(response.results, datasets.value[i])
+          ),
+          filterDimensionNames.value
         );
 
         const choices = mergeOr(
-          responses.map((response) => response.choices),
-          filterDimensionNames.value,
-          extractValues
+          responses.map((response, i) =>
+            extractCatalogObject(response.choices, datasets.value[i])
+          ),
+          filterDimensionNames.value
         );
 
         batch(() => {
