@@ -233,17 +233,14 @@ export class Structure {
         })
     );
     this.variablesMap = makeMap(this.variables);
-    // FIXME: Remove this filter once decadal and monthly time units are supported.
-    this.datasets = datasets
-      .filter((dataset) => ["daily", "annual"].includes(dataset.time_unit))
-      .map(
-        (dataset) =>
-          new Dataset({
-            variable: this.variablesMap[dataset.variable],
-            grid: this.gridsMap[dataset.grid],
-            time_unit: dataset.time_unit,
-          })
-      );
+    this.datasets = datasets.map(
+      (dataset) =>
+        new Dataset({
+          variable: this.variablesMap[dataset.variable],
+          grid: this.gridsMap[dataset.grid],
+          time_unit: dataset.time_unit,
+        })
+    );
   }
 
   getRequiredDimensions(
