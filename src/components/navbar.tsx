@@ -8,7 +8,7 @@ export default function NavBar() {
   const { user } = usePortalState();
   return (
     <Header>
-      <Header.Item full>
+      <Header.Item>
         <Header.Link
           href="/"
           sx={{
@@ -17,6 +17,12 @@ export default function NavBar() {
         >
           CPRA Master Plan Data Portal
         </Header.Link>
+      </Header.Item>
+      <Header.Item>
+        <Header.Link href="/">Data</Header.Link>
+      </Header.Item>
+      <Header.Item full>
+        <Header.Link href="/simulations">Simulations</Header.Link>
       </Header.Item>
 
       <Header.Item sx={{ mr: 0 }}>

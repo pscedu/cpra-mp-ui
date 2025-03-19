@@ -32,9 +32,22 @@ export default function MultiSelect({
             aria-labelledby={` ${ariaLabelledBy}`}
             {...anchorProps}
             aria-haspopup="dialog"
-            sx={{ marginBottom: 2 }}
+            sx={{
+              marginBottom: 2,
+            }}
           >
-            {children ?? label}
+            <span
+              style={{
+                display: "inline-block",
+                minWidth: "0",
+                maxWidth: "275px",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {children ?? label}
+            </span>
           </Button>
         )}
         placeholderText={placeholder || "Filter items"}
