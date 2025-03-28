@@ -2,12 +2,13 @@ import { createContext } from "preact";
 import { useContext } from "preact/hooks";
 import { batch, computed, effect, signal } from "@preact/signals";
 import { loadUser, saveUser } from "./auth";
+import { dataBaseUrl } from "./config";
 import { Dimension, getStructure } from "./structure";
 import { SelectItem } from "./types";
 import {
   extractCatalogObject,
-  getApiJson,
-  getApiNdJson,
+  getJson,
+  getNdJson,
   getFilterParams,
   makeQueryString,
   mergeOr,
@@ -89,8 +90,8 @@ export function createPortalState() {
             const qs = makeQueryString(
               getFilterParams(requiredDimensions, queryFilers)
             );
-            const requestPath = `datasets/${dataset.variable.name}/${dataset.grid.name}/${dataset.time_unit}/catalog.json${qs}`;
-            return getApiJson(requestPath);
+            const requestPath = `${dataBaseUrl}/datasets/${dataset.variable.name}/${dataset.grid.name}/${dataset.time_unit}/catalog.json${qs}`;
+            return getJson(requestPath);
           })
         );
 
@@ -330,7 +331,7 @@ export function createPortalState() {
     (async () => {
       if (mapDataUrl.value) {
         mapFeatureValuesLoading.value = true;
-        const data = await getApiNdJson(mapDataUrl.value);
+        const data = await getNdJson(mapDataUrl.value);
         if (data.length === 1) {
           batch(() => {
             mapFeatureValues.value = data[0];
@@ -354,7 +355,7 @@ export function createPortalState() {
   effect(() => {
     (async () =>
       (visualizationSpec.value = visualizationSpecUrl.value
-        ? await getApiJson(visualizationSpecUrl.value)
+        ? await getJson(visualizationSpecUrl.value)
         : null))();
   });
 

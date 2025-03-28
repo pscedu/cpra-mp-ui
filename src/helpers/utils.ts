@@ -1,13 +1,10 @@
-import { apiBaseUrl, selectionColors } from "./config";
+import { selectionColors } from "./config";
 import { Dataset } from "./structure";
 
-export async function getApiJson(relativeUrl: string) {
-  const url = relativeUrl.startsWith(apiBaseUrl)
-    ? relativeUrl
-    : `${apiBaseUrl}/${relativeUrl}`;
-
-  const response = await fetch(url, {
-    headers: { accept: "application/json" },
+export async function getJson(absoluteUrl: string, { headers = {} } = {}) {
+  console.log({ ...headers, accept: "application/json" });
+  const response = await fetch(absoluteUrl, {
+    headers: { ...headers, accept: "application/json" },
   });
   if (response.status < 200 || response.status > 299) {
     return { error: { status: response.status } };
@@ -20,8 +17,7 @@ export async function getApiJson(relativeUrl: string) {
   }
 }
 
-export async function getApiNdJson(url: string) {
-  const absoluteUrl = url.startsWith("http") ? url : `${apiBaseUrl}/${url}`;
+export async function getNdJson(absoluteUrl: string) {
   const response = await fetch(absoluteUrl, {
     headers: { accept: "application/x-ndjson" },
   });

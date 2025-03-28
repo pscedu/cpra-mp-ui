@@ -1,6 +1,7 @@
 import { batch } from "@preact/signals";
 import { jwtDecode } from "jwt-decode";
 import { getEmailHash } from "./avatar";
+import { getManagementJson } from "./management";
 
 const userKey = "cpra.mp.user";
 
@@ -41,14 +42,17 @@ export function completeLogin(
   }
 
   (async () => {
-    user.value = {
+    const currentUser = await getManagementJson("/users/current_user", {
       accessToken: query.access_token,
-      clickupId: decoded.clickup,
-      email: decoded.email,
-      emailHash: await getEmailHash(decoded.email),
-      name: decoded.name,
+    });
+
+    if (currentUser.error) return loginError(currentUser.error);
+
+    user.value = {
+      ...currentUser,
+      accessToken: query.access_token,
+      emailHash: await getEmailHash(currentUser.email),
       refreshToken: query.refresh_token,
-      username: decoded.sub,
     };
 
     route("/");

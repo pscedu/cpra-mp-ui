@@ -1,5 +1,5 @@
-import { apiBaseUrl, staticTilesBaseUrl } from "./config";
-import { getApiJson, getApiNdJson, makeMap, makeQueryString } from "./utils";
+import { dataBaseUrl, staticTilesBaseUrl } from "./config";
+import { getJson, getNdJson, makeMap, makeQueryString } from "./utils";
 
 export class DimensionValue<T> {
   value: T;
@@ -158,7 +158,7 @@ export class Dataset {
   }
 
   getBaseUrl() {
-    return `${apiBaseUrl}/datasets/${this.variable.name}/${this.grid.name}/${this.time_unit}`;
+    return `${dataBaseUrl}/datasets/${this.variable.name}/${this.grid.name}/${this.time_unit}`;
   }
 
   getDataUrl(params: [string, any][], format: string) {
@@ -264,9 +264,9 @@ export class Structure {
 }
 
 export async function getStructure() {
-  const datasetsData = getApiNdJson("datasets.ndjson");
+  const datasetsData = getNdJson(`${dataBaseUrl}/datasets.ndjson`);
   const staticData = ["dimensions", "variables", "grids", "legends"].map(
-    (endpoint) => getApiJson(`${endpoint}.json`)
+    (endpoint) => getJson(`${dataBaseUrl}/${endpoint}.json`)
   );
   return new Structure(
     ...((await Promise.all([datasetsData, ...staticData])) as [

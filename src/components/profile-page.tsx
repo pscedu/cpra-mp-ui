@@ -23,7 +23,7 @@ export default function ProfilePage() {
           <PageLayout.Header>
             <PageHeader role="banner" aria-label="Title">
               <PageHeader.TitleArea variant="large">
-                <PageHeader.Title>{user.value.name}</PageHeader.Title>
+                <PageHeader.Title>{user.value.fullName}</PageHeader.Title>
               </PageHeader.TitleArea>
               <PageHeader.Description>
                 {userInfo.map(([Icon, label, value], i) => (

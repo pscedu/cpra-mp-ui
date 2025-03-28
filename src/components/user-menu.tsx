@@ -16,7 +16,7 @@ export default function UserMenu() {
         sx={{ pt: 0, pb: 0 }}
         leadingVisual={avatar}
       >
-        {user.value.name}
+        {user.value.fullName}
       </ActionMenu.Button>
       <ActionMenu.Overlay width="small">
         <ActionList>
