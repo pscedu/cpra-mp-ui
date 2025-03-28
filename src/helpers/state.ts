@@ -3,6 +3,7 @@ import { useContext } from "preact/hooks";
 import { batch, computed, effect, signal } from "@preact/signals";
 import { loadUser, saveUser } from "./auth";
 import { dataBaseUrl } from "./config";
+import { getUserInfo } from "./management";
 import { Dimension, getStructure } from "./structure";
 import { SelectItem } from "./types";
 import {
@@ -344,6 +345,16 @@ export function createPortalState() {
         mapFeatureValues.value = {};
       }
     })();
+  });
+
+  // Reload user information when the application loads.
+  // This also allows us to get a fresh ACCESS token, if necessary.
+  effect(() => {
+    if (user.peek())
+      (async () => {
+        const userInfo = await getUserInfo(user.peek());
+        user.value = userInfo.error ? null : { ...user.value, ...userInfo };
+      })();
   });
 
   // Save user information to local storage when it changes.
