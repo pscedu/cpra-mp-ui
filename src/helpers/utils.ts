@@ -2,7 +2,6 @@ import { selectionColors } from "./config";
 import { Dataset } from "./structure";
 
 export async function getJson(absoluteUrl: string, { headers = {} } = {}) {
-  console.log({ ...headers, accept: "application/json" });
   const response = await fetch(absoluteUrl, {
     headers: { ...headers, accept: "application/json" },
   });

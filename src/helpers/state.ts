@@ -1,9 +1,10 @@
 import { createContext } from "preact";
 import { useContext } from "preact/hooks";
 import { batch, computed, effect, signal } from "@preact/signals";
+import { jwtDecode } from "jwt-decode";
+import { getEmailHash } from "./avatar";
 import { loadUser, saveUser } from "./auth";
-import { dataBaseUrl } from "./config";
-import { getUserInfo } from "./management";
+import { dataBaseUrl, managementBaseUrl } from "./config";
 import { Dimension, getStructure } from "./structure";
 import { SelectItem } from "./types";
 import {
@@ -327,6 +328,89 @@ export function createPortalState() {
     });
   };
 
+  const getManagementJson = async (
+    relativeUrl: string,
+    { accessToken = null, tryRefresh = true } = {}
+  ) => {
+    const res = await getJson(`${managementBaseUrl}${relativeUrl}`, {
+      headers: {
+        authorization: `Bearer ${accessToken ? accessToken : user.peek().accessToken}`,
+      },
+    });
+    if (res.error && res.error.status === 401) {
+      // Try to obtain a new access token using the refresh token.
+      if (tryRefresh && (await refreshAccessToken()))
+        return await getManagementJson(relativeUrl, { tryRefresh: false });
+      user.value = null;
+    }
+    return res;
+  };
+
+  const refreshAccessToken = async () => {
+    const refreshToken = user.peek()?.refreshToken;
+    if (!refreshToken) return false;
+    const data = await getManagementJson("/login/refresh", {
+      accessToken: refreshToken,
+    });
+    if (data.error) return false;
+    user.value = { ...user.value, accessToken: data.accessToken };
+    return true;
+  };
+
+  const getUserInfo = async (settings = {}) =>
+    await getManagementJson("/users/current_user", settings);
+
+  const completeLogin = (
+    { route, query },
+    { description, heading, status }
+  ) => {
+    const loginError = (msg) => {
+      batch(() => {
+        description.value = msg;
+        heading.value = "Login error";
+        status.value = "error";
+      });
+    };
+    if (!("access_token" in query) || !("refresh_token" in query))
+      return loginError("Required token parameters are missing.");
+
+    let decoded;
+    try {
+      decoded = jwtDecode(query.access_token);
+    } catch (err) {
+      return loginError(err);
+    }
+
+    (async () => {
+      const currentUser = await getUserInfo({
+        accessToken: query.access_token,
+      });
+
+      if (currentUser.error) return loginError(currentUser.error);
+
+      user.value = {
+        ...currentUser,
+        accessToken: query.access_token,
+        emailHash: await getEmailHash(currentUser.email),
+        refreshToken: query.refresh_token,
+      };
+
+      route("/");
+    })();
+  };
+
+  const linkClickup = ({ route, query }) => {
+    if (query.status === "success") {
+      user.value = {
+        ...user.value,
+        clickupId: query.clickup_id,
+      };
+    } else {
+      // TODO: Add error handling for failed link operation.
+    }
+    route("/profile");
+  };
+
   // Update map feature state when the dataset or filters change.
   effect(() => {
     (async () => {
@@ -352,7 +436,7 @@ export function createPortalState() {
   effect(() => {
     if (user.peek())
       (async () => {
-        const userInfo = await getUserInfo(user.peek());
+        const userInfo = await getUserInfo(user);
         user.value = userInfo.error ? null : { ...user.value, ...userInfo };
       })();
   });
@@ -373,11 +457,13 @@ export function createPortalState() {
   return {
     activeSelectDimensions,
     avatarCacheKey,
+    completeLogin,
     datasetItems,
     datasetSelectedItems,
     datasets,
     filterChoicesItems,
     filterChoicesSelectedItems,
+    linkClickup,
     mapDataset,
     mapFeatureValues,
     mapFeatureValuesLoading,

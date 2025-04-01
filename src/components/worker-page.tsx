@@ -15,13 +15,12 @@ export default function WorkerPage({
   heading: initialHeading,
 }) {
   const location = useLocation();
-  const state = usePortalState();
   const description = useSignal(initialDescription);
   const heading = useSignal(initialHeading);
   const status = useSignal("working");
 
   useEffect(() => {
-    action(location, state, { description, heading, status });
+    action(location, { description, heading, status });
   }, []);
 
   return (

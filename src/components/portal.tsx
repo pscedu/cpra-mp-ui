@@ -1,6 +1,5 @@
 import { LocationProvider, ErrorBoundary, Router } from "preact-iso";
 import { ThemeProvider, BaseStyles } from "@primer/react";
-import { completeLogin, linkClickup } from "../helpers/auth";
 import { PortalState, createPortalState } from "../helpers/state";
 
 import MapPage from "./map-page";
@@ -9,8 +8,9 @@ import ProfilePage from "./profile-page";
 import WorkerPage from "./worker-page";
 
 export default function Portal() {
+  const state = createPortalState();
   return (
-    <PortalState.Provider value={createPortalState()}>
+    <PortalState.Provider value={state}>
       <ThemeProvider colorMode="auto">
         <BaseStyles>
           <LocationProvider>
@@ -20,10 +20,13 @@ export default function Portal() {
                 <ProfilePage path="/profile" />
                 <WorkerPage
                   path="/callback/login"
-                  action={completeLogin}
+                  action={state.completeLogin}
                   heading="Completing login..."
                 />
-                <WorkerPage path="/callback/clickup" action={linkClickup} />
+                <WorkerPage
+                  path="/callback/clickup"
+                  action={state.linkClickup}
+                />
                 <NotFoundPage default />
               </Router>
             </ErrorBoundary>
