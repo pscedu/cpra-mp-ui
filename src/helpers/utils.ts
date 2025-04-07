@@ -16,9 +16,13 @@ export async function getJson(absoluteUrl: string, { headers = {} } = {}) {
   }
 }
 
-export async function getNdJson(absoluteUrl: string) {
+export async function getNdJson(
+  absoluteUrl: string,
+  { signal }: { signal: AbortSignal | null } = { signal: null }
+) {
   const response = await fetch(absoluteUrl, {
     headers: { accept: "application/x-ndjson" },
+    signal: signal,
   });
   if (response.status < 200 || response.status > 299) {
     console.error(
@@ -118,7 +122,9 @@ export function getFilterParams(requiredDimensions, filters) {
 
 export function makeQueryString(params: [string, any][]) {
   return params.length
-    ? `?${params.map(([key, value]) => `${key}=${encodeURIComponent(value.toString())}`).join("&")}`
+    ? `?${params
+        .map(([key, value]) => `${key}=${encodeURIComponent(value.toString())}`)
+        .join("&")}`
     : "";
 }
 
@@ -147,3 +153,8 @@ export const adjustColor = (color: string, amount: number) =>
  */
 export const getSelectionColor = (i: number, adjustment?: number) =>
   adjustColor(selectionColors[i] || "000000", adjustment || 0);
+
+export const parseDate = (dateStr: string) => {
+  const dateParts = dateStr.split("-").map((val) => parseInt(val));
+  return new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
+};

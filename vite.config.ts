@@ -1,7 +1,21 @@
-import { defineConfig } from 'vite';
-import preact from '@preact/preset-vite';
+import path from "path";
+import tailwindcss from "@tailwindcss/vite";
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
-// https://vitejs.dev/config/
+// https://vite.dev/config/
 export default defineConfig({
-	plugins: [preact()],
+  plugins: [
+    react({
+      babel: {
+        plugins: [["module:@preact/signals-react-transform"]],
+      },
+    }),
+    tailwindcss(),
+  ],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
 });

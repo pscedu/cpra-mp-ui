@@ -1,4 +1,4 @@
-import { useTheme } from "@primer/react";
+import { useTheme } from "@/components/theme-provider";
 import { VegaLite } from "react-vega";
 import { dark, excel } from "vega-themes";
 
@@ -10,9 +10,11 @@ export default function Visualization({ spec }) {
 
   return (
     <VegaLite
+      actions={false}
       spec={spec}
-      style={{ width: "100%" }}
-      config={theme.colorScheme === "dark" ? darkTheme : lightTheme}
+      style={{ width: "calc(100% - 32px)" }}
+      padding={16}
+      config={theme.theme === "dark" ? darkTheme : lightTheme}
     />
   );
 }

@@ -1,20 +1,54 @@
-import Layout from "./layout";
+import { usePortalState } from "@/helpers/state";
+
+import { AppSidebar } from "@/components/app-sidebar";
+import MapDataLoading from "@/components/map-data-loading";
+import { Separator } from "@/components/ui/separator";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 import Map from "./map";
-import MapControls from "./map-controls";
-import MapSidebar from "./map-sidebar";
-import VisualizationPanel from "./visualization-panel";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "./ui/resizable";
+import TimeSelect from "./time-select";
+import Visualization from "./visualization";
 
 export default function MapPage() {
+  const { visualizationSpec } = usePortalState();
+
   return (
-    <Layout>
-      <Layout.Pane>
-        <MapSidebar />
-      </Layout.Pane>
-      <Layout.Content padding="none" sx={{ position: "relative" }}>
-        <Map />
-        <MapControls />
-        <VisualizationPanel />
-      </Layout.Content>
-    </Layout>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex w-full h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+          <div className="flex w-full items-center gap-2 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <MapDataLoading />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <TimeSelect />
+          </div>
+        </header>
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+          <ResizablePanelGroup direction="vertical">
+            <ResizablePanel>
+              <Map />
+            </ResizablePanel>
+            {visualizationSpec.value ? (
+              <>
+                <ResizableHandle className="h-16" />
+                <ResizablePanel>
+                  <Visualization spec={visualizationSpec.value} />
+                </ResizablePanel>
+              </>
+            ) : null}
+          </ResizablePanelGroup>
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

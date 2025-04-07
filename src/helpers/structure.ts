@@ -179,7 +179,9 @@ export class Dataset {
   }
 
   getVisualizationUrl(params: [string, any][], visualizationType: string) {
-    return `${this.getBaseUrl()}/visualization/${visualizationType}.json${makeQueryString(params)}`;
+    return `${this.getBaseUrl()}/visualization/${visualizationType}.json${makeQueryString(
+      params
+    )}`;
   }
 }
 
@@ -274,7 +276,7 @@ export async function getStructure() {
       object,
       object,
       object,
-      object,
+      object
     ])
   );
 }

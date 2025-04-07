@@ -1,12 +1,10 @@
-import { createContext } from "preact";
-import { useContext } from "preact/hooks";
-import { batch, computed, effect, signal } from "@preact/signals";
+import { createContext, useContext } from "react";
+import { batch, computed, effect, Signal, signal } from "@preact/signals-react";
 import { jwtDecode } from "jwt-decode";
 import { getEmailHash } from "./avatar";
 import { loadUser, saveUser } from "./auth";
 import { dataBaseUrl, managementBaseUrl } from "./config";
-import { Dimension, getStructure } from "./structure";
-import { SelectItem } from "./types";
+import { Dataset, Dimension, getStructure } from "./structure";
 import {
   extractCatalogObject,
   getJson,
@@ -15,6 +13,7 @@ import {
   makeQueryString,
   mergeOr,
 } from "./utils";
+import { NavigateFunction } from "react-router";
 
 export const PortalState = createContext(null);
 
@@ -30,6 +29,7 @@ function dataSignal(loadFn: Function, defaultValue = null) {
 
 export function createPortalState() {
   const structure = dataSignal(getStructure);
+  const activity = signal("data");
 
   const user = signal(loadUser());
   const avatarCacheKey = signal(new Date().getTime());
@@ -39,9 +39,10 @@ export function createPortalState() {
   const filterChoices = signal({});
   const catalogResponses = signal([]);
   const timeValues = signal([]);
-  let timeValuesTimeout = null;
+  let timeValuesTimeout: number | null = null;
 
   const mapFeatureValues = signal({});
+  let mapFeatureValuesAbortController: AbortController | null = null;
   const mapFeatureValuesLoading = signal(false);
   const mapTilesLoading = signal(false);
 
@@ -124,9 +125,10 @@ export function createPortalState() {
 
   // Ensure there is always at least one dataset selected.
   effect(() => {
-    if (structure.value && datasets.value.length == 0)
+    if (structure.value && datasets.value.length == 0) {
       datasets.value = [structure.value.datasets[0]];
-    queryCatalog(filters.peek());
+      queryCatalog(filters.peek());
+    }
   });
 
   // Dimensions representing a filter (not dataset or metadata).
@@ -141,64 +143,6 @@ export function createPortalState() {
   // Names of filter dimensions.
   const filterDimensionNames = computed(() =>
     filterDimensions.value.map((dimension) => dimension.name)
-  );
-
-  // Object mapping filter dimension names to SelectItems for choices.
-  const filterChoicesItems = computed((): SelectItem[][] =>
-    activeSelectDimensions.value.map((dimension) => {
-      if (dimension.values) {
-        return dimension.values
-          .filter((dv) =>
-            filterChoices.value[dimension.name].includes(dv.value)
-          )
-          .map((dv) => ({
-            text: dv.label || dv.value.toString(),
-            description: dv.label ? dv.value.toString() : null,
-            value: dv.value,
-          }));
-      } else {
-        return filterChoices.value[dimension.name].map((value) => ({
-          text: value.toString(),
-          value,
-        }));
-      }
-    })
-  );
-
-  // Object mapping filter dimension names to SelectItems for selected choices.
-  const filterChoicesSelectedItems = computed((): SelectItem[][] =>
-    filterChoicesItems.value.map((items, i) => {
-      const dimension = activeSelectDimensions.value[i];
-      return items.filter((item) =>
-        (filters.value[dimension.name] || []).includes(item.value)
-      );
-    })
-  );
-
-  // SelectItems representing all available datasets.
-  const datasetItems = computed(() =>
-    structure.value
-      ? structure.value.datasets.map(
-          (dataset): SelectItem => ({
-            text: dataset.variable.label,
-            description: `${dataset.grid.name},${dataset.time_unit}`,
-          })
-        )
-      : []
-  );
-
-  // SelectItems representing the selected datasets.
-  const datasetSelectedItems = computed((): SelectItem[] =>
-    structure.value &&
-    datasets.value &&
-    datasetItems.value &&
-    datasets.value.length &&
-    datasetItems.value.length
-      ? datasets.value.map(
-          (dataset) =>
-            datasetItems.value[structure.value.datasets.indexOf(dataset)]
-        )
-      : []
   );
 
   // Partition and non-partition Dimensions for the selected datasets.
@@ -308,23 +252,18 @@ export function createPortalState() {
     );
   };
 
-  const setDatasetSelectedItems = (items: SelectItem[]) => {
+  const setSelectedDatasets = (selected: Dataset[]) => {
     batch(() => {
-      datasets.value = (Array.isArray(items) ? items : [items]).map(
-        (item) => structure.value.datasets[datasetItems.value.indexOf(item)]
-      );
+      datasets.value = selected;
       catalogResponses.value = [];
     });
     queryCatalog(filters.value);
   };
 
-  const setFilterChoicesSelectedItems = (
-    dimensionName: string,
-    items: SelectItem[]
-  ) => {
+  const setSelectedFilterChoices = (dimensionName: string, values: []) => {
     queryCatalog({
       ...filters.value,
-      [dimensionName]: items.map((item) => item.value),
+      [dimensionName]: values,
     });
   };
 
@@ -334,7 +273,9 @@ export function createPortalState() {
   ) => {
     const res = await getJson(`${managementBaseUrl}${relativeUrl}`, {
       headers: {
-        authorization: `Bearer ${accessToken ? accessToken : user.peek().accessToken}`,
+        authorization: `Bearer ${
+          accessToken ? accessToken : user.peek().accessToken
+        }`,
       },
     });
     if (res.error && res.error.status === 401) {
@@ -361,62 +302,84 @@ export function createPortalState() {
     await getManagementJson("/users/current_user", settings);
 
   const completeLogin = (
-    { route, query },
-    { description, heading, status }
+    { search }: Location,
+    navigate: NavigateFunction,
+    {
+      description,
+      heading,
+      status,
+    }: { description: Signal; heading: Signal; status: Signal }
   ) => {
-    const loginError = (msg) => {
+    const query = new URLSearchParams(search);
+    const loginError = (msg: string) => {
       batch(() => {
         description.value = msg;
         heading.value = "Login error";
         status.value = "error";
       });
     };
-    if (!("access_token" in query) || !("refresh_token" in query))
+    if (!query.has("access_token") || !query.has("refresh_token"))
       return loginError("Required token parameters are missing.");
 
-    let decoded;
+    const accessToken = query.get("access_token") as string;
+    const refreshToken = query.get("refresh_token") as string;
+
     try {
-      decoded = jwtDecode(query.access_token);
+      jwtDecode(accessToken);
     } catch (err) {
-      return loginError(err);
+      return loginError(err as string);
     }
 
     (async () => {
       const currentUser = await getUserInfo({
-        accessToken: query.access_token,
+        accessToken: accessToken,
       });
 
       if (currentUser.error) return loginError(currentUser.error);
 
       user.value = {
         ...currentUser,
-        accessToken: query.access_token,
+        accessToken: accessToken,
         emailHash: await getEmailHash(currentUser.email),
-        refreshToken: query.refresh_token,
+        refreshToken: refreshToken,
       };
 
-      route("/");
+      navigate("/");
     })();
   };
 
-  const linkClickup = ({ route, query }) => {
-    if (query.status === "success") {
+  const linkClickup = ({ search }: Location, navigate: NavigateFunction) => {
+    const query = new URLSearchParams(search);
+    if (query.get("status") === "success") {
       user.value = {
         ...user.value,
-        clickupId: query.clickup_id,
+        clickupId: query.get("clickup_id"),
       };
     } else {
       // TODO: Add error handling for failed link operation.
     }
-    route("/profile");
+    navigate("/");
   };
 
   // Update map feature state when the dataset or filters change.
   effect(() => {
     (async () => {
       if (mapDataUrl.value) {
+        if (mapFeatureValuesAbortController)
+          mapFeatureValuesAbortController.abort("map state changed");
+        mapFeatureValuesAbortController = new AbortController();
+
         mapFeatureValuesLoading.value = true;
-        const data = await getNdJson(mapDataUrl.value);
+        let data;
+        try {
+          data = await getNdJson(mapDataUrl.value, {
+            signal: mapFeatureValuesAbortController.signal,
+          });
+        } catch (err) {
+          if (err === "map state changed") return;
+          throw err;
+        }
+
         if (data.length === 1) {
           batch(() => {
             mapFeatureValues.value = data[0];
@@ -456,13 +419,12 @@ export function createPortalState() {
 
   return {
     activeSelectDimensions,
+    activity,
     avatarCacheKey,
     completeLogin,
-    datasetItems,
-    datasetSelectedItems,
     datasets,
-    filterChoicesItems,
-    filterChoicesSelectedItems,
+    filters,
+    filterChoices,
     linkClickup,
     mapDataset,
     mapFeatureValues,
@@ -470,8 +432,8 @@ export function createPortalState() {
     mapTileUrl,
     mapTilesLoading,
     selectedGeographies,
-    setDatasetSelectedItems,
-    setFilterChoicesSelectedItems,
+    setSelectedDatasets,
+    setSelectedFilterChoices,
     setTimeValues,
     structure,
     timeChoices,

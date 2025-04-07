@@ -1,101 +1,83 @@
-import { useSignal } from "@preact/signals";
-import { usePortalState } from "../helpers/state";
-import { CalendarIcon } from "@primer/octicons-react";
+import { usePortalState } from "@/helpers/state";
+import { parseDate } from "@/helpers/utils";
 
+import { Calendar as CalendarIcon } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
-  AnchoredOverlay,
-  Box,
-  Button,
-  Heading,
-  IconButton,
-  Text,
-} from "@primer/react";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+
 import { Range } from "react-range";
-import { useRef } from "preact/hooks";
 
 export default function TimeSelect() {
   const { timeChoices, timeDimension, timeValues, setTimeValues } =
     usePortalState();
-  const editing = useSignal(false);
-  const editContainer = useRef(null);
 
   const choices = timeChoices.value;
   const selected = timeValues.value;
 
   if (!choices.length || !selected.length) return;
 
+  const isYear = typeof choices[0] === "number";
   const values = selected.map((value) => choices.indexOf(value));
-  const editLabel = `Edit ${timeDimension.value ? timeDimension.value.label.toLowerCase() : "value"}`;
+  const editLabel = `Edit ${
+    timeDimension.value ? timeDimension.value.label.toLowerCase() : "value"
+  }`;
 
   return (
     <>
-      <AnchoredOverlay
-        open={editing.value}
-        onOpen={() => (editing.value = true)}
-        onClose={() => (editing.value = false)}
-        renderAnchor={(props) => (
-          <IconButton
-            {...props}
-            icon={CalendarIcon}
-            variant="invisible"
-            aria-label={editLabel}
-          />
-        )}
-        overlayProps={{
-          role: "dialog",
-          "aria-modal": true,
-          "aria-label": `${editLabel} overlay`,
-        }}
-        focusZoneSettings={{
-          disabled: true,
-        }}
-        preventOverflow={false}
-      >
-        <Box sx={{ p: 3 }}>
-          <Heading
-            sx={{
-              fontSize: 2,
-            }}
-          >
-            {editLabel}
-          </Heading>
-          <Text as="p" ref={editContainer}>
-            {selected.map((value) => (
-              <input
-                type={typeof value === "number" ? "number" : "date"}
-                value={value}
-                min={choices[0]}
-                max={choices[choices.length - 1]}
-              />
-            ))}
-          </Text>
+      <Popover>
+        <PopoverTrigger asChild>
           <Button
-            onClick={() => {
-              setTimeValues(
-                Array.from(editContainer.current.querySelectorAll("input")).map(
-                  (input, i) => {
-                    const value = input.value.includes("-")
-                      ? input.value
-                      : parseInt(input.value);
-                    return choices.includes(value) ? value : selected[i];
-                  }
-                )
-              );
-              editing.value = false;
-            }}
+            variant={"outline"}
+            className={cn("w-[140px] justify-start text-left font-normal")}
           >
-            Update
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {selected.join(", ")}
           </Button>
-        </Box>
-      </AnchoredOverlay>
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "row",
-          padding: "12px",
-          width: "100%",
-        }}
-      >
+        </PopoverTrigger>
+        <PopoverContent className={`w-auto p-${isYear ? "4" : "0"}`}>
+          {isYear ? (
+            <>
+              <h2 className="mb-2">{editLabel}</h2>
+              {selected.map((value, idx) => (
+                <input
+                  key={idx}
+                  type="number"
+                  defaultValue={value}
+                  min={choices[0]}
+                  max={choices[choices.length - 1]}
+                  onChange={(e) => {
+                    const newValue = parseInt(e.target.value);
+                    if (choices.includes(newValue)) {
+                      const newSelected = [...selected];
+                      newSelected[idx] = newValue;
+                      setTimeValues(newSelected);
+                    }
+                  }}
+                />
+              ))}
+            </>
+          ) : (
+            <Calendar
+              mode={selected.length > 1 ? "multiple" : "single"}
+              selected={selected.map(parseDate)}
+              defaultMonth={parseDate(selected[0])}
+              onSelect={(value) =>
+                setTimeValues([value.toISOString().split("T")[0]])
+              }
+              initialFocus
+            />
+          )}
+        </PopoverContent>
+      </Popover>
+      {/* Time slider */}
+      <div className="w-full px-4">
         <Range
           label="Select your value"
           step={1}
@@ -105,22 +87,22 @@ export default function TimeSelect() {
           values={values}
           onChange={(idxs) => setTimeValues(idxs.map((idx) => choices[idx]))}
           renderTrack={({ props, children }) => (
-            <Box
+            <div
               {...props}
+              className="w-full bg-accent"
               style={{
                 ...props.style,
                 height: "6px",
-                width: "100%",
               }}
-              sx={{ backgroundColor: "btn.activeBg" }}
             >
               {children}
-            </Box>
+            </div>
           )}
-          renderThumb={({ index, props, isDragged }) => (
-            <Box
+          renderThumb={({ props, isDragged }) => (
+            <div
               {...props}
               key={props.key}
+              className="bg-muted"
               style={{
                 ...props.style,
                 alignItems: "center",
@@ -133,50 +115,19 @@ export default function TimeSelect() {
                 justifyContent: "center",
                 width: "24px",
               }}
-              sx={{
-                backgroundColor: "btn.bg",
-                borderColor: "btn.border",
-              }}
             >
-              {/* Label */}
-              <Box
-                style={{
-                  borderRadius: "4px",
-                  display: "flex",
-                  flexDirection: "row",
-                  fontSize: "12px",
-                  fontWeight: "bold",
-                  padding: "2px 8px",
-                  position: "absolute",
-                  top: "-30px",
-                }}
-                sx={{ backgroundColor: "fg.default", color: "canvas.inset" }}
-              >
-                {selected[index]}
-              </Box>
-              {/* Caret */}
-              <Box
-                style={{
-                  fontSize: "12px",
-                  position: "absolute",
-                  top: "-16px",
-                }}
-                sx={{ color: "fg.default" }}
-              >
-                &#9660;
-              </Box>
               {/* Tick */}
-              <Box
+              <div
+                className={isDragged ? "bg-foreground" : "bg-ring"}
                 style={{
                   height: "16px",
                   width: "5px",
                 }}
-                sx={{ backgroundColor: isDragged ? "accent.fg" : "fg.subtle" }}
               />
-            </Box>
+            </div>
           )}
         />
-      </Box>
+      </div>
     </>
   );
 }

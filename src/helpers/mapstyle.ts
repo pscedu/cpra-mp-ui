@@ -1,4 +1,4 @@
-import { staticTilesBaseUrl } from "./config";
+import { glyphsBaseUrl, staticTilesBaseUrl } from "./config";
 import { StyleSpecification } from "maplibre-gl";
 
 const colorRamp = (legend) => {
@@ -42,10 +42,9 @@ export const vectorSource = ({ gridName, promoteId = "id" }) => ({
 });
 
 export function getBaseStyle(): StyleSpecification {
-  const origin = document.location.origin;
   return {
     version: 8,
-    glyphs: `${origin}/style/glyphs/{fontstack}/{range}.pbf`,
+    glyphs: `${glyphsBaseUrl}/{fontstack}/{range}.pbf`,
     sources: {
       "basemap-raster": {
         type: "raster",

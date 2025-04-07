@@ -1,9 +1,10 @@
-import { Avatar as PrimerAvatar } from "@primer/react";
-import { usePortalState } from "../helpers/state";
+import { usePortalState } from "@/helpers/state";
 
-export default function Avatar({
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+export default function UserAvatar({
   user = null,
-  size = 24,
+  size = 32,
   defaultImage = "identicon",
 }) {
   const { avatarCacheKey, user: currentUser } = usePortalState();
@@ -14,5 +15,10 @@ export default function Avatar({
   let uri = `https://www.gravatar.com/avatar/${avatarUser.emailHash}?d=${defaultImage}&s=${size}`;
   if (cacheKey) uri += `&cache-key=${cacheKey}`;
 
-  return <PrimerAvatar src={uri} size={size} />;
+  return (
+    <Avatar className="h-8 w-8 rounded-lg">
+      <AvatarImage src={uri} alt={user.fullName} />
+      <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+    </Avatar>
+  );
 }

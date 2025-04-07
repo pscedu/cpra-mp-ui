@@ -1,6 +1,6 @@
 import { GravatarQuickEditorCore } from "@gravatar-com/quick-editor";
 
-export async function getEmailHash(email) {
+export async function getEmailHash(email: string) {
   const encoder = new TextEncoder();
   const hashBuffer = await window.crypto.subtle.digest(
     "SHA-256",
@@ -10,7 +10,7 @@ export async function getEmailHash(email) {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export function launchGravatarEditor(email, onUpdate) {
+export function launchGravatarEditor(email: string, onUpdate) {
   const quickEditorCore = new GravatarQuickEditorCore({
     email,
     scope: ["avatars"],

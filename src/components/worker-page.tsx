@@ -1,13 +1,8 @@
-import { useEffect } from "preact/hooks";
-import { useSignal } from "@preact/signals";
-import { useLocation } from "preact-iso";
-import { usePortalState } from "../helpers/state";
+import { useEffect } from "react";
+import { useSignal } from "@preact/signals-react";
+import { useLocation, useNavigate } from "react-router";
 
-import { AlertIcon } from "@primer/octicons-react";
-import { Spinner } from "@primer/react";
-import { Blankslate } from "@primer/react/experimental";
-
-import Layout from "./layout";
+import { LoaderCircle, TriangleAlert } from "lucide-react";
 
 export default function WorkerPage({
   action,
@@ -15,31 +10,24 @@ export default function WorkerPage({
   heading: initialHeading,
 }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const description = useSignal(initialDescription);
   const heading = useSignal(initialHeading);
   const status = useSignal("working");
 
   useEffect(() => {
-    action(location, { description, heading, status });
+    action(location, navigate, { description, heading, status });
   }, []);
 
   return (
-    <Layout>
-      <Layout.Content>
-        <Blankslate>
-          <Blankslate.Visual>
-            {(status.value == "working" && <Spinner />) || (
-              <AlertIcon size="large" />
-            )}
-          </Blankslate.Visual>
-          {heading.value && (
-            <Blankslate.Heading>{heading.value}</Blankslate.Heading>
-          )}
-          {description.value && (
-            <Blankslate.Description>{description.value}</Blankslate.Description>
-          )}
-        </Blankslate>
-      </Layout.Content>
-    </Layout>
+    <div className="flex h-screen">
+      <div className="m-auto">
+        {(status.value == "working" && <LoaderCircle />) || (
+          <TriangleAlert size="large" />
+        )}
+        {heading.value && <h1>{heading.value}</h1>}
+        {description.value && <p>{description.value}</p>}
+      </div>
+    </div>
   );
 }

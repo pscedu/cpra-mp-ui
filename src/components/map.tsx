@@ -1,17 +1,16 @@
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useRef } from "react";
 import { Map as GLMap } from "maplibre-gl";
-import { usePortalState } from "../helpers/state";
+import { usePortalState } from "@/helpers/state";
 import {
   getBaseStyle,
   rasterLayers,
   rasterSource,
   vectorLayers,
   vectorSource,
-} from "../helpers/mapstyle";
-import { Dataset } from "../helpers/structure";
+} from "@/helpers/mapstyle";
+import { Dataset } from "@/helpers/structure";
 import { getSelectionColor, sleep } from "../helpers/utils";
 
-import style from "./map.module.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 // Map using MapLibre GL.
@@ -182,6 +181,12 @@ export default function Map() {
   // Initialize the map.
   useEffect(() => {
     if (container.current && !map.current) initMap();
+    return () => {
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
+    };
   }, [container.current]);
 
   // Update the map style.
@@ -208,9 +213,5 @@ export default function Map() {
     };
   }, []);
 
-  return (
-    <div class={style.mapContainer}>
-      <div class={style.map} ref={container} />
-    </div>
-  );
+  return <div className="h-full rounded-xl overflow-hidden" ref={container} />;
 }
