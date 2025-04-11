@@ -1,7 +1,8 @@
 export const dataBaseUrl = "https://api.mpdp.coastal.la.gov/v1";
 export const glyphsBaseUrl = "https://api.mpdp.coastal.la.gov/glyphs";
 export const staticTilesBaseUrl = "https://api.mpdp.coastal.la.gov/tiles";
-export const managementBaseUrl = "http://localhost:5000/v1/management";
+export const managementBaseUrl =
+  "https://api.mpdp.coastal.la.gov/v1/management";
 export const loginUrl = `${managementBaseUrl}/login`;
 export const clickupUrl = `${managementBaseUrl}/clickup`;
 export const selectionColors = [

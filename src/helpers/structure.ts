@@ -221,14 +221,16 @@ export class Structure {
         })
     );
     this.variablesMap = makeMap(this.variables);
-    this.datasets = datasets.map(
-      (dataset) =>
-        new Dataset({
-          variable: this.variablesMap[dataset.variable],
-          grid: this.gridsMap[dataset.grid],
-          time_unit: dataset.time_unit,
-        })
-    );
+    this.datasets = datasets
+      .map(
+        (dataset) =>
+          new Dataset({
+            variable: this.variablesMap[dataset.variable],
+            grid: this.gridsMap[dataset.grid],
+            time_unit: dataset.time_unit,
+          })
+      )
+      .sort((a, b) => (a.variable.label < b.variable.label ? -1 : 1));
   }
 
   getRequiredDimensions(

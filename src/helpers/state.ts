@@ -1,9 +1,9 @@
 import { createContext, useContext } from "react";
 import { batch, computed, effect, Signal, signal } from "@preact/signals-react";
 import { jwtDecode } from "jwt-decode";
-import { getEmailHash } from "./avatar";
 import { loadUser, saveUser } from "./auth";
 import { dataBaseUrl, managementBaseUrl } from "./config";
+import { hashSignal } from "./hash";
 import { Dataset, Dimension, getStructure } from "./structure";
 import {
   extractCatalogObject,
@@ -29,7 +29,7 @@ function dataSignal(loadFn: Function, defaultValue = null) {
 
 export function createPortalState() {
   const structure = dataSignal(getStructure);
-  const activity = signal("data");
+  const activity = hashSignal("activity", "data");
 
   const user = signal(loadUser());
   const avatarCacheKey = signal(new Date().getTime());
@@ -301,6 +301,10 @@ export function createPortalState() {
   const getUserInfo = async (settings = {}) =>
     await getManagementJson("/users/current_user", settings);
 
+  const getTasks = async () => {
+    return await getManagementJson("/tasks");
+  };
+
   const completeLogin = (
     { search }: Location,
     navigate: NavigateFunction,
@@ -340,7 +344,6 @@ export function createPortalState() {
       user.value = {
         ...currentUser,
         accessToken: accessToken,
-        emailHash: await getEmailHash(currentUser.email),
         refreshToken: refreshToken,
       };
 
@@ -425,6 +428,7 @@ export function createPortalState() {
     datasets,
     filters,
     filterChoices,
+    getTasks,
     linkClickup,
     mapDataset,
     mapFeatureValues,
