@@ -18,7 +18,7 @@ export async function getJson(absoluteUrl: string, { headers = {} } = {}) {
 
 export async function getNdJson(
   absoluteUrl: string,
-  { signal }: { signal: AbortSignal | null } = { signal: null }
+  { signal }: { signal: AbortSignal | null } = { signal: null },
 ) {
   const response = await fetch(absoluteUrl, {
     headers: { accept: "application/x-ndjson" },
@@ -26,7 +26,7 @@ export async function getNdJson(
   });
   if (response.status < 200 || response.status > 299) {
     console.error(
-      `Received status ${response.status} while loading ${absoluteUrl}`
+      `Received status ${response.status} while loading ${absoluteUrl}`,
     );
     return [];
   } else {
@@ -44,7 +44,7 @@ export async function getNdJson(
 
 export function makeMap<T>(
   items: T[],
-  key: string = "name"
+  key: string = "name",
 ): { [key: string]: T } {
   const result = {};
   for (let item of items) result[item[key]] = item;
@@ -63,12 +63,12 @@ export function extractValues(values, step = 1, day = null) {
         }
       } else {
         let [currentDate, endDate] = [current, end].map(
-          (dateStr) => new Date(`${dateStr}T00:00:00`)
+          (dateStr) => new Date(`${dateStr}T00:00:00`),
         );
         while (currentDate <= endDate) {
           if (day === null || currentDate.getDate() === day)
             result.push(
-              new Date(currentDate.valueOf()).toISOString().split("T")[0]
+              new Date(currentDate.valueOf()).toISOString().split("T")[0],
             );
           currentDate.setDate(currentDate.getDate() + step);
         }
@@ -141,8 +141,8 @@ export function sleep(ms: number) {
 export const adjustColor = (color: string, amount: number) =>
   `#${color.replace(/../g, (color) =>
     `0${Math.min(255, Math.max(0, parseInt(color, 16) + amount)).toString(
-      16
-    )}`.substr(-2)
+      16,
+    )}`.substr(-2),
   )}`;
 
 /**
@@ -158,3 +158,12 @@ export const parseDate = (dateStr: string) => {
   const dateParts = dateStr.split("-").map((val) => parseInt(val));
   return new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
 };
+
+// Adapted from:
+// https://stackoverflow.com/questions/196972/convert-string-to-title-case-with-javascript
+export function toTitleCase(text: string) {
+  return text.replace(
+    /\w\S*/g,
+    (word) => word.charAt(0).toUpperCase() + word.substring(1).toLowerCase(),
+  );
+}

@@ -1,6 +1,7 @@
 import { useSignal, useSignalEffect } from "@preact/signals-react";
 import { usePortalState } from "@/helpers/state";
 
+import { LoaderCircle } from "lucide-react";
 import Issue from "@/components/issue";
 
 export default function Issues() {
@@ -12,16 +13,22 @@ export default function Issues() {
     })();
   });
 
-  if (tasks.value !== null)
+  if (tasks.value === null)
     return (
-      <div className="rounded-lg border bg-card text-card-foreground shadow-sm mx-4">
-        {tasks.value.length > 0 && (
-          <ul className="divide-y">
-            {tasks.value.map((task) => (
-              <Issue key={task.id} task={task} />
-            ))}
-          </ul>
-        )}
-      </div>
+      <li className="p-4 flex">
+        <LoaderCircle className="animate-spin" />
+      </li>
     );
+
+  return (
+    <div className="rounded-lg border bg-card text-card-foreground shadow-sm mx-4">
+      {tasks.value.length > 0 && (
+        <ul className="divide-y">
+          {tasks.value.map((task) => (
+            <Issue key={task.id} task={task} />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }

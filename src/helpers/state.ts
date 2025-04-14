@@ -30,6 +30,7 @@ function dataSignal(loadFn: Function, defaultValue = null) {
 export function createPortalState() {
   const structure = dataSignal(getStructure);
   const activity = hashSignal("activity", "data");
+  const issue = hashSignal("issue", null);
 
   const user = signal(loadUser());
   const avatarCacheKey = signal(new Date().getTime());
@@ -77,7 +78,7 @@ export function createPortalState() {
                   if (dataset.time_unit === "decadal")
                     year = Math.round(year / 10) * 10;
                   return year;
-                }
+                },
               );
               delete queryFilers["calendar_day"];
             } else if (
@@ -85,31 +86,31 @@ export function createPortalState() {
               ["daily", "monthly"].includes(dataset.time_unit)
             ) {
               queryFilers["calendar_day"] = queryFilers["calendar_year"].map(
-                (year) => `${year}-01-01`
+                (year) => `${year}-01-01`,
               );
               delete queryFilers["calendar_year"];
             }
 
             const qs = makeQueryString(
-              getFilterParams(requiredDimensions, queryFilers)
+              getFilterParams(requiredDimensions, queryFilers),
             );
             const requestPath = `${dataBaseUrl}/datasets/${dataset.variable.name}/${dataset.grid.name}/${dataset.time_unit}/catalog.json${qs}`;
             return getJson(requestPath);
-          })
+          }),
         );
 
         const newFilters = mergeOr(
           responses.map((response, i) =>
-            extractCatalogObject(response.results, datasets.value[i])
+            extractCatalogObject(response.results, datasets.value[i]),
           ),
-          filterDimensionNames.value
+          filterDimensionNames.value,
         );
 
         const choices = mergeOr(
           responses.map((response, i) =>
-            extractCatalogObject(response.choices, datasets.value[i])
+            extractCatalogObject(response.choices, datasets.value[i]),
           ),
-          filterDimensionNames.value
+          filterDimensionNames.value,
         );
 
         batch(() => {
@@ -135,37 +136,37 @@ export function createPortalState() {
   const filterDimensions = computed(() =>
     structure.value
       ? structure.value.dimensions.filter(
-          (dimension) => !["dataset", "metadata"].includes(dimension.type)
+          (dimension) => !["dataset", "metadata"].includes(dimension.type),
         )
-      : []
+      : [],
   );
 
   // Names of filter dimensions.
   const filterDimensionNames = computed(() =>
-    filterDimensions.value.map((dimension) => dimension.name)
+    filterDimensions.value.map((dimension) => dimension.name),
   );
 
   // Partition and non-partition Dimensions for the selected datasets.
   const activeFilterDimensions = computed((): Dimension<any>[] =>
     structure.value && filterChoices.value
       ? structure.value.dimensions.filter(
-          (dimension) => dimension.name in filterChoices.value
+          (dimension) => dimension.name in filterChoices.value,
         )
-      : []
+      : [],
   );
 
   // Select item dimensions.
   const activeSelectDimensions = computed((): Dimension<any>[] =>
     activeFilterDimensions.value.filter(
-      (dimension) => !dimension.name.startsWith("calendar_")
-    )
+      (dimension) => !dimension.name.startsWith("calendar_"),
+    ),
   );
 
   // Time dimensions.
   const activeTimeDimensions = computed((): Dimension<any>[] =>
     activeFilterDimensions.value.filter((dimension) =>
-      dimension.name.startsWith("calendar_")
-    )
+      dimension.name.startsWith("calendar_"),
+    ),
   );
 
   const mapDataset = computed(() => {
@@ -211,30 +212,30 @@ export function createPortalState() {
       ? mapFilterParams.value
           .filter(([param, _value]) => !param.startsWith("calendar_"))
           .concat([["geography", selectedGeographies.value]])
-      : null
+      : null,
   );
 
   const mapTileUrl = computed(() =>
     mapDataset.value && mapFilterParams.value
       ? mapDataset.value.getTileUrl(mapFilterParams.value)
-      : null
+      : null,
   );
 
   const timeDimension = computed(() =>
-    activeTimeDimensions.value.length ? activeTimeDimensions.value[0] : null
+    activeTimeDimensions.value.length ? activeTimeDimensions.value[0] : null,
   );
 
   const timeChoices = computed(() =>
     timeDimension.value
       ? (filterChoices.value || {})[timeDimension.value.name] || []
-      : []
+      : [],
   );
 
   const visualizationSpecUrl = computed(() => {
     return visualizationFilterParams.value && visualizationType.value
       ? mapDataset.value.getVisualizationUrl(
           visualizationFilterParams.value,
-          visualizationType.value
+          visualizationType.value,
         )
       : null;
   });
@@ -248,7 +249,7 @@ export function createPortalState() {
           ...filters.value,
           [timeDimension.value.name]: values,
         }),
-      250
+      250,
     );
   };
 
@@ -269,7 +270,7 @@ export function createPortalState() {
 
   const getManagementJson = async (
     relativeUrl: string,
-    { accessToken = null, tryRefresh = true } = {}
+    { accessToken = null, tryRefresh = true } = {},
   ) => {
     const res = await getJson(`${managementBaseUrl}${relativeUrl}`, {
       headers: {
@@ -281,7 +282,7 @@ export function createPortalState() {
     if (res.error && res.error.status === 401) {
       // Try to obtain a new access token using the refresh token.
       if (tryRefresh && (await refreshAccessToken()))
-        return await getManagementJson(relativeUrl, { tryRefresh: false });
+        return await getManagementJson(relativeUrl);
       user.value = null;
     }
     return res;
@@ -292,6 +293,7 @@ export function createPortalState() {
     if (!refreshToken) return false;
     const data = await getManagementJson("/login/refresh", {
       accessToken: refreshToken,
+      tryRefresh: false,
     });
     if (data.error) return false;
     user.value = { ...user.value, accessToken: data.accessToken };
@@ -305,6 +307,10 @@ export function createPortalState() {
     return await getManagementJson("/tasks");
   };
 
+  const getTask = async (taskId: string) => {
+    return await getManagementJson(`/tasks/${taskId}`);
+  };
+
   const completeLogin = (
     { search }: Location,
     navigate: NavigateFunction,
@@ -312,7 +318,7 @@ export function createPortalState() {
       description,
       heading,
       status,
-    }: { description: Signal; heading: Signal; status: Signal }
+    }: { description: Signal; heading: Signal; status: Signal },
   ) => {
     const query = new URLSearchParams(search);
     const loginError = (msg: string) => {
@@ -420,6 +426,11 @@ export function createPortalState() {
         : null))();
   });
 
+  // Reset the activity when the user logs out.
+  effect(() => {
+    if (activity.value !== "data" && !user.value) activity.value = "data";
+  });
+
   return {
     activeSelectDimensions,
     activity,
@@ -428,7 +439,9 @@ export function createPortalState() {
     datasets,
     filters,
     filterChoices,
+    getTask,
     getTasks,
+    issue,
     linkClickup,
     mapDataset,
     mapFeatureValues,

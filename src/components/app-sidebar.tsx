@@ -12,10 +12,12 @@ import {
 } from "@/components/ui/sidebar";
 
 import Dimensions from "./dimensions";
+import IssueDetail from "./issue-detail";
 import Issues from "./issues";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { activity } = usePortalState();
+  const { activity, issue } = usePortalState();
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -23,7 +25,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         {activity.value === "data" && <Dimensions />}
-        {activity.value === "issues" && <Issues />}
+        {activity.value === "issues" && (
+          <> {issue.value ? <IssueDetail /> : <Issues />}</>
+        )}
       </SidebarContent>
       <SidebarFooter>
         <NavUser />
