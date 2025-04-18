@@ -1,10 +1,11 @@
 import { usePortalState } from "@/helpers/state";
 import { useSignal, useSignalEffect } from "@preact/signals-react";
 
-import { LoaderCircle, X } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 import Comment from "./comment";
 import StatusToken from "./status-token";
 import TagToken from "./tag-token";
+import IssueCloseButton from "./issue-close-button";
 
 export default function IssueDetail() {
   const { getTask, issue } = usePortalState();
@@ -27,14 +28,9 @@ export default function IssueDetail() {
     task.value;
   return (
     <div className="p-4">
-      <div className="flex items-start">
+      <div className="flex items-start justify-between">
         <h2 className="font-bold mb-2 text-2xl">{name}</h2>
-        <button
-          className="text-muted-foreground hover:text-foreground cursor-pointer ml-2 mb-2"
-          onClick={() => (issue.value = null)}
-        >
-          <X />
-        </button>
+        <IssueCloseButton />
       </div>
       <StatusToken {...status} />
       <div className="mb-2">

@@ -33,6 +33,7 @@ export function createPortalState() {
   const issue = hashSignal("issue", null);
 
   const user = signal(loadUser());
+  const users = signal([]);
   const avatarCacheKey = signal(new Date().getTime());
 
   const datasets = signal([]);
@@ -431,6 +432,16 @@ export function createPortalState() {
     if (activity.value !== "data" && !user.value) activity.value = "data";
   });
 
+  // Load a list of portal users when a user logs in.
+  effect(() => {
+    if (user.value?.clickupId && users.value.length === 0) {
+      (async () =>
+        (users.value = (await getManagementJson("/users")).sort((a, b) =>
+          a.fullName < b.fullName ? -1 : 1,
+        )))();
+    }
+  });
+
   return {
     activeSelectDimensions,
     activity,
@@ -457,6 +468,7 @@ export function createPortalState() {
     timeDimension,
     timeValues,
     user,
+    users,
     visualizationSpec,
   };
 }

@@ -13,6 +13,7 @@ import {
 
 import Dimensions from "./dimensions";
 import IssueDetail from "./issue-detail";
+import IssueForm from "./issue-form";
 import Issues from "./issues";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -26,7 +27,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         {activity.value === "data" && <Dimensions />}
         {activity.value === "issues" && (
-          <> {issue.value ? <IssueDetail /> : <Issues />}</>
+          <>
+            {issue.value ? (
+              issue.value === "new" ? (
+                <IssueForm />
+              ) : (
+                <IssueDetail />
+              )
+            ) : (
+              <Issues />
+            )}
+          </>
         )}
       </SidebarContent>
       <SidebarFooter>
