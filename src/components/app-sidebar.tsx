@@ -9,6 +9,7 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 import Dimensions from "./dimensions";
@@ -18,6 +19,7 @@ import Issues from "./issues";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { activity, issue } = usePortalState();
+  const { open } = useSidebar();
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -25,17 +27,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <ActivitySwitcher />
       </SidebarHeader>
       <SidebarContent>
-        {activity.value === "data" && <Dimensions />}
-        {activity.value === "issues" && (
+        {open && (
           <>
-            {issue.value ? (
-              issue.value === "new" ? (
-                <IssueForm />
-              ) : (
-                <IssueDetail />
-              )
-            ) : (
-              <Issues />
+            {activity.value === "data" && <Dimensions />}
+            {activity.value === "issues" && (
+              <>
+                {issue.value ? (
+                  issue.value === "new" ? (
+                    <IssueForm />
+                  ) : (
+                    <IssueDetail />
+                  )
+                ) : (
+                  <Issues />
+                )}
+              </>
             )}
           </>
         )}
