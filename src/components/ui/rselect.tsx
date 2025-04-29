@@ -43,7 +43,7 @@ const selectStyles = {
   groupHeadingStyles:
     "py-2 px-1 text-secondary-foreground text-sm font-semibold",
   optionStyles: {
-    base: "hover:cursor-pointer hover:bg-accent hover:text-accent-foreground px-2 py-1.5 rounded-sm !text-sm !cursor-default !select-none !outline-none font-sans",
+    base: "hover:cursor-pointer hover:bg-accent hover:text-accent-foreground px-2 py-1.5 rounded-sm !text-sm !cursor-default !select-none !outline-none font-sans max-w-full overflow-hidden text-nowrap",
     focus: "active:bg-accent/90 bg-accent text-accent-foreground",
     disabled: "pointer-events-none opacity-50",
     selected: "",
