@@ -5,6 +5,7 @@ import Comment from "./comment";
 import StatusToken from "./status-token";
 import TagToken from "./tag-token";
 import IssueCloseButton from "./issue-close-button";
+import UserToken from "./user-token";
 
 export default function IssueDetail() {
   const { task } = usePortalState();
@@ -18,8 +19,16 @@ export default function IssueDetail() {
       </li>
     );
 
-  const { creator, dateCreated, description, id, name, status, tags } =
-    task.value;
+  const {
+    assignees,
+    creator,
+    dateCreated,
+    description,
+    id,
+    name,
+    status,
+    tags,
+  } = task.value;
   return (
     <div className="p-4">
       <div className="flex items-start justify-between">
@@ -30,6 +39,11 @@ export default function IssueDetail() {
       <div className="mb-2">
         {tags.map((tag) => (
           <TagToken key={tag.name} {...tag} />
+        ))}
+      </div>
+      <div className="mb-2">
+        {assignees.map((assignee) => (
+          <UserToken key={assignee.name} user={assignee} />
         ))}
       </div>
       <Comment
