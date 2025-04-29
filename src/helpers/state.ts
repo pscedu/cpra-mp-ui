@@ -338,7 +338,6 @@ export function createPortalState() {
   const getTasks = async ({ tags } = {}) => {
     const params = new URLSearchParams();
     if (tags) for (const tag of tags) params.append("tags", tag.value);
-    console.log(`/tasks?${params}`);
     return await getManagementJson(`/tasks?${params}`);
   };
 

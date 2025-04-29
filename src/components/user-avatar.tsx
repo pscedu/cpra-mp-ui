@@ -5,7 +5,7 @@ import { usePortalState } from "@/helpers/state";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getEmailHash } from "@/helpers/avatar";
 
-export default function UserAvatar({ user = null, size = 32 }) {
+export default function UserAvatar({ user = null, size = 32, className = "" }) {
   const { avatarCacheKey, user: currentUser } = usePortalState();
   const uri: Signal<string | null> = useSignal(null);
 
@@ -17,7 +17,7 @@ export default function UserAvatar({ user = null, size = 32 }) {
     (async () => {
       const emailHash = await getEmailHash(avatarUser.email);
       uri.value = `https://www.gravatar.com/avatar/${emailHash}?d=initials&name=${encodeURIComponent(
-        avatarUser.fullName
+        avatarUser.fullName,
       )}&s=${size}${cacheKey ? `&cache-key=${cacheKey}` : ""}`;
     })();
   }, [avatarUser, size, uri]);
@@ -25,7 +25,7 @@ export default function UserAvatar({ user = null, size = 32 }) {
   return (
     <span title={avatarUser.fullName}>
       <Avatar
-        className={size > 24 ? "rounded-lg" : "rounded-sm"}
+        className={`${size > 24 ? "rounded-lg" : "rounded-sm"} ${className}`}
         style={{ height: `${size}px`, width: `${size}px` }}
       >
         {uri.value !== null && (

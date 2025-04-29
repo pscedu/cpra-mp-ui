@@ -41,7 +41,7 @@ export default function IssueDetail() {
       </div>
       <div className="mb-2">
         {assignees.map((assignee) => (
-          <UserToken key={assignee.name} user={assignee} />
+          <UserToken key={assignee.email} user={assignee} />
         ))}
       </div>
       <Comment

@@ -2,7 +2,7 @@ import { usePortalState } from "@/helpers/state";
 import RelativeTime from "./relative-time";
 import StatusIcon from "./status-icon";
 import TagToken from "./tag-token";
-import UserAvatar from "./user-avatar";
+import UserAvatars from "./user-avatars";
 
 export default function Issue({ task }: { task: any }) {
   const { issue } = usePortalState();
@@ -33,13 +33,21 @@ export default function Issue({ task }: { task: any }) {
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <UserAvatar
+          <UserAvatars
             size={24}
-            user={{ fullName: creator.username, email: creator.email }}
+            users={[
+              {
+                fullName: creator.fullName || creator.username,
+                email: creator.email,
+              },
+              ...task.assignees.filter(
+                (assignee) => assignee.email != creator.email,
+              ),
+            ]}
           />
           <RelativeTime
             className="text-sm text-muted-foreground"
-            date={new Date(parseInt(task.dateCreated))}
+            date={new Date(parseInt(task.dateUpdated))}
             label="Created"
           />
         </div>
