@@ -14,6 +14,7 @@ import {
   mergeOr,
 } from "./utils";
 import { NavigateFunction } from "react-router";
+import { filterTaskTags } from "./clickup";
 
 export const PortalState = createContext(null);
 
@@ -31,6 +32,9 @@ export function createPortalState() {
   const structure = dataSignal(getStructure);
   const activity = hashSignal("activity", "data");
   const issue = hashSignal("issue", null);
+
+  const tasks = signal(null);
+  const task = signal(null);
 
   const user = signal(loadUser());
   const users = signal([]);
@@ -271,19 +275,27 @@ export function createPortalState() {
 
   const getManagementJson = async (
     relativeUrl: string,
-    { accessToken = null, tryRefresh = true } = {},
+    { accessToken = null, body = null, method = "GET", tryRefresh = true } = {},
   ) => {
     const res = await getJson(`${managementBaseUrl}${relativeUrl}`, {
+      body,
       headers: {
         authorization: `Bearer ${
           accessToken ? accessToken : user.peek().accessToken
         }`,
+        "content-type": "application/json",
       },
+      method,
     });
     if (res.error && res.error.status === 401) {
       // Try to obtain a new access token using the refresh token.
       if (tryRefresh && (await refreshAccessToken()))
-        return await getManagementJson(relativeUrl);
+        return await getManagementJson(relativeUrl, {
+          accessToken,
+          body,
+          method,
+          tryRefresh,
+        });
       user.value = null;
     }
     return res;
@@ -310,6 +322,17 @@ export function createPortalState() {
 
   const getTask = async (taskId: string) => {
     return await getManagementJson(`/tasks/${taskId}`);
+  };
+
+  const createTask = async (task: any) => {
+    return await getManagementJson("/tasks", { body: task, method: "POST" });
+  };
+
+  const reloadTasks = () => {
+    tasks.value = null;
+    (async () => {
+      tasks.value = (await getTasks()).map(filterTaskTags);
+    })();
   };
 
   const completeLogin = (
@@ -442,11 +465,34 @@ export function createPortalState() {
     }
   });
 
+  // Load the task list.
+  effect(() => {
+    if (activity.value === "issues") reloadTasks();
+  });
+
+  // Load an individual task when an issue is selected.
+  effect(() => {
+    if (activity.value === "issues")
+      (async () => {
+        if (issue.value === "new")
+          task.value = {
+            assignees: [],
+            tags: [],
+            description: "",
+            name: "",
+            saveUrl: true,
+          };
+        else if (issue.value)
+          task.value = filterTaskTags(await getTask(issue.value));
+      })();
+  });
+
   return {
     activeSelectDimensions,
     activity,
     avatarCacheKey,
     completeLogin,
+    createTask,
     datasets,
     filters,
     filterChoices,
@@ -459,11 +505,14 @@ export function createPortalState() {
     mapFeatureValuesLoading,
     mapTileUrl,
     mapTilesLoading,
+    reloadTasks,
     selectedGeographies,
     setSelectedDatasets,
     setSelectedFilterChoices,
     setTimeValues,
     structure,
+    task,
+    tasks,
     timeChoices,
     timeDimension,
     timeValues,

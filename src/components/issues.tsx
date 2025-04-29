@@ -1,4 +1,3 @@
-import { useSignal, useSignalEffect } from "@preact/signals-react";
 import { usePortalState } from "@/helpers/state";
 
 import { LoaderCircle } from "lucide-react";
@@ -6,13 +5,7 @@ import Issue from "@/components/issue";
 import { Button } from "@/components/ui/button";
 
 export default function Issues() {
-  const { getTasks, issue } = usePortalState();
-  const tasks = useSignal(null);
-  useSignalEffect(() => {
-    (async () => {
-      tasks.value = await getTasks();
-    })();
-  });
+  const { issue, tasks } = usePortalState();
 
   if (tasks.value === null)
     return (

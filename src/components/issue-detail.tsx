@@ -1,5 +1,4 @@
 import { usePortalState } from "@/helpers/state";
-import { useSignal, useSignalEffect } from "@preact/signals-react";
 
 import { LoaderCircle } from "lucide-react";
 import Comment from "./comment";
@@ -8,14 +7,9 @@ import TagToken from "./tag-token";
 import IssueCloseButton from "./issue-close-button";
 
 export default function IssueDetail() {
-  const { getTask, issue } = usePortalState();
-  const task = useSignal(null);
+  const { task } = usePortalState();
 
-  useSignalEffect(() => {
-    (async () => {
-      if (issue.value) task.value = await getTask(issue.value);
-    })();
-  });
+  console.log(task.value);
 
   if (!task.value)
     return (
@@ -35,7 +29,7 @@ export default function IssueDetail() {
       <StatusToken {...status} />
       <div className="mb-2">
         {tags.map((tag) => (
-          <TagToken {...tag} />
+          <TagToken key={tag.name} {...tag} />
         ))}
       </div>
       <Comment

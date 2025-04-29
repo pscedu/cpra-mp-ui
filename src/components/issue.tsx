@@ -29,7 +29,7 @@ export default function Issue({ task }: { task: any }) {
             </a>
           </h2>
           {task.tags.map((tag) => (
-            <TagToken {...tag} />
+            <TagToken key={tag.name} {...tag} />
           ))}
         </div>
         <div className="flex items-center gap-2">

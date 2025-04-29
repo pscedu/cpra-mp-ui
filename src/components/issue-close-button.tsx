@@ -1,14 +1,30 @@
+import { batch } from "@preact/signals-react";
 import { usePortalState } from "@/helpers/state";
+
+import { Button } from "./ui/button";
+import { ReactNode } from "react";
 import { X } from "lucide-react";
 
-export default function IssueCloseButton() {
-  const { issue } = usePortalState();
+export default function IssueCloseButton({
+  children,
+  variant = "ghost",
+}: {
+  children: ReactNode;
+  variant: "ghost" | "outline";
+}) {
+  const { issue, task } = usePortalState();
   return (
-    <button
-      className="text-muted-foreground hover:text-foreground cursor-pointer ml-2 mb-2"
-      onClick={() => (issue.value = null)}
+    <Button
+      className="cursor-pointer"
+      variant={variant}
+      onClick={() =>
+        batch(() => {
+          issue.value = null;
+          task.value = null;
+        })
+      }
     >
-      <X />
-    </button>
+      {children ? children : <X />}
+    </Button>
   );
 }

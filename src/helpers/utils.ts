@@ -1,9 +1,14 @@
 import { selectionColors } from "./config";
 import { Dataset } from "./structure";
 
-export async function getJson(absoluteUrl: string, { headers = {} } = {}) {
+export async function getJson(
+  absoluteUrl: string,
+  { body = null, headers = {}, method = "GET" } = {},
+) {
   const response = await fetch(absoluteUrl, {
+    body: body ? JSON.stringify(body) : null,
     headers: { ...headers, accept: "application/json" },
+    method,
   });
   if (response.status < 200 || response.status > 299) {
     return { error: { status: response.status } };
