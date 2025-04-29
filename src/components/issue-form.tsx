@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { usePortalState } from "@/helpers/state";
 
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import IssueCloseButton from "./issue-close-button";
 
 export default function IssueForm() {
-  const { createTask, issue, users, reloadTasks, structure, task } =
+  const { createTask, issue, users, reloadTasks, structure, tagOptions, task } =
     usePortalState();
 
   const changeHandler = (fieldName: string) => (e) =>
@@ -33,22 +32,6 @@ export default function IssueForm() {
     })();
   };
 
-  const tagOptions = useMemo(() => {
-    const options = [];
-    if (structure.value) {
-      for (let dimension of structure.value.dimensions) {
-        if (dimension.values) {
-          options.push(
-            ...dimension.values.map((dv) => ({
-              value: `${dimension.name}:${dv.value}`,
-              label: `${dimension.label}: ${dv.label || dv.value}`,
-            })),
-          );
-        }
-      }
-    }
-    return options;
-  }, [structure.value]);
   return (
     <div className="mx-4">
       <div className="flex items-start justify-between">
@@ -86,7 +69,7 @@ export default function IssueForm() {
       {structure.value && (
         <RSelect
           inputId="tags"
-          options={tagOptions}
+          options={tagOptions.value}
           isMulti={true}
           isClearable={true}
           className="mb-4"

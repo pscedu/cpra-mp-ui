@@ -10,8 +10,6 @@ import UserToken from "./user-token";
 export default function IssueDetail() {
   const { task } = usePortalState();
 
-  console.log(task.value);
-
   if (!task.value)
     return (
       <li className="p-4 flex">

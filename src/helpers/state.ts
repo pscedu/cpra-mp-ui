@@ -56,6 +56,8 @@ export function createPortalState() {
   const visualizationType = signal("time-series-line");
   const visualizationSpec = signal(null);
 
+  const issueFilterTags = signal([]);
+
   // Query the catalog API for each selected dataset when the selected
   // datasets or dimension values change.
   const queryCatalog = (requestedFilters) => {
@@ -226,6 +228,23 @@ export function createPortalState() {
       : null,
   );
 
+  const tagOptions = computed(() => {
+    const options = [];
+    if (structure.value) {
+      for (let dimension of structure.value.dimensions) {
+        if (dimension.values) {
+          options.push(
+            ...dimension.values.map((dv) => ({
+              value: `${dimension.name}:${dv.value}`,
+              label: `${dimension.label}: ${dv.label || dv.value}`,
+            })),
+          );
+        }
+      }
+    }
+    return options;
+  });
+
   const timeDimension = computed(() =>
     activeTimeDimensions.value.length ? activeTimeDimensions.value[0] : null,
   );
@@ -316,8 +335,11 @@ export function createPortalState() {
   const getUserInfo = async (settings = {}) =>
     await getManagementJson("/users/current_user", settings);
 
-  const getTasks = async () => {
-    return await getManagementJson("/tasks");
+  const getTasks = async ({ tags } = {}) => {
+    const params = new URLSearchParams();
+    if (tags) for (const tag of tags) params.append("tags", tag.value);
+    console.log(`/tasks?${params}`);
+    return await getManagementJson(`/tasks?${params}`);
   };
 
   const getTask = async (taskId: string) => {
@@ -331,7 +353,9 @@ export function createPortalState() {
   const reloadTasks = () => {
     tasks.value = null;
     (async () => {
-      tasks.value = (await getTasks()).map(filterTaskTags);
+      tasks.value = (await getTasks({ tags: issueFilterTags.value })).map(
+        filterTaskTags,
+      );
     })();
   };
 
@@ -467,7 +491,7 @@ export function createPortalState() {
 
   // Load the task list.
   effect(() => {
-    if (activity.value === "issues") reloadTasks();
+    if (activity.value === "issues" && issueFilterTags.value) reloadTasks();
   });
 
   // Load an individual task when an issue is selected.
@@ -499,6 +523,7 @@ export function createPortalState() {
     getTask,
     getTasks,
     issue,
+    issueFilterTags,
     linkClickup,
     mapDataset,
     mapFeatureValues,
@@ -511,6 +536,7 @@ export function createPortalState() {
     setSelectedFilterChoices,
     setTimeValues,
     structure,
+    tagOptions,
     task,
     tasks,
     timeChoices,
