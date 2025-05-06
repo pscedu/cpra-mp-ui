@@ -22,9 +22,9 @@ export default function WorkerPage({
   return (
     <div className="flex h-screen">
       <div className="m-auto">
-        {(status.value == "working" && <LoaderCircle />) || (
-          <TriangleAlert size="large" />
-        )}
+        {(status.value == "working" && (
+          <LoaderCircle size="large" className="animate-spin" />
+        )) || <TriangleAlert size="large" />}
         {heading.value && <h1>{heading.value}</h1>}
         {description.value && <p>{description.value}</p>}
       </div>
