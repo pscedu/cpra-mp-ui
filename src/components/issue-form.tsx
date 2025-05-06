@@ -1,3 +1,4 @@
+import { batch } from "@preact/signals-react";
 import { usePortalState } from "@/helpers/state";
 
 import { Checkbox } from "@/components/ui/checkbox";
@@ -27,7 +28,10 @@ export default function IssueForm() {
         tags: tags.map(({ value }) => value),
         status: "open",
       });
-      issue.value = null;
+      batch(() => {
+        issue.value = null;
+        task.value = null;
+      });
       reloadTasks();
     })();
   };
