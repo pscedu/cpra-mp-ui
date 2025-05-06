@@ -392,7 +392,8 @@ export function createPortalState() {
         accessToken: accessToken,
       });
 
-      if (currentUser.error) return loginError(currentUser.error);
+      if (currentUser.error)
+        return loginError("Failed to get user information");
 
       user.value = {
         ...currentUser,
