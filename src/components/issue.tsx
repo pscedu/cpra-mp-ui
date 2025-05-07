@@ -5,8 +5,12 @@ import TagToken from "./tag-token";
 import UserAvatars from "./user-avatars";
 
 export default function Issue({ task }: { task: any }) {
-  const { issue } = usePortalState();
+  const { issue, issueFilterTags, tagOptions } = usePortalState();
   const { creator } = task;
+  const selectTag = (tagName) => {
+    const option = tagOptions.value.find((opt) => opt.value === tagName);
+    if (option) issueFilterTags.value = [...issueFilterTags.value, option];
+  };
   return (
     <li className="p-4 flex">
       <div className="mr-2 pt-[2px]">
@@ -29,7 +33,11 @@ export default function Issue({ task }: { task: any }) {
             </a>
           </h2>
           {task.tags.map((tag) => (
-            <TagToken key={tag.name} {...tag} />
+            <TagToken
+              key={tag.name}
+              {...tag}
+              onClick={() => selectTag(tag.name)}
+            />
           ))}
         </div>
         <div className="flex items-center gap-2">

@@ -1,7 +1,15 @@
 import DimensionIcon from "./dimension-icon";
 import { usePortalState } from "@/helpers/state";
+import { toTitleCase } from "@/helpers/utils";
 
-export default function TagToken({ name, tag_bg }) {
+const categoryColor = {
+  variable: "bg-purple-400",
+  model_group_id: "bg-blue-400",
+  scenario_id: "bg-green-400",
+  default: "bg-stone-400",
+};
+
+export default function TagToken({ name, onClick }) {
   const { structure } = usePortalState();
 
   const [category, value] = name.split(":");
@@ -11,13 +19,13 @@ export default function TagToken({ name, tag_bg }) {
 
   return (
     <button
-      className="inline-block px-2 py-0.75 rounded-md min-w mr-2 mb-2 text-sm font-bold text-black"
+      className={`inline-block px-2 py-0.75 rounded-md min-w mr-2 mb-2 text-xs font-bold text-black ${categoryColor[category] || categoryColor.default} ${onClick ? "cursor-pointer" : ""}`}
       title={name}
-      style={{ backgroundColor: tag_bg }}
+      onClick={onClick}
     >
-      <span className="flex gap-2 items-center">
+      <span className="flex gap-2 items-center whitespace-nowrap overflow-hidden flex-nowrap">
         <DimensionIcon name={category} size={16} />
-        {valueLabel || value || category}
+        {valueLabel || toTitleCase(value) || toTitleCase(category)}
       </span>
     </button>
   );
