@@ -95,7 +95,7 @@ export default function IssueForm() {
             htmlFor="saveUrl"
             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           >
-            Save map and chart with issue
+            Save map and chart
           </label>
         </div>
       </div>

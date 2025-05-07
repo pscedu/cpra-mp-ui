@@ -3,7 +3,12 @@ import { toTitleCase } from "@/helpers/utils";
 import UserAvatar from "./user-avatar";
 import RelativeTime from "./relative-time";
 
-export default function Comment({ user, action = "commented", date, text }) {
+export default function Comment({
+  user,
+  action = "commented",
+  date,
+  commentText,
+}) {
   const fullName = user.fullName || user.username;
   return (
     <div className="rounded-lg border bg-card text-card-foreground shadow-sm my-4 divide-y">
@@ -18,7 +23,7 @@ export default function Comment({ user, action = "commented", date, text }) {
           />
         </div>
       </div>
-      <div className="p-2">{text}</div>
+      <div className="p-2">{commentText}</div>
     </div>
   );
 }

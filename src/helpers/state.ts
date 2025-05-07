@@ -341,12 +341,37 @@ export function createPortalState() {
     return await getManagementJson(`/tasks?${params}`);
   };
 
-  const getTask = async (taskId: string) => {
-    return await getManagementJson(`/tasks/${taskId}`);
+  const getTask = async (taskId: string, getComments: boolean = false) => {
+    return await getManagementJson(
+      `/tasks/${taskId}?getComments=${getComments.toString()}`,
+    );
   };
 
   const createTask = async (task: any) => {
     return await getManagementJson("/tasks", { body: task, method: "POST" });
+  };
+
+  const createComment = async (taskId: string, commentText: string) => {
+    return await getManagementJson(`/tasks/${taskId}/comments`, {
+      body: { commentText },
+      method: "POST",
+    });
+  };
+
+  const reloadTask = () => {
+    task.value = null;
+    (async () => {
+      if (issue.value === "new")
+        task.value = {
+          assignees: [],
+          tags: [],
+          description: "",
+          name: "",
+          saveUrl: true,
+        };
+      else if (issue.value)
+        task.value = filterTaskTags(await getTask(issue.value, true));
+    })();
   };
 
   const reloadTasks = () => {
@@ -496,19 +521,7 @@ export function createPortalState() {
 
   // Load an individual task when an issue is selected.
   effect(() => {
-    if (activity.value === "issues")
-      (async () => {
-        if (issue.value === "new")
-          task.value = {
-            assignees: [],
-            tags: [],
-            description: "",
-            name: "",
-            saveUrl: true,
-          };
-        else if (issue.value)
-          task.value = filterTaskTags(await getTask(issue.value));
-      })();
+    if (activity.value === "issues") reloadTask();
   });
 
   return {
@@ -516,6 +529,7 @@ export function createPortalState() {
     activity,
     avatarCacheKey,
     completeLogin,
+    createComment,
     createTask,
     datasets,
     filters,
@@ -530,6 +544,7 @@ export function createPortalState() {
     mapFeatureValuesLoading,
     mapTileUrl,
     mapTilesLoading,
+    reloadTask,
     reloadTasks,
     selectedGeographies,
     setSelectedDatasets,
