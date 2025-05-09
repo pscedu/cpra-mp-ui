@@ -1,9 +1,16 @@
 import { createContext, useContext } from "react";
-import { batch, computed, effect, Signal, signal } from "@preact/signals-react";
+import {
+  batch,
+  computed,
+  effect,
+  Signal,
+  signal,
+  untracked,
+} from "@preact/signals-react";
 import { jwtDecode } from "jwt-decode";
 import { loadUser, saveUser } from "./auth";
 import { dataBaseUrl, managementBaseUrl } from "./config";
-import { hashSignal } from "./hash";
+import { datasetsSignal, hashSignal } from "./hash";
 import { Dataset, Dimension, getStructure } from "./structure";
 import {
   extractCatalogObject,
@@ -40,7 +47,7 @@ export function createPortalState() {
   const users = signal([]);
   const avatarCacheKey = signal(new Date().getTime());
 
-  const datasets = signal([]);
+  const datasets = datasetsSignal(structure);
   const filters = signal({});
   const filterChoices = signal({});
   const catalogResponses = signal([]);
@@ -133,9 +140,12 @@ export function createPortalState() {
 
   // Ensure there is always at least one dataset selected.
   effect(() => {
-    if (structure.value && datasets.value.length == 0) {
-      datasets.value = [structure.value.datasets[0]];
-      queryCatalog(filters.peek());
+    if (structure.value) {
+      untracked(() => {
+        if (datasets.peek().length == 0)
+          datasets.value = [structure.value.datasets[0]];
+        queryCatalog(filters.peek());
+      });
     }
   });
 

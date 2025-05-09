@@ -1,4 +1,4 @@
-import { effect, signal } from "@preact/signals-react";
+import { effect, signal, untracked } from "@preact/signals-react";
 
 export const getHashParams = () =>
   new URLSearchParams(window.location.hash.replace(/^#/, ""));
@@ -9,7 +9,7 @@ export const getHashString = (params) => {
   if (params.has("map"))
     hashString = hashString.replace(
       /(^|&)map=[^&]+/,
-      `$1map=${params.get("map")}`
+      `$1map=${params.get("map")}`,
     );
   return hashString ? `#${hashString}` : "";
 };
@@ -22,20 +22,21 @@ export const hashSignalBase = (fromHash, updateHash) => {
   effect(() =>
     window.addEventListener(
       "hashchange",
-      () => (sig.value = fromHash(getHashParams())),
-      false
-    )
+      () => (sig.value = untracked(() => fromHash(getHashParams()))),
+      false,
+    ),
   );
 
   // When the signal value changes, rebuild the URL hash.
   effect(() => {
     const params = getHashParams();
-    updateHash(params, sig.value);
+    const value = sig.value;
+    untracked(() => updateHash(params, value));
 
     window.history.replaceState(
       window.history.state,
       "",
-      getHashString(params)
+      getHashString(params),
     );
   });
 
@@ -46,7 +47,7 @@ export const hashSignal = (
   hashKey: string,
   defaultValue,
   encoder = (val) => val,
-  decoder = (val) => val
+  decoder = (val) => val,
 ) => {
   const fromHash = (params) =>
     params.has(hashKey) ? decoder(params.get(hashKey)) : defaultValue;
@@ -55,4 +56,42 @@ export const hashSignal = (
     else params.set(hashKey, encoder(value));
   };
   return hashSignalBase(fromHash, updateHash);
+};
+
+export const datasetsSignal = (structure) => {
+  const fromHash = (params) => {
+    const variables = params.getAll("variable") || [];
+    const grids = params.getAll("grid") || [];
+    const timeUnits = params.getAll("time_unit") || [];
+
+    return (structure.value?.datasets || []).filter((dataset) => {
+      const variableIdx = variables.indexOf(dataset.variable.name);
+      if (variableIdx == -1) return false;
+      const gridIdx = grids.indexOf(dataset.grid.name);
+      const timeUnitIdx = timeUnits.indexOf(dataset.time_unit);
+      return gridIdx == variableIdx && timeUnitIdx == variableIdx;
+    });
+  };
+
+  const updateHash = (params, value) => {
+    if (!structure.value) return;
+
+    params.delete("variable");
+    params.delete("grid");
+    params.delete("time_unit");
+
+    for (let dataset of value) {
+      params.append("variable", dataset.variable.name);
+      params.append("grid", dataset.grid.name);
+      params.append("time_unit", dataset.time_unit);
+    }
+  };
+
+  const sig = hashSignalBase(fromHash, updateHash);
+
+  effect(() => {
+    sig.value = fromHash(getHashParams());
+  });
+
+  return sig;
 };

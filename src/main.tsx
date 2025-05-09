@@ -6,5 +6,5 @@ import Portal from "./portal.tsx";
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <Portal />
-  </StrictMode>
+  </StrictMode>,
 );
