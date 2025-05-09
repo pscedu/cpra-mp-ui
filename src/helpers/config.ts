@@ -1,7 +1,13 @@
-export const dataBaseUrl = "https://api.mpdp.coastal.la.gov/v1";
-export const glyphsBaseUrl = "https://api.mpdp.coastal.la.gov/glyphs";
-export const staticTilesBaseUrl = "https://api.mpdp.coastal.la.gov/tiles";
+export const dataBaseUrl =
+  import.meta.env.VITE_DATA_BASE_URL || "https://api.mpdp.coastal.la.gov/v1";
+export const glyphsBaseUrl =
+  import.meta.env.VITE_GLYPHS_BASE_URL ||
+  "https://api.mpdp.coastal.la.gov/glyphs";
+export const staticTilesBaseUrl =
+  import.meta.env.VITE_STATIC_TILES_BASE_URL ||
+  "https://api.mpdp.coastal.la.gov/tiles";
 export const managementBaseUrl =
+  import.meta.env.VITE_MANAGEMENT_BASE_URL ||
   "https://api.mpdp.coastal.la.gov/v1/management";
 export const loginUrl = `${managementBaseUrl}/login`;
 export const clickupUrl = `${managementBaseUrl}/clickup`;
