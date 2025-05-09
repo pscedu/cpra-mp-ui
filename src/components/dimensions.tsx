@@ -44,7 +44,7 @@ export default function Dimensions() {
       items = dimension.values
         .filter((dv) => filterChoices.value[dimension.name].includes(dv.value))
         .map((dv) => (
-          <SelectItem value={dv.value}>
+          <SelectItem key={dv.value} value={dv.value}>
             {dv.label || dv.value.toString()}
           </SelectItem>
         ));
@@ -54,22 +54,21 @@ export default function Dimensions() {
           {value.toString()}
         </SelectItem>
       ));
-
-      return (
-        <Select
-          key={dimension.name}
-          value={filters.value[dimension.name][0]}
-          onValueChange={(value) =>
-            setSelectedFilterChoices(dimension.name, [value])
-          }
-        >
-          <SelectTrigger className="mx-2 my-2 max-w-72">
-            <SelectValue placeholder={`Select ${dimension.label}`} />
-          </SelectTrigger>
-          <SelectContent>{items}</SelectContent>
-        </Select>
-      );
     }
+    return (
+      <Select
+        key={dimension.name}
+        value={filters.value[dimension.name][0]}
+        onValueChange={(value) =>
+          setSelectedFilterChoices(dimension.name, [value])
+        }
+      >
+        <SelectTrigger className="mx-2 my-2 max-w-72">
+          <SelectValue placeholder={`Select ${dimension.label}`} />
+        </SelectTrigger>
+        <SelectContent>{items}</SelectContent>
+      </Select>
+    );
   });
 
   return (
