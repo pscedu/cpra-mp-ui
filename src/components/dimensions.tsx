@@ -30,7 +30,7 @@ export default function Dimensions() {
   const datasetItems = structure.value.datasets.map((dataset) => (
     <SelectItem
       key={[dataset.variable.name, dataset.grid.name, dataset.time_unit].join(
-        "|"
+        "|",
       )}
       value={dataset}
     >

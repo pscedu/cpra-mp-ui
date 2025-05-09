@@ -9,8 +9,9 @@ import {
 } from "@preact/signals-react";
 import { jwtDecode } from "jwt-decode";
 import { loadUser, saveUser } from "./auth";
+import { filterTaskTags } from "./clickup";
 import { dataBaseUrl, managementBaseUrl } from "./config";
-import { datasetsSignal, hashSignal } from "./hash";
+import { datasetsSignal, filtersSignal, hashSignal } from "./hash";
 import { Dataset, Dimension, getStructure } from "./structure";
 import {
   extractCatalogObject,
@@ -21,7 +22,6 @@ import {
   mergeOr,
 } from "./utils";
 import { NavigateFunction } from "react-router";
-import { filterTaskTags } from "./clickup";
 
 export const PortalState = createContext(null);
 
@@ -48,7 +48,7 @@ export function createPortalState() {
   const avatarCacheKey = signal(new Date().getTime());
 
   const datasets = datasetsSignal(structure);
-  const filters = signal({});
+  const filters = filtersSignal(structure);
   const filterChoices = signal({});
   const catalogResponses = signal([]);
   const timeValues = signal([]);

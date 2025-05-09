@@ -95,3 +95,35 @@ export const datasetsSignal = (structure) => {
 
   return sig;
 };
+
+export const filtersSignal = (structure) => {
+  const fromHash = (params) => {
+    const value = {};
+    for (let dimension of structure.value?.dimensions || []) {
+      if (["dataset", "metadata"].includes(dimension.type)) continue;
+      let dimensionValues = params.getAll(dimension.name);
+      if (dimensionValues.length) value[dimension.name] = dimensionValues;
+    }
+    return value;
+  };
+
+  const updateHash = (params, value) => {
+    if (!structure.value) return;
+
+    for (let dimension of structure.value.dimensions) {
+      if (["dataset", "metadata"].includes(dimension.type)) continue;
+      params.delete(dimension.name);
+      if (dimension.name in value)
+        for (let dimensionValue of value[dimension.name])
+          params.append(dimension.name, dimensionValue);
+    }
+  };
+
+  const sig = hashSignalBase(fromHash, updateHash);
+
+  effect(() => {
+    sig.value = fromHash(getHashParams());
+  });
+
+  return sig;
+};
