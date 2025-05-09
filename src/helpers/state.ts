@@ -62,8 +62,8 @@ export function createPortalState() {
   const selectedGeographies = hashSignal(
     "geography",
     [],
-    (values) => values.map((value) => value.toString()).join(","),
-    (str) => str.split(",").map((valueStr) => parseInt(valueStr)),
+    (values) => values.map((value) => value.toString()).join("-"),
+    (str) => str.split("-").map((valueStr) => parseInt(valueStr)),
   );
   const visualizationType = hashSignal("visualization", "time-series-line");
   const visualizationSpec = signal(null);
