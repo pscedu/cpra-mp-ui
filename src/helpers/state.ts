@@ -59,8 +59,13 @@ export function createPortalState() {
   const mapFeatureValuesLoading = signal(false);
   const mapTilesLoading = signal(false);
 
-  const selectedGeographies = signal([]);
-  const visualizationType = signal("time-series-line");
+  const selectedGeographies = hashSignal(
+    "geography",
+    [],
+    (values) => values.map((value) => value.toString()).join(","),
+    (str) => str.split(",").map((valueStr) => parseInt(valueStr)),
+  );
+  const visualizationType = hashSignal("visualization", "time-series-line");
   const visualizationSpec = signal(null);
 
   const issueFilterTags = signal([]);
