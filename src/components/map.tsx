@@ -18,6 +18,7 @@ export default function Map() {
   const {
     mapDataset,
     mapFeatureValues,
+    mapPosition,
     mapTileUrl,
     mapTilesLoading,
     selectedGeographies,
@@ -31,16 +32,20 @@ export default function Map() {
   const dataLayerIdx = useRef(0);
 
   const initMap = () => {
+    const [z, y, x] = mapPosition.value;
     map.current = new GLMap({
       container: container.current,
-      center: [-91.5, 29.75],
-      hash: "map",
+      center: [x, y],
       style: getBaseStyle(),
-      zoom: 8,
+      zoom: z,
     });
 
     map.current.on("data", () => (mapTilesLoading.value = true));
     map.current.on("idle", () => (mapTilesLoading.value = false));
+    map.current.on("moveend", () => {
+      const { lat, lng } = map.current.getCenter();
+      mapPosition.value = [map.current.getZoom(), lat, lng];
+    });
   };
 
   const addLayerClickHandlers = (layerId) => {
@@ -69,12 +74,12 @@ export default function Map() {
     map.current.on(
       "mousemove",
       layerId,
-      () => (map.current.getCanvas().style.cursor = "pointer")
+      () => (map.current.getCanvas().style.cursor = "pointer"),
     );
     map.current.on(
       "mouseleave",
       layerId,
-      () => (map.current.getCanvas().style.cursor = "")
+      () => (map.current.getCanvas().style.cursor = ""),
     );
   };
 
@@ -169,7 +174,7 @@ export default function Map() {
             {
               selected: geoIdx >= 0 ? getSelectionColor(geoIdx) : null,
               value: mapFeatureValues.value[featureId],
-            }
+            },
           );
         }
   };
@@ -188,6 +193,18 @@ export default function Map() {
       }
     };
   }, [container.current]);
+
+  // Update the map position when the signal changes.
+  useEffect(() => {
+    if (map.current) {
+      const [z, y, x] = mapPosition.value;
+      if (z.toFixed(2) != map.current.getZoom().toFixed(2))
+        map.current.setZoom(z);
+      const { lat, lng } = map.current.getCenter();
+      if (y.toFixed(2) != lat.toFixed(2) || x.toFixed(2) != lng.toFixed(2))
+        map.current.setCenter([x, y]);
+    }
+  }, [mapPosition.value]);
 
   // Update the map style.
   useEffect(() => {

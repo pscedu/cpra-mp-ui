@@ -54,6 +54,12 @@ export function createPortalState() {
   const timeValues = signal([]);
   let timeValuesTimeout: number | null = null;
 
+  const mapPosition = hashSignal(
+    "map",
+    [8, 29.75, -91.5],
+    (values) => values.map((value) => value.toFixed(2)).join("/"),
+    (valueStr) => valueStr.split("/").map((value) => parseFloat(value)),
+  );
   const mapFeatureValues = signal({});
   let mapFeatureValuesAbortController: AbortController | null = null;
   const mapFeatureValuesLoading = signal(false);
@@ -557,6 +563,7 @@ export function createPortalState() {
     mapDataset,
     mapFeatureValues,
     mapFeatureValuesLoading,
+    mapPosition,
     mapTileUrl,
     mapTilesLoading,
     reloadTask,
