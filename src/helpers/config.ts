@@ -3,6 +3,9 @@ export const dataBaseUrl =
 export const glyphsBaseUrl =
   import.meta.env.VITE_GLYPHS_BASE_URL ||
   "https://api.mpdp.coastal.la.gov/glyphs";
+export const spritesBaseUrl =
+  import.meta.env.VITE_SPRITES_BASE_URL ||
+  "https://api.mpdp.coastal.la.gov/sprites";
 export const staticTilesBaseUrl =
   import.meta.env.VITE_STATIC_TILES_BASE_URL ||
   "https://api.mpdp.coastal.la.gov/tiles";
@@ -11,6 +14,7 @@ export const managementBaseUrl =
   "https://api.mpdp.coastal.la.gov/v1/management";
 export const loginUrl = `${managementBaseUrl}/login`;
 export const clickupUrl = `${managementBaseUrl}/clickup`;
+export const fowaModelGroupIds = [500, 520];
 export const selectionColors = [
   "ff0000",
   "0aefff",

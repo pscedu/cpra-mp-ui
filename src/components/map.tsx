@@ -3,6 +3,7 @@ import { Map as GLMap } from "maplibre-gl";
 import { usePortalState } from "@/helpers/state";
 import {
   getBaseStyle,
+  projectLayers,
   rasterLayers,
   rasterSource,
   vectorLayers,
@@ -21,7 +22,9 @@ export default function Map() {
     mapPosition,
     mapTileUrl,
     mapTilesLoading,
+    projectsYear,
     selectedGeographies,
+    showProjects,
   } = usePortalState();
 
   const container = useRef(null);
@@ -159,6 +162,19 @@ export default function Map() {
     prevDataset.current = mapDataset.value;
   };
 
+  const updateProjectLayers = (show: boolean) => {
+    const mapStyle = map.current.getStyle();
+    for (let layer of mapStyle.layers)
+      if (layer.id.startsWith("project-")) map.current.removeLayer(layer.id);
+
+    if (show)
+      for (let layer of projectLayers(
+        ["<=", ["get", "year"], projectsYear.value - 2019],
+        true,
+      ))
+        map.current.addLayer(layer, "label");
+  };
+
   const updateFeatureState = () => {
     const sourceId = getSourceId();
     if (map.current.getSource(sourceId))
@@ -214,6 +230,14 @@ export default function Map() {
       updateStyle();
     })();
   }, [mapDataset.value, mapTileUrl.value]);
+
+  // Update project layers.
+  useEffect(() => {
+    (async () => {
+      await ensureStyleLoaded();
+      updateProjectLayers(showProjects.value);
+    })();
+  }, [showProjects.value, projectsYear.value]);
 
   // Update the map feature state when new data are loaded or the selection changes.
   useEffect(() => {

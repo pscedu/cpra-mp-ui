@@ -10,7 +10,7 @@ import {
 import { jwtDecode } from "jwt-decode";
 import { loadUser, saveUser } from "./auth";
 import { filterTaskTags } from "./clickup";
-import { dataBaseUrl, managementBaseUrl } from "./config";
+import { dataBaseUrl, fowaModelGroupIds, managementBaseUrl } from "./config";
 import { datasetsSignal, filtersSignal, hashSignal } from "./hash";
 import { Dataset, Dimension, getStructure } from "./structure";
 import {
@@ -283,6 +283,20 @@ export function createPortalState() {
           visualizationType.value,
         )
       : null;
+  });
+
+  const showProjects = computed(() => {
+    if (!filters.value || !filters.value.model_group_id) return false;
+    const modelGroupId = filters.value.model_group_id[0];
+    return !fowaModelGroupIds.includes(modelGroupId);
+  });
+
+  const projectsYear = computed(() => {
+    if (!filters.value) return 0;
+    if (filters.value.calendar_day)
+      return parseInt(filters.value.calendar_day[0].substr(0, 4));
+    if (filters.value.calendar_year) return filters.value.calendar_year[0];
+    return 0;
   });
 
   const setTimeValues = (values) => {
@@ -566,6 +580,8 @@ export function createPortalState() {
     mapPosition,
     mapTileUrl,
     mapTilesLoading,
+    projectsYear,
+    showProjects,
     reloadTask,
     reloadTasks,
     selectedGeographies,
