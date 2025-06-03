@@ -2,7 +2,7 @@ import { usePortalState } from "@/helpers/state";
 
 import { LoaderCircle } from "lucide-react";
 import Comment from "./comment";
-import StatusToken from "./status-token";
+import StatusSelect from "./status-select";
 import TagToken from "./tag-token";
 import IssueCloseButton from "./issue-close-button";
 import UserToken from "./user-token";
@@ -36,7 +36,7 @@ export default function IssueDetail() {
         <h2 className="font-bold mb-2 text-2xl">{name}</h2>
         <IssueCloseButton />
       </div>
-      <StatusToken {...status} />
+      <StatusSelect status={status} />
       <div className="mb-2">
         {tags.map((tag) => (
           <TagToken key={tag.name} {...tag} />

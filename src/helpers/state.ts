@@ -418,6 +418,13 @@ export function createPortalState() {
     })();
   };
 
+  const updateTask = async (taskId: string, taskUpdates: any) => {
+    return await getManagementJson(`/tasks/${taskId}`, {
+      body: taskUpdates,
+      method: "PUT",
+    });
+  };
+
   const completeLogin = (
     { search }: Location,
     navigate: NavigateFunction,
@@ -595,6 +602,7 @@ export function createPortalState() {
     timeChoices,
     timeDimension,
     timeValues,
+    updateTask,
     user,
     users,
     visualizationSpec,
