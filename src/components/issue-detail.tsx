@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { usePortalState } from "@/helpers/state";
 
 import { LoaderCircle } from "lucide-react";
@@ -7,9 +8,12 @@ import TagToken from "./tag-token";
 import IssueCloseButton from "./issue-close-button";
 import UserToken from "./user-token";
 import CommentForm from "./comment-form";
+import EditToggle from "./edit-toggle";
+import AssigneesSelect from "./assignees-select";
 
 export default function IssueDetail() {
-  const { task } = usePortalState();
+  const { task, updateTask } = usePortalState();
+  const currentAssignees = useRef([]);
 
   if (!task.value)
     return (
@@ -17,6 +21,12 @@ export default function IssueDetail() {
         <LoaderCircle className="animate-spin" />
       </li>
     );
+
+  const resetAssignees = () =>
+    (task.value = {
+      ...task.value,
+      assignees: currentAssignees.current,
+    });
 
   const {
     assignees,
@@ -43,10 +53,30 @@ export default function IssueDetail() {
         ))}
       </div>
       <div className="mb-2">
-        {assignees.map((assignee) => (
-          <UserToken key={assignee.email} user={assignee} />
-        ))}
+        <EditToggle
+          display={() =>
+            assignees.length > 0 ? (
+              <div>
+                {assignees.map((assignee) => (
+                  <UserToken key={assignee.email} user={assignee} />
+                ))}
+              </div>
+            ) : (
+              <p className="italic">Assigned to nobody</p>
+            )
+          }
+          edit={() => <AssigneesSelect />}
+          onCancel={resetAssignees}
+          onEdit={() => (currentAssignees.current = task.value.assignees)}
+          onSave={async () => {
+            const res = await updateTask({
+              assignees: task.value.assignees.map((user) => user.id),
+            });
+            if (res.error) resetAssignees();
+          }}
+        />
       </div>
+
       <Comment
         user={creator}
         date={dateCreated}

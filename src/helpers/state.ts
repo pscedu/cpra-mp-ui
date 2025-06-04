@@ -418,9 +418,9 @@ export function createPortalState() {
     })();
   };
 
-  const updateTask = async (taskId: string, taskUpdates: any) => {
-    return await getManagementJson(`/tasks/${taskId}`, {
-      body: taskUpdates,
+  const updateTask = async (taskUpdates: any) => {
+    return await getManagementJson(`/tasks/${task.value.id}`, {
+      body: { status: task.value.status.status, ...taskUpdates },
       method: "PUT",
     });
   };

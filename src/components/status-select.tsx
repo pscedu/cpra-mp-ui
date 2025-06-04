@@ -54,7 +54,7 @@ export default function StatusSelect({ status }) {
                 onSelect={() => {
                   if (!isCurrent) saving.value = true;
                   (async () => {
-                    const res = await updateTask(task.value.id, {
+                    const res = await updateTask({
                       status: choice.status,
                     });
                     batch(() => {

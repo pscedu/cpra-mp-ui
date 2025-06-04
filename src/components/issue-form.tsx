@@ -3,20 +3,17 @@ import { usePortalState } from "@/helpers/state";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import RSelect from "@/components/ui/rselect";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import IssueCloseButton from "./issue-close-button";
+import TagsSelect from "./tags-select";
+import AssigneesSelect from "./assignees-select";
 
 export default function IssueForm() {
-  const { createTask, issue, users, reloadTasks, structure, tagOptions, task } =
-    usePortalState();
+  const { createTask, issue, reloadTasks, task } = usePortalState();
 
   const changeHandler = (fieldName: string) => (e) =>
     (task.value = { ...task.value, [fieldName]: e.target.value });
-
-  const selectHandler = (fieldName: string) => (selected) =>
-    (task.value = { ...task.value, [fieldName]: selected });
 
   const saveTask = () => {
     const { name, description, assignees, tags, saveUrl } = task.value;
@@ -57,31 +54,8 @@ export default function IssueForm() {
         value={task.value.description}
         onChange={changeHandler("description")}
       />
-      <RSelect
-        inputId="assignedTo"
-        options={users.value.map((user) => ({
-          value: user,
-          label: user.fullName,
-        }))}
-        isMulti={true}
-        isClearable={true}
-        className="mb-4"
-        placeholder="Assigned to..."
-        value={task.value.assignees}
-        onChange={selectHandler("assignees")}
-      />
-      {structure.value && (
-        <RSelect
-          inputId="tags"
-          options={tagOptions.value}
-          isMulti={true}
-          isClearable={true}
-          className="mb-4"
-          placeholder="Tags..."
-          value={task.value.tags}
-          onChange={selectHandler("tags")}
-        />
-      )}
+      <TagsSelect />
+      <AssigneesSelect />
       <div className="items-top flex space-x-2 mb-4">
         <Checkbox
           id="saveUrl"
