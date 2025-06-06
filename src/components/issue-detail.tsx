@@ -10,6 +10,7 @@ import UserToken from "./user-token";
 import CommentForm from "./comment-form";
 import EditToggle from "./edit-toggle";
 import AssigneesSelect from "./assignees-select";
+import { calculateDiff } from "@/helpers/management";
 
 export default function IssueDetail() {
   const { task, updateTask } = usePortalState();
@@ -70,7 +71,11 @@ export default function IssueDetail() {
           onEdit={() => (currentAssignees.current = task.value.assignees)}
           onSave={async () => {
             const res = await updateTask({
-              assignees: task.value.assignees.map((user) => user.id),
+              assignees: calculateDiff(
+                currentAssignees.current,
+                task.value.assignees,
+                "id",
+              ),
             });
             if (res.error) resetAssignees();
           }}
