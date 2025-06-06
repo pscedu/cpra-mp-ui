@@ -18,7 +18,7 @@ export default function AssigneesSelect() {
       options={Object.values(optionsMap)}
       isMulti={true}
       isClearable={true}
-      className="mb-4 w-full flex-auto"
+      className="mb-4 w-full"
       placeholder="Assigned to..."
       value={task.value.assignees.map((user) => optionsMap[user.id])}
       onChange={(selected) =>

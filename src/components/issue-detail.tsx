@@ -1,20 +1,22 @@
-import { useRef } from "react";
+import { calculateDiff } from "@/helpers/management";
 import { usePortalState } from "@/helpers/state";
+import { useRef } from "react";
 
 import { LoaderCircle } from "lucide-react";
+import AssigneesSelect from "./assignees-select";
 import Comment from "./comment";
-import StatusSelect from "./status-select";
-import TagToken from "./tag-token";
-import IssueCloseButton from "./issue-close-button";
-import UserToken from "./user-token";
 import CommentForm from "./comment-form";
 import EditToggle from "./edit-toggle";
-import AssigneesSelect from "./assignees-select";
-import { calculateDiff } from "@/helpers/management";
+import IssueCloseButton from "./issue-close-button";
+import StatusSelect from "./status-select";
+import TagToken from "./tag-token";
+import TagsSelect from "./tags-select";
+import UserToken from "./user-token";
 
 export default function IssueDetail() {
   const { task, updateTask } = usePortalState();
   const currentAssignees = useRef([]);
+  const currentTags = useRef([]);
 
   if (!task.value)
     return (
@@ -23,11 +25,14 @@ export default function IssueDetail() {
       </li>
     );
 
-  const resetAssignees = () =>
+  const reset = (attr, ref) =>
     (task.value = {
       ...task.value,
-      assignees: currentAssignees.current,
+      [attr]: ref.current,
     });
+
+  const resetAssignees = () => reset("assignees", currentAssignees);
+  const resetTags = () => reset("tags", currentTags);
 
   const {
     assignees,
@@ -49,9 +54,28 @@ export default function IssueDetail() {
       </div>
       <StatusSelect status={status} />
       <div className="mb-2">
-        {tags.map((tag) => (
-          <TagToken key={tag.name} {...tag} />
-        ))}
+        <EditToggle
+          display={() =>
+            tags.length > 0 ? (
+              <div>
+                {tags.map((tag) => (
+                  <TagToken key={tag.name} {...tag} />
+                ))}
+              </div>
+            ) : (
+              <p className="italic">No tags</p>
+            )
+          }
+          edit={() => <TagsSelect />}
+          onCancel={resetTags}
+          onEdit={() => (currentTags.current = task.value.tags)}
+          onSave={async () => {
+            const res = await updateTask({
+              tags: calculateDiff(currentTags.current, task.value.tags, "id"),
+            });
+            if (res.error) resetTags();
+          }}
+        />
       </div>
       <div className="mb-2">
         <EditToggle
