@@ -75,6 +75,7 @@ export function createPortalState() {
   const visualizationSpec = signal(null);
 
   const issueFilterTags = signal([]);
+  const taskStatuses = signal(null);
 
   // Query the catalog API for each selected dataset when the selected
   // datasets or dimension values change.
@@ -393,6 +394,8 @@ export function createPortalState() {
     });
   };
 
+  const getStatuses = async () => await getManagementJson("/statuses");
+
   const reloadTask = () => {
     task.value = null;
     (async () => {
@@ -566,6 +569,11 @@ export function createPortalState() {
     if (activity.value === "issues") reloadTask();
   });
 
+  // Load possible task statuses when the application loads.
+  effect(() => {
+    if (user.value) (async () => (taskStatuses.value = await getStatuses()))();
+  });
+
   return {
     activeSelectDimensions,
     activity,
@@ -599,6 +607,7 @@ export function createPortalState() {
     tagOptions,
     task,
     tasks,
+    taskStatuses,
     timeChoices,
     timeDimension,
     timeValues,

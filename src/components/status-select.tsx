@@ -24,8 +24,10 @@ const statusChoices = [
 ];
 
 export default function StatusSelect({ status }) {
-  const { task, updateTask } = usePortalState();
+  const { task, updateTask, taskStatuses } = usePortalState();
   const saving = useSignal(false);
+
+  const statusChoices = taskStatuses.value?.tasks || [];
 
   return saving.value ? (
     <LoaderCircle className="animate-spin mb-6 me-2" />
@@ -46,16 +48,16 @@ export default function StatusSelect({ status }) {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           {statusChoices.map((choice) => {
-            const isCurrent = choice.status === status.status;
+            const isCurrent = choice === status.status;
             return (
               <DropdownMenuItem
-                key={choice.type}
+                key={choice}
                 className="flex justify-between cursor-pointer"
                 onSelect={() => {
                   if (!isCurrent) saving.value = true;
                   (async () => {
                     const res = await updateTask({
-                      status: choice.status,
+                      status: choice,
                     });
                     batch(() => {
                       if (res.error) return console.error(res.error);
@@ -66,7 +68,7 @@ export default function StatusSelect({ status }) {
                 }}
               >
                 <span className={isCurrent ? "font-bold" : ""}>
-                  {toTitleCase(choice.status)}
+                  {toTitleCase(choice)}
                 </span>
                 {isCurrent && <Check />}
               </DropdownMenuItem>
