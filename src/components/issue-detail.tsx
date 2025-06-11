@@ -45,6 +45,7 @@ export default function IssueDetail() {
     status,
     tags,
   } = task.value;
+  console.log(comments);
 
   return (
     <div className="p-4">
@@ -73,6 +74,7 @@ export default function IssueDetail() {
             const res = await updateTask({
               tags: calculateDiff(currentTags.current, task.value.tags, "name"),
             });
+            comment;
             if (res.error) resetTags();
           }}
         />

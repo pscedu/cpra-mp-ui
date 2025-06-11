@@ -421,6 +421,13 @@ export function createPortalState() {
     })();
   };
 
+  const updateComment = async (commentId: string, commentUpdates: any) => {
+    return await getManagementJson(`/comments/${commentId}`, {
+      body: commentUpdates,
+      method: "PUT",
+    });
+  };
+
   const updateTask = async (taskUpdates: any) => {
     return await getManagementJson(`/tasks/${task.value.id}`, {
       body: taskUpdates,
@@ -611,6 +618,7 @@ export function createPortalState() {
     timeChoices,
     timeDimension,
     timeValues,
+    updateComment,
     updateTask,
     user,
     users,

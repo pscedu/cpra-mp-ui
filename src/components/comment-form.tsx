@@ -9,7 +9,7 @@ import UserAvatar from "@/components/user-avatar";
 export default function CommentForm() {
   const { createComment, task } = usePortalState();
   const taskId = task.value.id;
-  const cacheKey = `issue-${taskId}-new-comment`;
+  const cacheKey = `issue-${taskId}-comment-new`;
   const text = useSignal("");
   const isProcessing = useSignal(false);
 

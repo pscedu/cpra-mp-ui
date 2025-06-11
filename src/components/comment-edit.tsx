@@ -7,11 +7,13 @@ import { Textarea } from "@/components/ui/textarea";
 export default function CommentEdit({
   cacheKey,
   children,
+  defaultValue = "",
   setValue,
   value,
 }: {
   cacheKey: string;
   children?: ReactNode;
+  defaultValue?: string;
   setValue: (text: string) => void;
   value: string;
 }) {
@@ -21,9 +23,9 @@ export default function CommentEdit({
   }, []);
 
   useEffect(() => {
-    if (value.length) localStorage.setItem(cacheKey, value);
+    if (value != defaultValue) localStorage.setItem(cacheKey, value);
     else localStorage.removeItem(cacheKey);
-  }, [cacheKey, value]);
+  }, [cacheKey, defaultValue, value]);
 
   return (
     <>
