@@ -1,35 +1,42 @@
-import { batch } from "@preact/signals-react";
 import { usePortalState } from "@/helpers/state";
+import { batch, useSignal } from "@preact/signals-react";
 
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { LoaderCircle } from "lucide-react";
+import AssigneesSelect from "./assignees-select";
+import CommentEdit from "./comment-edit";
 import IssueCloseButton from "./issue-close-button";
 import TagsSelect from "./tags-select";
-import AssigneesSelect from "./assignees-select";
 
 export default function IssueForm() {
   const { createTask, issue, reloadTasks, task } = usePortalState();
+  const isProcessing = useSignal(false);
 
-  const changeHandler = (fieldName: string) => (e) =>
-    (task.value = { ...task.value, [fieldName]: e.target.value });
+  const updateTaskField = (fieldName: string, value: any) =>
+    (task.value = { ...task.value, [fieldName]: value });
 
   const saveTask = () => {
-    const { name, description, assignees, tags, saveUrl } = task.value;
+    isProcessing.value = true;
+    const { name, description, assignees, tags } = task.value;
     (async () => {
-      await createTask({
+      const res = await createTask({
         name,
         description,
-        assignees: assignees.map(({ value }) => value.id),
-        tags: tags.map(({ value }) => value),
+        assignees: assignees.map(({ id }) => id),
+        tags: tags.map(({ name }) => name),
         status: "open",
       });
       batch(() => {
-        issue.value = null;
-        task.value = null;
+        if (res.error) {
+          // TODO: Show an error toast.
+        } else {
+          issue.value = null;
+          task.value = null;
+        }
+        isProcessing.value = false;
+        reloadTasks();
       });
-      reloadTasks();
     })();
   };
 
@@ -45,41 +52,29 @@ export default function IssueForm() {
         placeholder="Title"
         className="mb-4"
         value={task.value.name}
-        onChange={changeHandler("name")}
+        onChange={(e) => updateTaskField("name", e.target.value)}
       />
-      <Textarea
-        id="description"
-        placeholder="Description"
-        className="h-50 mb-4"
-        value={task.value.description}
-        onChange={changeHandler("description")}
-      />
+      <div className="mb-2">
+        <CommentEdit
+          cacheKey={null}
+          setValue={(value) => updateTaskField("description", value)}
+          value={task.value.description}
+        />
+      </div>
       <TagsSelect />
       <AssigneesSelect />
-      <div className="items-top flex space-x-2 mb-4">
-        <Checkbox
-          id="saveUrl"
-          checked={task.value.saveUrl}
-          onCheckedChange={(saveUrl) =>
-            (task.value = { ...task.value, saveUrl })
-          }
-        />
-        <div className="grid gap-1.5 leading-none">
-          <label
-            htmlFor="saveUrl"
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-          >
-            Save map and chart
-          </label>
-        </div>
-      </div>
       <div className="flex justify-end gap-2">
         <IssueCloseButton variant="outline">Cancel</IssueCloseButton>
         <Button
           className="cursor-pointer bg-green-700 hover:bg-green-600 text-white font-bold"
           onClick={saveTask}
+          disabled={isProcessing.value}
         >
-          Create
+          {isProcessing.value ? (
+            <LoaderCircle className="animate-spin" />
+          ) : (
+            <>Create</>
+          )}
         </Button>
       </div>
     </div>

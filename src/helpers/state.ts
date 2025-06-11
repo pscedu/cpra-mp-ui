@@ -405,7 +405,6 @@ export function createPortalState() {
           tags: [],
           description: "",
           name: "",
-          saveUrl: true,
         };
       else if (issue.value)
         task.value = filterTaskTags(await getTask(issue.value, true));

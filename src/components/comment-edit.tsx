@@ -5,24 +5,26 @@ import { Link } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function CommentEdit({
-  cacheKey,
+  cacheKey = null,
   children,
   defaultValue = "",
   setValue,
   value,
 }: {
-  cacheKey: string;
+  cacheKey: string | null;
   children?: ReactNode;
   defaultValue?: string;
   setValue: (text: string) => void;
   value: string;
 }) {
   useEffect(() => {
+    if (!cacheKey) return;
     const initial = localStorage.getItem(cacheKey);
     if (initial) setValue(initial);
   }, []);
 
   useEffect(() => {
+    if (!cacheKey) return;
     if (value != defaultValue) localStorage.setItem(cacheKey, value);
     else localStorage.removeItem(cacheKey);
   }, [cacheKey, defaultValue, value]);
