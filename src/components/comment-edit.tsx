@@ -8,12 +8,14 @@ export default function CommentEdit({
   cacheKey = null,
   children,
   defaultValue = "",
+  placeholder = "Add your comment...",
   setValue,
   value,
 }: {
   cacheKey: string | null;
   children?: ReactNode;
   defaultValue?: string;
+  placeholder?: string;
   setValue: (text: string) => void;
   value: string;
 }) {
@@ -33,7 +35,7 @@ export default function CommentEdit({
     <>
       <Textarea
         id="comment"
-        placeholder="Add your comment..."
+        placeholder={placeholder}
         className="h-50 mb-2"
         value={value}
         onChange={(e) => setValue(e.target.value)}

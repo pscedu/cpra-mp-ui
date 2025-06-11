@@ -57,6 +57,7 @@ export default function IssueForm() {
       <div className="mb-2">
         <CommentEdit
           cacheKey={null}
+          placeholder="Description"
           setValue={(value) => updateTaskField("description", value)}
           value={task.value.description}
         />
