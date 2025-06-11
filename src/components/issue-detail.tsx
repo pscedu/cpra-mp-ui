@@ -71,7 +71,7 @@ export default function IssueDetail() {
           onEdit={() => (currentTags.current = task.value.tags)}
           onSave={async () => {
             const res = await updateTask({
-              tags: calculateDiff(currentTags.current, task.value.tags, "id"),
+              tags: calculateDiff(currentTags.current, task.value.tags, "name"),
             });
             if (res.error) resetTags();
           }}
