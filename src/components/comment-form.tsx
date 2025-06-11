@@ -1,37 +1,31 @@
-import { batch, useSignal, useSignalEffect } from "@preact/signals-react";
 import { usePortalState } from "@/helpers/state";
+import { batch, useSignal } from "@preact/signals-react";
 
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
+import CommentEdit from "@/components/comment-edit";
+import { LoaderCircle } from "lucide-react";
 import UserAvatar from "@/components/user-avatar";
 
 export default function CommentForm() {
-  const { createComment, issue, reloadTask } = usePortalState();
-  const commentKey = `issue-${issue.value}-comment`;
-  const saveUrlKey = `issue-${issue.value}-save-url`;
-  const comment = useSignal(localStorage.getItem(commentKey) || "");
-  const saveUrl = useSignal(localStorage.getItem(saveUrlKey) !== "false");
-
-  useSignalEffect(() => {
-    if (comment.value.length) localStorage.setItem(commentKey, comment.value);
-    else localStorage.removeItem(commentKey);
-  });
-
-  useSignalEffect(() => {
-    if (saveUrl.value) localStorage.removeItem(saveUrlKey);
-    else localStorage.setItem(saveUrlKey, "false");
-  });
+  const { createComment, task } = usePortalState();
+  const taskId = task.value.id;
+  const cacheKey = `issue-${taskId}-new-comment`;
+  const text = useSignal("");
+  const isProcessing = useSignal(false);
 
   const saveComment = () => {
+    isProcessing.value = true;
     (async () => {
-      await createComment(issue.value, comment.value);
-      // TODO: Make sure save succeeded before clearing local storage.
+      const res = await createComment(taskId, text.value);
       batch(() => {
-        comment.value = "";
-        saveUrl.value = true;
+        if (res.error) {
+          // TODO: Display an error toast.
+        } else {
+          task.value = { ...task.value, comments: res.comments };
+          text.value = "";
+        }
+        isProcessing.value = false;
       });
-      reloadTask();
     })();
   };
 
@@ -44,37 +38,23 @@ export default function CommentForm() {
         </div>
       </div>
       <div className="p-2">
-        <Textarea
-          id="comment"
-          placeholder="Add your comment..."
-          className="h-50 mb-2"
-          value={comment.value}
-          onChange={(e) => (comment.value = e.target.value)}
-        />
-        <div className="flex justify-between items-center">
-          <div className="items-top flex space-x-2">
-            <Checkbox
-              id="saveUrl"
-              checked={saveUrl.value}
-              onCheckedChange={(checked) => (saveUrl.value = checked)}
-            />
-            <div className="grid gap-1.5 leading-none">
-              <label
-                htmlFor="saveUrl"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Save map and chart
-              </label>
-            </div>
-          </div>
+        <CommentEdit
+          cacheKey={cacheKey}
+          value={text.value}
+          setValue={(value) => (text.value = value)}
+        >
           <Button
             className="cursor-pointer bg-green-700 hover:bg-green-600 text-white font-bold"
             onClick={saveComment}
-            disabled={comment.value.length == 0}
+            disabled={text.value.length == 0 || isProcessing.value}
           >
-            Comment
+            {isProcessing.value ? (
+              <LoaderCircle className="animate-spin" />
+            ) : (
+              <>Comment</>
+            )}
           </Button>
-        </div>
+        </CommentEdit>
       </div>
     </div>
   );
