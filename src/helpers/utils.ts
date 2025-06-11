@@ -167,7 +167,7 @@ export const parseDate = (dateStr: string) => {
 // Adapted from:
 // https://stackoverflow.com/questions/196972/convert-string-to-title-case-with-javascript
 export function toTitleCase(text: string) {
-  return text.replace(
+  return (text || "").replace(
     /\w\S*/g,
     (word) => word.charAt(0).toUpperCase() + word.substring(1).toLowerCase(),
   );
