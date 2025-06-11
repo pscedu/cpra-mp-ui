@@ -14,15 +14,6 @@ import {
 import StatusToken from "@/components/status-token";
 import { batch, useSignal } from "@preact/signals-react";
 
-const statusChoices = [
-  {
-    type: "open",
-    status: "Open",
-  },
-  { type: "done", status: "wontfix" },
-  { type: "closed", status: "resolved" },
-];
-
 export default function StatusSelect({ status }) {
   const { task, updateTask, taskStatuses } = usePortalState();
   const saving = useSignal(false);
