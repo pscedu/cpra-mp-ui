@@ -25,7 +25,7 @@ export default function TagToken({ name, onClick }) {
     >
       <span className="flex gap-2 items-center whitespace-nowrap overflow-hidden flex-nowrap">
         <DimensionIcon name={category} size={16} />
-        {valueLabel || toTitleCase(value) || toTitleCase(category)}
+        {valueLabel || toTitleCase(value || category)}
       </span>
     </button>
   );
