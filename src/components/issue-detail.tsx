@@ -1,8 +1,10 @@
 import { calculateDiff } from "@/helpers/management";
 import { usePortalState } from "@/helpers/state";
+import { cn } from "@/lib/utils";
 import { useRef } from "react";
+import { buttonVariants } from "./ui/button";
 
-import { LoaderCircle } from "lucide-react";
+import { ExternalLink, LoaderCircle } from "lucide-react";
 import AssigneesSelect from "./assignees-select";
 import Comment from "./comment";
 import CommentForm from "./comment-form";
@@ -44,8 +46,8 @@ export default function IssueDetail() {
     name,
     status,
     tags,
+    url,
   } = task.value;
-  console.log(comments);
 
   return (
     <div className="p-4">
@@ -53,7 +55,19 @@ export default function IssueDetail() {
         <h2 className="font-bold mb-2 text-2xl">{name}</h2>
         <IssueCloseButton />
       </div>
-      <StatusSelect status={status} />
+      <div className="flex">
+        <StatusSelect status={status} />
+        {url && (
+          <a
+            href={url}
+            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+            target="_blank"
+            title="Open task in ClickUp"
+          >
+            <ExternalLink />
+          </a>
+        )}
+      </div>
       <div className="mb-2">
         <EditToggle
           display={() =>
