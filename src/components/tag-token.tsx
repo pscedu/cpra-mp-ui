@@ -9,7 +9,13 @@ const categoryColor = {
   default: "bg-stone-400",
 };
 
-export default function TagToken({ name, onClick }) {
+export default function TagToken({
+  name,
+  onClick,
+}: {
+  name: string;
+  onClick?: Function;
+}) {
   const { structure } = usePortalState();
 
   const [category, value] = name.split(":");
@@ -17,8 +23,10 @@ export default function TagToken({ name, onClick }) {
     (dv) => dv.value.toString() === value,
   )?.label;
 
+  const Tag = onClick ? "button" : "span";
+
   return (
-    <button
+    <Tag
       className={`inline-block px-2 py-0.75 rounded-md min-w mr-2 mb-2 text-xs font-bold text-black ${categoryColor[category] || categoryColor.default} ${onClick ? "cursor-pointer" : ""}`}
       title={name}
       onClick={onClick}
@@ -27,6 +35,6 @@ export default function TagToken({ name, onClick }) {
         <DimensionIcon name={category} size={16} />
         {valueLabel || toTitleCase(value || category)}
       </span>
-    </button>
+    </Tag>
   );
 }

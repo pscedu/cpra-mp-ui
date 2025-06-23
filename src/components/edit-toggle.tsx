@@ -6,12 +6,14 @@ import { Button } from "./ui/button";
 export default function EditToggle({
   display,
   edit,
+  isEditable = true,
   onCancel = () => {},
   onEdit = () => {},
   onSave = () => {},
 }: {
   display: Function;
   edit: Function;
+  isEditable: boolean;
   onCancel?: Function;
   onEdit?: Function;
   onSave?: Function;
@@ -31,51 +33,50 @@ export default function EditToggle({
   };
 
   if (isProcessing.value) return <LoaderCircle className="animate-spin" />;
-  return (
+  if (!isEditable) return display();
+  return isEditing.value ? (
     <div className="flex justify-between">
-      {isEditing.value ? edit() : display()}
+      {edit()}
       <div className="ms-2">
-        {isEditing.value ? (
-          <div className="flex">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => exit(onSave)}
-              className="cursor-pointer"
-              aria-label="Save"
-              title="Save"
-            >
-              <Check />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => exit(onCancel)}
-              className="cursor-pointer"
-              aria-label="Cancel"
-              title="Cancel"
-            >
-              <X />
-            </Button>
-          </div>
-        ) : (
+        <div className="flex">
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => {
-              (async () => {
-                await onEdit();
-                isEditing.value = true;
-              })();
-            }}
+            onClick={() => exit(onSave)}
             className="cursor-pointer"
-            aria-label="Edit"
-            title="Edit"
+            aria-label="Save"
+            title="Save"
           >
-            <Pencil />
+            <Check />
           </Button>
-        )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => exit(onCancel)}
+            className="cursor-pointer"
+            aria-label="Cancel"
+            title="Cancel"
+          >
+            <X />
+          </Button>
+        </div>
       </div>
     </div>
+  ) : (
+    <button
+      variant="ghost"
+      onClick={() => {
+        (async () => {
+          await onEdit();
+          isEditing.value = true;
+        })();
+      }}
+      className="group/edit-button cursor-pointer flex items-center"
+      aria-label="Edit"
+      title="Edit"
+    >
+      {display()}
+      <Pencil className="invisible group-hover/edit-button:visible" size={16} />
+    </button>
   );
 }
