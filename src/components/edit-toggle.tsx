@@ -13,7 +13,7 @@ export default function EditToggle({
 }: {
   display: Function;
   edit: Function;
-  isEditable: boolean;
+  isEditable?: boolean;
   onCancel?: Function;
   onEdit?: Function;
   onSave?: Function;

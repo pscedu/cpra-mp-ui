@@ -14,10 +14,14 @@ import StatusSelect from "./status-select";
 import TagToken from "./tag-token";
 import TagsSelect from "./tags-select";
 import UserToken from "./user-token";
+import { Input } from "./ui/input";
+import { useSignal } from "@preact/signals-react";
 
 export default function IssueDetail() {
   const { task, updateTask } = usePortalState();
+  const isEditingName = useSignal(false);
   const currentAssignees = useRef([]);
+  const currentName = useRef("");
   const currentTags = useRef([]);
 
   if (!task.value)
@@ -34,6 +38,7 @@ export default function IssueDetail() {
     });
 
   const resetAssignees = () => reset("assignees", currentAssignees);
+  const resetName = () => reset("name", currentName);
   const resetTags = () => reset("tags", currentTags);
 
   const {
@@ -51,9 +56,37 @@ export default function IssueDetail() {
 
   return (
     <div className="p-4">
-      <div className="flex items-start justify-between">
-        <h2 className="font-bold mb-2 text-2xl">{name}</h2>
-        <IssueCloseButton />
+      <div className="flex items-start justify-between mb-2">
+        <EditToggle
+          display={() => (
+            <h2 className="font-bold text-2xl/6 me-2 text-left">{name}</h2>
+          )}
+          edit={() => (
+            <Input
+              type="text"
+              className="md:text-xl mb-2"
+              value={name}
+              onChange={(e) =>
+                (task.value = { ...task.value, name: e.target.value })
+              }
+            />
+          )}
+          onCancel={() => {
+            resetName();
+            isEditingName.value = false;
+          }}
+          onEdit={() => {
+            currentName.current = name;
+            isEditingName.value = true;
+          }}
+          onSave={async () => {
+            const res = await updateTask({ name });
+            if (res.error) resetName();
+            isEditingName.value = false;
+          }}
+        />
+
+        {isEditingName.value ? null : <IssueCloseButton />}
       </div>
       <div className="flex">
         <StatusSelect status={status} />
@@ -88,7 +121,6 @@ export default function IssueDetail() {
             const res = await updateTask({
               tags: calculateDiff(currentTags.current, task.value.tags, "name"),
             });
-            comment;
             if (res.error) resetTags();
           }}
         />
