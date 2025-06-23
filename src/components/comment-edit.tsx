@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useRef } from "react";
+import { getPermalink } from "@/helpers/hash";
 import { usePortalState } from "@/helpers/state";
 
 import { Button } from "@/components/ui/button";
@@ -20,8 +21,9 @@ export default function CommentEdit({
   setValue: (text: string) => void;
   value: string;
 }) {
-  const { permalinkBaseUrl } = usePortalState();
+  const { selectedGeographies } = usePortalState();
   const textarea = useRef(null);
+  const label = selectedGeographies.value.length ? "map and chart" : "map";
 
   useEffect(() => {
     if (!cacheKey) return;
@@ -42,7 +44,7 @@ export default function CommentEdit({
       const selection = value.slice(ta.selectionStart, ta.selectionEnd);
       const after = value.slice(ta.selectionEnd, value.length);
       setValue(
-        `${before}[${selection || "map and chart"}](${permalinkBaseUrl.value})${after}`,
+        `${before}[${selection || label}](${getPermalink({ exclude: ["activity", "issue"] })})${after}`,
       );
     }
   };
@@ -64,7 +66,7 @@ export default function CommentEdit({
           className="cursor-pointer"
           onClick={insertLink}
         >
-          <Link /> Insert map/chart link
+          <Link /> Current {label} link
         </Button>
         {children}
       </div>

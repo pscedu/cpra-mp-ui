@@ -1,4 +1,5 @@
 import { effect, signal, untracked } from "@preact/signals-react";
+import { portalBaseUrl } from "./config";
 
 export const getHashParams = () =>
   new URLSearchParams(window.location.hash.replace(/^#/, ""));
@@ -126,4 +127,19 @@ export const filtersSignal = (structure) => {
   });
 
   return sig;
+};
+
+export const getPermalink = ({
+  include,
+  exclude,
+}: {
+  include?: string[];
+  exclude?: string[];
+}) => {
+  const params = getHashParams();
+  if (include)
+    for (const key of params.keys())
+      if (!include.includes(key)) params.delete(key);
+  if (exclude) for (const key of exclude) params.delete(key);
+  return `${portalBaseUrl}#${params}`;
 };

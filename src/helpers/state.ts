@@ -10,12 +10,7 @@ import {
 import { jwtDecode } from "jwt-decode";
 import { loadUser, saveUser } from "./auth";
 import { filterTaskTags } from "./clickup";
-import {
-  dataBaseUrl,
-  fowaModelGroupIds,
-  managementBaseUrl,
-  portalBaseUrl,
-} from "./config";
+import { dataBaseUrl, fowaModelGroupIds, managementBaseUrl } from "./config";
 import { datasetsSignal, filtersSignal, hashSignal } from "./hash";
 import { Dimension, getStructure } from "./structure";
 import {
@@ -303,22 +298,6 @@ export function createPortalState() {
       return parseInt(filters.value.calendar_day[0].substr(0, 4));
     if (filters.value.calendar_year) return filters.value.calendar_year[0];
     return 0;
-  });
-
-  const permalinkBaseUrl = computed(() => {
-    const params = new URLSearchParams();
-    for (let dataset of datasets.value) {
-      params.append("variable", dataset.variable.name);
-      params.append("grid", dataset.grid.name);
-      params.append("time_unit", dataset.time_unit);
-    }
-    for (let dimension of structure.value.dimensions) {
-      if (["dataset", "metadata"].includes(dimension.type)) continue;
-      if (dimension.name in filters.value)
-        for (let dimensionValue of filters.value[dimension.name])
-          params.append(dimension.name, dimensionValue);
-    }
-    return `${portalBaseUrl}#${params}`;
   });
 
   const setTimeValues = (values) => {
@@ -622,7 +601,6 @@ export function createPortalState() {
     mapPosition,
     mapTileUrl,
     mapTilesLoading,
-    permalinkBaseUrl,
     projectsYear,
     showProjects,
     reloadTask,
