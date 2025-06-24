@@ -1,11 +1,10 @@
 import { usePortalState } from "@/helpers/state";
 import { batch, useSignal } from "@preact/signals-react";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { LoaderCircle } from "lucide-react";
 import AssigneesSelect from "./assignees-select";
 import CommentEdit from "./comment-edit";
+import CommentSaveButton from "./comment-save-button";
 import IssueCloseButton from "./issue-close-button";
 import TagsSelect from "./tags-select";
 
@@ -66,17 +65,13 @@ export default function IssueForm() {
       <AssigneesSelect />
       <div className="flex justify-end gap-2">
         <IssueCloseButton variant="outline">Cancel</IssueCloseButton>
-        <Button
-          className="cursor-pointer bg-green-700 hover:bg-green-600 text-white font-bold"
+        <CommentSaveButton
+          buttonLabel="Create"
+          fieldLabel="task description"
           onClick={saveTask}
-          disabled={isProcessing.value}
-        >
-          {isProcessing.value ? (
-            <LoaderCircle className="animate-spin" />
-          ) : (
-            <>Create</>
-          )}
-        </Button>
+          processing={isProcessing.value}
+          text={task.value.description}
+        />
       </div>
     </div>
   );

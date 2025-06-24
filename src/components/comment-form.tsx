@@ -1,9 +1,8 @@
 import { usePortalState } from "@/helpers/state";
 import { batch, useSignal } from "@preact/signals-react";
 
-import { Button } from "@/components/ui/button";
 import CommentEdit from "@/components/comment-edit";
-import { LoaderCircle } from "lucide-react";
+import CommentSaveButton from "./comment-save-button";
 import UserAvatar from "@/components/user-avatar";
 
 export default function CommentForm() {
@@ -43,17 +42,11 @@ export default function CommentForm() {
           value={text.value}
           setValue={(value) => (text.value = value)}
         >
-          <Button
-            className="cursor-pointer bg-green-700 hover:bg-green-600 text-white font-bold"
+          <CommentSaveButton
             onClick={saveComment}
-            disabled={text.value.length == 0 || isProcessing.value}
-          >
-            {isProcessing.value ? (
-              <LoaderCircle className="animate-spin" />
-            ) : (
-              <>Comment</>
-            )}
-          </Button>
+            processing={isProcessing.value}
+            text={text.value}
+          />
         </CommentEdit>
       </div>
     </div>
