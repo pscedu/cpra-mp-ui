@@ -33,7 +33,6 @@ export const hashSignalBase = (fromHash, updateHash) => {
     const params = getHashParams();
     const value = sig.value;
     untracked(() => updateHash(params, value));
-
     window.history.replaceState(
       window.history.state,
       "",
@@ -142,4 +141,12 @@ export const getPermalink = ({
       if (!include.includes(key)) params.delete(key);
   if (exclude) for (const key of exclude) params.delete(key);
   return `${portalBaseUrl}#${params}`;
+};
+
+export const mergeHash = (url: string) => {
+  const params = getHashParams();
+  const mergeParams = new URLSearchParams(url.split("#")[1]);
+  for (const [key] of mergeParams) params.delete(key);
+  for (const [key, value] of mergeParams) params.append(key, value);
+  window.location.hash = getHashString(params);
 };

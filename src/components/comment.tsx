@@ -14,6 +14,7 @@ import {
 import { Check, EllipsisVertical, LoaderCircle, Pencil, X } from "lucide-react";
 import UserAvatar from "@/components/user-avatar";
 import RelativeTime from "@/components/relative-time";
+import Markdown from "./markdown";
 
 export default function Comment({
   user,
@@ -39,7 +40,7 @@ export default function Comment({
       if (id) {
         res = await updateComment(id, { commentText: text.value });
       } else {
-        res = await updateTask({ description: text.value });
+        res = await updateTask({ markdown_description: text.value });
       }
       batch(() => {
         if (res.error) {
@@ -145,7 +146,7 @@ export default function Comment({
             </div>
           </CommentEdit>
         ) : (
-          text.value
+          <Markdown text={text.value} />
         )}
       </div>
     </div>

@@ -9,7 +9,7 @@ import {
 } from "@preact/signals-react";
 import { jwtDecode } from "jwt-decode";
 import { loadUser, saveUser } from "./auth";
-import { filterTaskTags } from "./clickup";
+import { exportTask, importTask } from "./clickup";
 import { dataBaseUrl, fowaModelGroupIds, managementBaseUrl } from "./config";
 import { datasetsSignal, filtersSignal, hashSignal } from "./hash";
 import { Dimension, getStructure } from "./structure";
@@ -384,7 +384,10 @@ export function createPortalState() {
   };
 
   const createTask = async (task: any) => {
-    return await getManagementJson("/tasks", { body: task, method: "POST" });
+    return await getManagementJson("/tasks", {
+      body: exportTask(task),
+      method: "POST",
+    });
   };
 
   const createComment = async (taskId: string, commentText: string) => {
@@ -403,11 +406,11 @@ export function createPortalState() {
         task.value = {
           assignees: [],
           tags: [],
-          description: "",
+          markdown_description: "",
           name: "",
         };
       else if (issue.value)
-        task.value = filterTaskTags(await getTask(issue.value, true));
+        task.value = importTask(await getTask(issue.value, true));
     })();
   };
 
@@ -415,7 +418,7 @@ export function createPortalState() {
     tasks.value = null;
     (async () => {
       tasks.value = (await getTasks({ tags: issueFilterTags.value })).map(
-        filterTaskTags,
+        importTask,
       );
     })();
   };
@@ -429,7 +432,7 @@ export function createPortalState() {
 
   const updateTask = async (taskUpdates: any) => {
     return await getManagementJson(`/tasks/${task.value.id}`, {
-      body: taskUpdates,
+      body: exportTask(taskUpdates),
       method: "PUT",
     });
   };

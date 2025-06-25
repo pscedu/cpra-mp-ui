@@ -17,11 +17,11 @@ export default function IssueForm() {
 
   const saveTask = () => {
     isProcessing.value = true;
-    const { name, description, assignees, tags } = task.value;
+    const { name, markdown_description, assignees, tags } = task.value;
     (async () => {
       const res = await createTask({
         name,
-        description,
+        markdown_description,
         assignees: assignees.map(({ id }) => id),
         tags: tags.map(({ name }) => name),
         status: "open",
@@ -57,8 +57,8 @@ export default function IssueForm() {
         <CommentEdit
           cacheKey={null}
           placeholder="Description"
-          setValue={(value) => updateTaskField("description", value)}
-          value={task.value.description}
+          setValue={(value) => updateTaskField("markdown_description", value)}
+          value={task.value.markdown_description}
         />
       </div>
       <TagsSelect />
@@ -70,7 +70,7 @@ export default function IssueForm() {
           fieldLabel="task description"
           onClick={saveTask}
           processing={isProcessing.value}
-          text={task.value.description}
+          text={task.value.markdown_description}
         />
       </div>
     </div>

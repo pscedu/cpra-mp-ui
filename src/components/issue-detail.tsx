@@ -46,8 +46,7 @@ export default function IssueDetail() {
     comments,
     creator,
     dateCreated,
-    description,
-    id,
+    markdownDescription,
     name,
     status,
     tags,
@@ -158,7 +157,7 @@ export default function IssueDetail() {
         user={creator}
         date={dateCreated}
         action="opened"
-        commentText={description}
+        commentText={markdownDescription}
       />
       {comments &&
         comments
