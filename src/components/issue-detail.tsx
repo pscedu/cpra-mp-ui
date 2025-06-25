@@ -110,7 +110,7 @@ export default function IssueDetail() {
                 ))}
               </div>
             ) : (
-              <p className="italic">No tags</p>
+              <p className="italic me-2">No tags</p>
             )
           }
           edit={() => <TagsSelect />}
@@ -134,7 +134,7 @@ export default function IssueDetail() {
                 ))}
               </div>
             ) : (
-              <p className="italic">Assigned to nobody</p>
+              <p className="italic me-2">Assigned to nobody</p>
             )
           }
           edit={() => <AssigneesSelect />}
