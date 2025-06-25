@@ -10,18 +10,12 @@ import {
 import { jwtDecode } from "jwt-decode";
 import { loadUser, saveUser } from "./auth";
 import { exportTask, importTask } from "./clickup";
-import { dataBaseUrl, fowaModelGroupIds, managementBaseUrl } from "./config";
+import { fowaModelGroupIds, managementBaseUrl } from "./config";
 import { datasetsSignal, filtersSignal, hashSignal } from "./hash";
-import { Dimension, getStructure } from "./structure";
-import {
-  extractCatalogObject,
-  getJson,
-  getNdJson,
-  getFilterParams,
-  makeQueryString,
-  mergeOr,
-} from "./utils";
+import { getStructure, Structure } from "./structure";
+import { getJson, getNdJson } from "./utils";
 import { NavigateFunction } from "react-router";
+import { CatalogQueries } from "./catalog";
 
 export const PortalState = createContext(null);
 
@@ -36,7 +30,7 @@ function dataSignal(loadFn: Function, defaultValue = null) {
 }
 
 export function createPortalState() {
-  const structure = dataSignal(getStructure);
+  const structure: Signal<Structure | null> = dataSignal(getStructure);
   const activity = hashSignal("activity", "data");
   const issue = hashSignal("issue", null);
 
@@ -49,8 +43,7 @@ export function createPortalState() {
 
   const datasets = datasetsSignal(structure);
   const filters = filtersSignal(structure);
-  const filterChoices = signal({});
-  const catalogResponses = signal([]);
+  const catalogQueries: Signal<CatalogQueries | null> = signal(null);
   const timeValues = signal([]);
   let timeValuesTimeout: number | null = null;
 
@@ -79,74 +72,15 @@ export function createPortalState() {
 
   // Query the catalog API for each selected dataset when the selected
   // datasets or dimension values change.
-  const queryCatalog = (requestedFilters) => {
+  const queryCatalog = () => {
     (async () => {
-      if (datasets.value && datasets.value.length && structure.value) {
-        const responses = await Promise.all(
-          datasets.value.map((dataset) => {
-            const requiredDimensions = structure.value.getRequiredDimensions([
-              dataset,
-            ]);
-
-            // Create a copy of the filters specific to this dataset so we can make
-            // changes without impacting other datasets.
-            const queryFilers = { ...requestedFilters };
-
-            // Handle changing from daily/monthly datasets to annual/decadal datasets
-            // and vice-versa.
-            if (
-              "calendar_day" in queryFilers &&
-              ["annual", "decadal"].includes(dataset.time_unit)
-            ) {
-              queryFilers["calendar_year"] = queryFilers["calendar_day"].map(
-                (dateStr) => {
-                  let year = parseInt(dateStr.substr(0, 4));
-                  if (dataset.time_unit === "decadal")
-                    year = Math.round(year / 10) * 10;
-                  return year;
-                },
-              );
-              delete queryFilers["calendar_day"];
-            } else if (
-              "calendar_year" in queryFilers &&
-              ["daily", "monthly"].includes(dataset.time_unit)
-            ) {
-              queryFilers["calendar_day"] = queryFilers["calendar_year"].map(
-                (year) => `${year}-01-01`,
-              );
-              delete queryFilers["calendar_year"];
-            }
-
-            const qs = makeQueryString(
-              getFilterParams(requiredDimensions, queryFilers),
-            );
-            const requestPath = `${dataBaseUrl}/datasets/${dataset.variable.name}/${dataset.grid.name}/${dataset.time_unit}/catalog.json${qs}`;
-            return getJson(requestPath);
-          }),
-        );
-
-        const newFilters = mergeOr(
-          responses.map((response, i) =>
-            extractCatalogObject(response.results, datasets.value[i]),
-          ),
-          filterDimensionNames.value,
-        );
-
-        const choices = mergeOr(
-          responses.map((response, i) =>
-            extractCatalogObject(response.choices, datasets.value[i]),
-          ),
-          filterDimensionNames.value,
-        );
-
-        batch(() => {
-          filters.value = newFilters;
-          filterChoices.value = choices;
-          catalogResponses.value = responses;
-          const timeDim = timeDimension.peek();
-          if (timeDim) timeValues.value = newFilters[timeDim.name];
-        });
-      }
+      const cqs = new CatalogQueries(
+        datasets.value,
+        filters.value,
+        structure.value,
+      );
+      await cqs.executeAll();
+      catalogQueries.value = cqs;
     })();
   };
 
@@ -156,97 +90,44 @@ export function createPortalState() {
       untracked(() => {
         if (datasets.peek().length == 0)
           datasets.value = [structure.value.datasets[0]];
-        queryCatalog(filters.peek());
       });
     }
   });
 
-  // Dimensions representing a filter (not dataset or metadata).
-  const filterDimensions = computed(() =>
-    structure.value
-      ? structure.value.dimensions.filter(
-          (dimension) => !["dataset", "metadata"].includes(dimension.type),
-        )
-      : [],
-  );
+  // Query the catalog when datasets or filters change.
+  effect(() => {
+    if (!structure.value) return;
+    if (
+      !catalogQueries.value ||
+      datasets.value !== catalogQueries.value.datasets ||
+      filters.value !== catalogQueries.value.filters
+    )
+      return queryCatalog();
+  });
 
-  // Names of filter dimensions.
-  const filterDimensionNames = computed(() =>
-    filterDimensions.value.map((dimension) => dimension.name),
-  );
-
-  // Partition and non-partition Dimensions for the selected datasets.
-  const activeFilterDimensions = computed((): Dimension<any>[] =>
-    structure.value && filterChoices.value
-      ? structure.value.dimensions.filter(
-          (dimension) => dimension.name in filterChoices.value,
-        )
-      : [],
-  );
-
-  // Select item dimensions.
-  const activeSelectDimensions = computed((): Dimension<any>[] =>
-    activeFilterDimensions.value.filter(
-      (dimension) => !dimension.name.startsWith("calendar_"),
-    ),
-  );
-
-  // Time dimensions.
-  const activeTimeDimensions = computed((): Dimension<any>[] =>
-    activeFilterDimensions.value.filter((dimension) =>
-      dimension.name.startsWith("calendar_"),
-    ),
-  );
-
-  const mapDataset = computed(() => {
-    if (!datasets.value || !datasets.value.length) return null;
-    // TODO: Allow user to select the active dataset.
-    return datasets.value[0];
+  const mapCatalogQuery = computed(() => {
+    if (!catalogQueries.value) return null;
+    // TODO: Allow user to select the active query/dataset.
+    return catalogQueries.value.queries[0];
   });
 
   const mapDataUrl = computed(() => {
     if (
-      !mapDataset.value ||
-      !mapFilterParams.value ||
-      mapDataset.value.grid.grid_type === "raster"
+      !mapCatalogQuery.value ||
+      mapCatalogQuery.value.dataset.grid.grid_type === "raster"
     )
       return null;
-    return mapDataset.value.getDataUrl(mapFilterParams.value, "ndjson");
+    return mapCatalogQuery.value.dataset.getDataUrl(
+      mapCatalogQuery.value.getFilterParams(),
+      "ndjson",
+    );
   });
-
-  const mapCatalogResponse = computed(() => {
-    if (!catalogResponses.value.length) return null;
-    // TODO: Allow user to select the active dataset.
-    return catalogResponses.value[0];
-  });
-
-  const mapFilterParams = computed(() => {
-    const ds = mapDataset.value;
-    const cr = mapCatalogResponse.value;
-    if (!ds || !cr || !structure.value) return null;
-
-    const requiredDimensions = structure.value.getRequiredDimensions([ds]);
-
-    // TODO: Select the filters based on user input. For now, we select the first
-    // value for each dimension.
-    const selectedFilters = {};
-    for (let dimension of requiredDimensions)
-      selectedFilters[dimension.name] = [cr.results[dimension.name][0]];
-
-    return getFilterParams(requiredDimensions, selectedFilters);
-  });
-
-  const visualizationFilterParams = computed(() =>
-    mapFilterParams.value && selectedGeographies.value.length > 0
-      ? mapFilterParams.value
-          .filter(([param, _value]) => !param.startsWith("calendar_"))
-          .concat([["geography", selectedGeographies.value]])
-      : null,
-  );
 
   const mapTileUrl = computed(() =>
-    mapDataset.value && mapFilterParams.value
-      ? mapDataset.value.getTileUrl(mapFilterParams.value)
+    mapCatalogQuery.value
+      ? mapCatalogQuery.value.dataset.getTileUrl(
+          mapCatalogQuery.value.getFilterParams(),
+        )
       : null,
   );
 
@@ -268,35 +149,45 @@ export function createPortalState() {
   });
 
   const timeDimension = computed(() =>
-    activeTimeDimensions.value.length ? activeTimeDimensions.value[0] : null,
+    catalogQueries.value
+      ? catalogQueries.value.activeDimensions.filter(
+          (dim) => dim.filterType === "time",
+        )[0]
+      : null,
   );
 
   const timeChoices = computed(() =>
-    timeDimension.value
-      ? (filterChoices.value || {})[timeDimension.value.name] || []
+    timeDimension.value && catalogQueries.value
+      ? catalogQueries.value.combinedChoices[timeDimension.value.name] || []
       : [],
   );
 
   const visualizationSpecUrl = computed(() => {
-    return visualizationFilterParams.value && visualizationType.value
-      ? mapDataset.value.getVisualizationUrl(
-          visualizationFilterParams.value,
+    return mapCatalogQuery.value &&
+      visualizationType.value &&
+      selectedGeographies.value &&
+      selectedGeographies.value.length
+      ? mapCatalogQuery.value.dataset.getVisualizationUrl(
+          mapCatalogQuery.value.getFilterParams(selectedGeographies.value),
           visualizationType.value,
         )
       : null;
   });
 
   const showProjects = computed(() => {
-    if (!filters.value || !filters.value.model_group_id) return false;
-    const modelGroupId = filters.value.model_group_id[0];
-    return !fowaModelGroupIds.includes(modelGroupId);
+    const { combinedFilters } = catalogQueries.value || {};
+    if (!combinedFilters || !combinedFilters.model_group_id) return false;
+    return !fowaModelGroupIds.includes(combinedFilters.model_group_id[0]);
   });
 
   const projectsYear = computed(() => {
-    if (!filters.value) return 0;
-    if (filters.value.calendar_day)
-      return parseInt(filters.value.calendar_day[0].substr(0, 4));
-    if (filters.value.calendar_year) return filters.value.calendar_year[0];
+    const { combinedFilters } = catalogQueries.value || {};
+    if (combinedFilters) {
+      if (combinedFilters.calendar_day)
+        return parseInt(combinedFilters.calendar_day[0].substr(0, 4));
+      if (combinedFilters.calendar_year)
+        return combinedFilters.calendar_year[0];
+    }
     return 0;
   });
 
@@ -304,11 +195,7 @@ export function createPortalState() {
     timeValues.value = values;
     if (timeValuesTimeout) clearTimeout(timeValuesTimeout);
     timeValuesTimeout = setTimeout(
-      () =>
-        queryCatalog({
-          ...filters.value,
-          [timeDimension.value.name]: values,
-        }),
+      () => setSelectedFilterChoices(timeDimension.value.name, values),
       250,
     );
   };
@@ -316,16 +203,41 @@ export function createPortalState() {
   const setSelectedDatasets = (selected: Dataset[]) => {
     batch(() => {
       datasets.value = selected;
-      catalogResponses.value = [];
+
+      // Handle changing from daily/monthly datasets to annual/decadal datasets
+      // and vice-versa.
+      const timeDataset = selected[0];
+      const timeColumn = timeDataset.getTimeColumn();
+      const newFilters = { ...filters.value };
+      if ("calendar_day" in filters.value && timeColumn === "calendar_year") {
+        newFilters["calendar_year"] = filters.value["calendar_day"].map(
+          (dateStr) => {
+            let year = parseInt(dateStr.substr(0, 4));
+            if (timeDataset.time_unit === "decadal")
+              year = Math.round(year / 10) * 10;
+            return year;
+          },
+        );
+        delete newFilters["calendar_day"];
+        filters.value = newFilters;
+      } else if (
+        "calendar_year" in filters.value &&
+        timeColumn === "calendar_day"
+      ) {
+        newFilters["calendar_day"] = filters.value["calendar_year"].map(
+          (year) => `${year}-01-01`,
+        );
+        delete newFilters["calendar_year"];
+        filters.value = newFilters;
+      }
     });
-    queryCatalog(filters.value);
   };
 
   const setSelectedFilterChoices = (dimensionName: string, values: []) => {
-    queryCatalog({
+    filters.value = {
       ...filters.value,
       [dimensionName]: values,
-    });
+    };
   };
 
   const getManagementJson = async (
@@ -497,6 +409,14 @@ export function createPortalState() {
     navigate("/");
   };
 
+  // Update time values when new catalog queries are performed.
+  // TODO: The delay logic can probably be handled inside the time-select component.
+  effect(() => {
+    const cqs = catalogQueries.value;
+    const timeDim = timeDimension.peek();
+    if (cqs && timeDim) timeValues.value = cqs.combinedFilters[timeDim.name];
+  });
+
   // Update map feature state when the dataset or filters change.
   effect(() => {
     (async () => {
@@ -584,21 +504,20 @@ export function createPortalState() {
   });
 
   return {
-    activeSelectDimensions,
     activity,
     avatarCacheKey,
+    catalogQueries,
     completeLogin,
     createComment,
     createTask,
     datasets,
     filters,
-    filterChoices,
     getTask,
     getTasks,
     issue,
     issueFilterTags,
     linkClickup,
-    mapDataset,
+    mapCatalogQuery,
     mapFeatureValues,
     mapFeatureValuesLoading,
     mapPosition,

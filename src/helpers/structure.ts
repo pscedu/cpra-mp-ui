@@ -21,6 +21,8 @@ export class Dimension<T> {
   values: DimensionValue<T>[];
   minValue: T | null;
   maxValue: T | null;
+  isFilter: boolean;
+  filterType: "select" | "time" | null;
 
   constructor({
     name,
@@ -44,6 +46,12 @@ export class Dimension<T> {
       : null;
     this.minValue = min_value;
     this.maxValue = max_value;
+    this.isFilter = !["dataset", "metadata"].includes(type);
+    this.filterType = this.isFilter
+      ? name.startsWith("calendar_")
+        ? "time"
+        : "select"
+      : null;
   }
 }
 
@@ -180,7 +188,7 @@ export class Dataset {
 
   getVisualizationUrl(params: [string, any][], visualizationType: string) {
     return `${this.getBaseUrl()}/visualization/${visualizationType}.json${makeQueryString(
-      params
+      params,
     )}`;
   }
 }
@@ -215,10 +223,10 @@ export class Structure {
             : this.legendsMap.default,
           required_dimensions: variable.required_dimensions
             ? variable.required_dimensions.map(
-                (dimensionName) => this.dimensionsMap[dimensionName]
+                (dimensionName) => this.dimensionsMap[dimensionName],
               )
             : [],
-        })
+        }),
     );
     this.variablesMap = makeMap(this.variables);
     this.datasets = datasets
@@ -228,7 +236,7 @@ export class Structure {
             variable: this.variablesMap[dataset.variable],
             grid: this.gridsMap[dataset.grid],
             time_unit: dataset.time_unit,
-          })
+          }),
       )
       .sort((a, b) => (a.variable.label < b.variable.label ? -1 : 1));
   }
@@ -236,7 +244,7 @@ export class Structure {
   getRequiredDimensions(
     datasets: Dataset[],
     includeDataset = false,
-    includeMetadata = false
+    includeMetadata = false,
   ): Dimension<any>[] {
     return this.dimensions.filter((dimension) => {
       if (
@@ -270,7 +278,7 @@ export class Structure {
 export async function getStructure() {
   const datasetsData = getNdJson(`${dataBaseUrl}/datasets.ndjson`);
   const staticData = ["dimensions", "variables", "grids", "legends"].map(
-    (endpoint) => getJson(`${dataBaseUrl}/${endpoint}.json`)
+    (endpoint) => getJson(`${dataBaseUrl}/${endpoint}.json`),
   );
   return new Structure(
     ...((await Promise.all([datasetsData, ...staticData])) as [
@@ -278,7 +286,7 @@ export async function getStructure() {
       object,
       object,
       object,
-      object
-    ])
+      object,
+    ]),
   );
 }

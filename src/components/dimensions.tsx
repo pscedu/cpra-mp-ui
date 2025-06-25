@@ -16,16 +16,16 @@ import {
 
 export default function Dimensions() {
   const {
-    activeSelectDimensions,
+    catalogQueries,
     datasets,
-    filters,
-    filterChoices,
     setSelectedDatasets,
     setSelectedFilterChoices,
     structure,
   } = usePortalState();
 
-  if (!structure.value || !datasets.value?.length) return;
+  if (!structure.value || !datasets.value?.length || !catalogQueries.value)
+    return;
+  const cqs = catalogQueries.value;
 
   const datasetItems = structure.value.datasets.map((dataset) => (
     <SelectItem
@@ -38,38 +38,42 @@ export default function Dimensions() {
     </SelectItem>
   ));
 
-  const dimensionSelects = activeSelectDimensions.value.map((dimension) => {
-    let items;
-    if (dimension.values) {
-      items = dimension.values
-        .filter((dv) => filterChoices.value[dimension.name].includes(dv.value))
-        .map((dv) => (
-          <SelectItem key={dv.value} value={dv.value}>
-            {dv.label || dv.value.toString()}
+  const dimensionSelects = cqs.activeDimensions
+    .filter((dim) => dim.filterType === "select")
+    .map((dimension) => {
+      let items;
+      if (dimension.values) {
+        items = dimension.values
+          .filter((dv) =>
+            cqs.combinedChoices[dimension.name].includes(dv.value),
+          )
+          .map((dv) => (
+            <SelectItem key={dv.value} value={dv.value}>
+              {dv.label || dv.value.toString()}
+            </SelectItem>
+          ));
+      } else {
+        items = cqs.combinedChoices[dimension.name].map((value) => (
+          <SelectItem key={value} value={value}>
+            {value.toString()}
           </SelectItem>
         ));
-    } else {
-      items = filterChoices.value[dimension.name].map((value) => (
-        <SelectItem key={value} value={value}>
-          {value.toString()}
-        </SelectItem>
-      ));
-    }
-    return (
-      <Select
-        key={dimension.name}
-        value={filters.value[dimension.name][0]}
-        onValueChange={(value) =>
-          setSelectedFilterChoices(dimension.name, [value])
-        }
-      >
-        <SelectTrigger className="mx-2 my-2 max-w-72">
-          <SelectValue placeholder={`Select ${dimension.label}`} />
-        </SelectTrigger>
-        <SelectContent>{items}</SelectContent>
-      </Select>
-    );
-  });
+      }
+      return (
+        <Select
+          key={dimension.name}
+          value={cqs.combinedFilters[dimension.name][0]}
+          onValueChange={(value) =>
+            setSelectedFilterChoices(dimension.name, [value])
+          }
+        >
+          <SelectTrigger className="mx-2 my-2 max-w-72">
+            <SelectValue placeholder={`Select ${dimension.label}`} />
+          </SelectTrigger>
+          <SelectContent>{items}</SelectContent>
+        </Select>
+      );
+    });
 
   return (
     <SidebarGroup>

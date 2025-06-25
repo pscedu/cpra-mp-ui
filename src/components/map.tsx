@@ -17,7 +17,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 // Map using MapLibre GL.
 export default function Map() {
   const {
-    mapDataset,
+    mapCatalogQuery,
     mapFeatureValues,
     mapPosition,
     mapTileUrl,
@@ -137,7 +137,7 @@ export default function Map() {
 
   const updateStyle = () => {
     const tileUrl = mapTileUrl.value;
-    const dataset = mapDataset.value;
+    const dataset = mapCatalogQuery.value.dataset;
 
     const tilesChanged = tileUrl !== prevTileUrl.current;
     const datasetChanged = dataset !== prevDataset.current;
@@ -159,7 +159,7 @@ export default function Map() {
     if (gridChanged) selectedGeographies.value = [];
 
     prevTileUrl.current = tileUrl;
-    prevDataset.current = mapDataset.value;
+    prevDataset.current = mapCatalogQuery.value.dataset;
   };
 
   const updateProjectLayers = (show: boolean) => {
@@ -225,11 +225,11 @@ export default function Map() {
   // Update the map style.
   useEffect(() => {
     (async () => {
-      if (!mapDataset.value || !mapTileUrl.value) return;
+      if (!mapCatalogQuery.value || !mapTileUrl.value) return;
       await ensureStyleLoaded();
       updateStyle();
     })();
-  }, [mapDataset.value, mapTileUrl.value]);
+  }, [mapCatalogQuery.value, mapTileUrl.value]);
 
   // Update project layers.
   useEffect(() => {
