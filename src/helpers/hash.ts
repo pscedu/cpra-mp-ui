@@ -4,7 +4,7 @@ import { portalBaseUrl } from "./config";
 export const getHashParams = () =>
   new URLSearchParams(window.location.hash.replace(/^#/, ""));
 
-export const getHashString = (params) => {
+export const getHashString = (params: URLSearchParams) => {
   let hashString = params.toString();
   // Fix encoding of map parameter.
   if (params.has("map"))
@@ -15,7 +15,7 @@ export const getHashString = (params) => {
   return hashString ? `#${hashString}` : "";
 };
 
-export const setHash = (params) =>
+export const setHash = (params: URLSearchParams) =>
   window.history.replaceState(window.history.state, "", getHashString(params));
 
 const hashCallbacks: ((params: URLSearchParams) => void)[] = [];
@@ -71,7 +71,7 @@ export const hashSignal = (
 };
 
 export const datasetsSignal = (structure) => {
-  const fromHash = (params) => {
+  const fromHash = (params: URLSearchParams) => {
     const variables = params.getAll("variable") || [];
     const grids = params.getAll("grid") || [];
     const timeUnits = params.getAll("time_unit") || [];
@@ -85,7 +85,7 @@ export const datasetsSignal = (structure) => {
     });
   };
 
-  const updateHash = (params, value) => {
+  const updateHash = (params: URLSearchParams, value) => {
     if (!structure.value) return;
 
     params.delete("variable");
@@ -109,7 +109,7 @@ export const datasetsSignal = (structure) => {
 };
 
 export const filtersSignal = (structure) => {
-  const fromHash = (params) => {
+  const fromHash = (params: URLSearchParams) => {
     const value = {};
     for (let dimension of structure.value?.dimensions || []) {
       if (["dataset", "metadata"].includes(dimension.type)) continue;
@@ -119,7 +119,7 @@ export const filtersSignal = (structure) => {
     return value;
   };
 
-  const updateHash = (params, value) => {
+  const updateHash = (params: URLSearchParams, value) => {
     if (!structure.value) return;
 
     for (let dimension of structure.value.dimensions) {
