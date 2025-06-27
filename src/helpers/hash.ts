@@ -22,13 +22,14 @@ const hashCallbacks: ((params: URLSearchParams) => void)[] = [];
 
 export const initHashSignals = () => {
   effect(() => {
-    const params = getHashParams();
     window.addEventListener(
       "hashchange",
-      () =>
+      () => {
+        const params = getHashParams();
         batch(() => {
           for (const hashCallback of hashCallbacks) hashCallback(params);
-        }),
+        });
+      },
       false,
     );
   });
