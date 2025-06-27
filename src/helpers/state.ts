@@ -90,7 +90,10 @@ export function createPortalState() {
         structure.value,
       );
       await cqs.executeAll();
-      catalogQueries.value = cqs;
+      batch(() => {
+        catalogQueries.value = cqs;
+        filters.value = cqs.combinedFilters;
+      });
     })();
   };
 
@@ -110,7 +113,7 @@ export function createPortalState() {
     if (
       !catalogQueries.value ||
       datasets.value !== catalogQueries.value.datasets ||
-      filters.value !== catalogQueries.value.filters
+      filters.value !== catalogQueries.value.combinedFilters
     )
       return queryCatalog();
   });
