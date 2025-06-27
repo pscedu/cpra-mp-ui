@@ -11,7 +11,12 @@ import { jwtDecode } from "jwt-decode";
 import { loadUser, saveUser } from "./auth";
 import { exportTask, importTask } from "./clickup";
 import { fowaModelGroupIds, managementBaseUrl } from "./config";
-import { datasetsSignal, filtersSignal, hashSignal } from "./hash";
+import {
+  datasetsSignal,
+  filtersSignal,
+  hashSignal,
+  initHashSignals,
+} from "./hash";
 import { getStructure, Structure } from "./structure";
 import { getJson, getNdJson } from "./utils";
 import { NavigateFunction } from "react-router";
@@ -30,10 +35,29 @@ function dataSignal(loadFn: Function, defaultValue = null) {
 }
 
 export function createPortalState() {
+  // Data signals
   const structure: Signal<Structure | null> = dataSignal(getStructure);
+
+  // URL hash isgnals
   const activity = hashSignal("activity", "data");
   const issue = hashSignal("issue", null);
+  const datasets = datasetsSignal(structure);
+  const filters = filtersSignal(structure);
+  const mapPosition = hashSignal(
+    "map",
+    [8, 29.75, -91.5],
+    (values) => values.map((value) => value.toFixed(2)).join("/"),
+    (valueStr) => valueStr.split("/").map((value) => parseFloat(value)),
+  );
+  const selectedGeographies = hashSignal(
+    "geography",
+    [],
+    (values) => values.map((value) => value.toString()).join("-"),
+    (str) => str.split("-").map((valueStr) => parseInt(valueStr)),
+  );
+  initHashSignals();
 
+  // Other signals
   const tasks = signal(null);
   const task = signal(null);
 
@@ -41,29 +65,15 @@ export function createPortalState() {
   const users = signal([]);
   const avatarCacheKey = signal(new Date().getTime());
 
-  const datasets = datasetsSignal(structure);
-  const filters = filtersSignal(structure);
   const catalogQueries: Signal<CatalogQueries | null> = signal(null);
   const timeValues = signal([]);
   let timeValuesTimeout: number | null = null;
 
-  const mapPosition = hashSignal(
-    "map",
-    [8, 29.75, -91.5],
-    (values) => values.map((value) => value.toFixed(2)).join("/"),
-    (valueStr) => valueStr.split("/").map((value) => parseFloat(value)),
-  );
   const mapFeatureValues = signal({});
   let mapFeatureValuesAbortController: AbortController | null = null;
   const mapFeatureValuesLoading = signal(false);
   const mapTilesLoading = signal(false);
 
-  const selectedGeographies = hashSignal(
-    "geography",
-    [],
-    (values) => values.map((value) => value.toString()).join("-"),
-    (str) => str.split("-").map((valueStr) => parseInt(valueStr)),
-  );
   const visualizationType = hashSignal("visualization", "time-series-line");
   const visualizationSpec = signal(null);
 

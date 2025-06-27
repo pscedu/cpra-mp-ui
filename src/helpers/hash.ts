@@ -1,4 +1,4 @@
-import { effect, signal, untracked } from "@preact/signals-react";
+import { batch, effect, signal, untracked } from "@preact/signals-react";
 import { portalBaseUrl } from "./config";
 
 export const getHashParams = () =>
@@ -15,17 +15,33 @@ export const getHashString = (params) => {
   return hashString ? `#${hashString}` : "";
 };
 
+export const setHash = (params) =>
+  window.history.replaceState(window.history.state, "", getHashString(params));
+
+const hashCallbacks: ((params: URLSearchParams) => void)[] = [];
+
+export const initHashSignals = () => {
+  effect(() => {
+    const params = getHashParams();
+    window.addEventListener(
+      "hashchange",
+      () =>
+        batch(() => {
+          for (const hashCallback of hashCallbacks) hashCallback(params);
+        }),
+      false,
+    );
+  });
+};
+
 export const hashSignalBase = (fromHash, updateHash) => {
   // Create the signal.
   const sig = signal(fromHash(getHashParams()));
 
-  // Add a listener for the hashchange event that updates the signal value.
-  effect(() =>
-    window.addEventListener(
-      "hashchange",
-      () => (sig.value = untracked(() => fromHash(getHashParams()))),
-      false,
-    ),
+  // Register a callback to be called when the hash changes.
+  hashCallbacks.push(
+    (params: URLSearchParams) =>
+      (sig.value = untracked(() => fromHash(params))),
   );
 
   // When the signal value changes, rebuild the URL hash.
@@ -33,11 +49,7 @@ export const hashSignalBase = (fromHash, updateHash) => {
     const params = getHashParams();
     const value = sig.value;
     untracked(() => updateHash(params, value));
-    window.history.replaceState(
-      window.history.state,
-      "",
-      getHashString(params),
-    );
+    setHash(params);
   });
 
   return sig;
