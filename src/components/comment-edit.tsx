@@ -21,7 +21,7 @@ export default function CommentEdit({
   setValue: (text: string) => void;
   value: string;
 }) {
-  const { selectedGeographies } = usePortalState();
+  const { mapCatalogQuery, selectedGeographies, structure } = usePortalState();
   const textarea = useRef(null);
   const label = selectedGeographies.value.length ? "map and chart" : "map";
 
@@ -38,13 +38,19 @@ export default function CommentEdit({
   }, [cacheKey, defaultValue, value]);
 
   const insertLink = () => {
+    const icons = ["🌎️"];
+    if (selectedGeographies.value.length > 0) icons.push("📈");
+    const label = structure.value.getDataLabel(
+      mapCatalogQuery.value,
+      selectedGeographies.value,
+    );
     const ta = textarea.current;
     if (ta) {
       const before = value.slice(0, ta.selectionStart);
       const selection = value.slice(ta.selectionStart, ta.selectionEnd);
       const after = value.slice(ta.selectionEnd, value.length);
       setValue(
-        `${before}[${selection || label}](${getPermalink({ exclude: ["activity", "issue"] })})${after}`,
+        `${before}[${selection || `${icons.join("")} ${label}`}](${getPermalink({ exclude: ["activity", "issue"] })})${after}`,
       );
     }
   };
@@ -64,6 +70,7 @@ export default function CommentEdit({
           variant="ghost"
           size="sm"
           className="cursor-pointer"
+          disabled={!structure.value}
           onClick={insertLink}
         >
           <Link /> Current {label} link

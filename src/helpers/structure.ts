@@ -1,5 +1,12 @@
+import { CatalogQuery } from "./catalog";
 import { dataBaseUrl, staticTilesBaseUrl } from "./config";
-import { getJson, getNdJson, makeMap, makeQueryString } from "./utils";
+import {
+  getJson,
+  getNdJson,
+  makeMap,
+  makeQueryString,
+  toTitleCase,
+} from "./utils";
 
 export class DimensionValue<T> {
   value: T;
@@ -94,6 +101,7 @@ export class Variable {
 
 export class Grid {
   name: string;
+  label: string;
   grid_type: string;
   crs: string;
   geographies: number | null;
@@ -101,8 +109,18 @@ export class Grid {
   height: number | null;
   width: number | null;
 
-  constructor({ name, grid_type, crs, geographies, bounds, height, width }) {
+  constructor({
+    name,
+    label,
+    grid_type,
+    crs,
+    geographies,
+    bounds,
+    height,
+    width,
+  }) {
     this.name = name;
+    this.label = label;
     this.grid_type = grid_type;
     this.crs = crs;
     this.geographies = geographies;
@@ -272,6 +290,28 @@ export class Structure {
       }
       return false;
     });
+  }
+
+  getDataLabel(catalogQuery: CatalogQuery, selectedGeographies?: number[]) {
+    const { dataset, filters } = catalogQuery;
+    const title: string[] = [toTitleCase(dataset.time_unit)];
+    const subtitle: string[] = [];
+    for (const dimension of this.getRequiredDimensions([dataset])) {
+      const valueLabel: string = (
+        dimension.values
+          ? filters[dimension.name].map(
+              (value) =>
+                dimension.values.find((dv) => dv.value == value)?.label,
+            )
+          : filters[dimension.name]
+      ).join(", ");
+      if (dimension.name == "aggregate_type") title.push(valueLabel);
+      else subtitle.push(`${dimension.label} ${valueLabel}`);
+    }
+    title.push(dataset.variable.label);
+    if (selectedGeographies && selectedGeographies.length > 0)
+      subtitle.push(`${dataset.grid.label} ${selectedGeographies.join(", ")}`);
+    return `${title.join(" ")}: ${subtitle.join(", ")}`;
   }
 }
 
