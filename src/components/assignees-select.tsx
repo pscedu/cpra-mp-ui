@@ -7,10 +7,11 @@ export default function AssigneesSelect() {
 
   const optionsMap = {};
   for (let user of users.value)
-    optionsMap[user.id] = {
-      value: user,
-      label: user.fullName,
-    };
+    if (user.clickupId)
+      optionsMap[user.id] = {
+        value: user,
+        label: user.fullName,
+      };
 
   return (
     <RSelect
