@@ -35,10 +35,9 @@ export const rasterSource = ({
   };
 };
 
-export const vectorSource = ({ gridName, promoteId = "id" }) => ({
+export const vectorSource = ({ gridName }) => ({
   type: "vector",
   url: `${staticTilesBaseUrl}/${gridName}`,
-  promoteId,
 });
 
 export function getBaseStyle(): StyleSpecification {
