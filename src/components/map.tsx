@@ -180,7 +180,7 @@ export default function Map() {
     if (map.current.getSource(sourceId))
       for (let featureId in mapFeatureValues.value)
         if (featureId.match(/^[0-9]+$/)) {
-          let geoIdx = selectedGeographies.value.indexOf(featureId);
+          let geoIdx = selectedGeographies.value.indexOf(parseInt(featureId));
           map.current.setFeatureState(
             {
               source: sourceId,
