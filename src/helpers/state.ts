@@ -9,7 +9,7 @@ import {
 } from "@preact/signals-react";
 import { jwtDecode } from "jwt-decode";
 import { loadUser, saveUser } from "./auth";
-import { exportTask, importTask } from "./clickup";
+import { CommentNode, exportTask, importTask } from "./clickup";
 import { fowaModelGroupIds, managementBaseUrl } from "./config";
 import {
   datasetsSignal,
@@ -315,9 +315,14 @@ export function createPortalState() {
     });
   };
 
-  const createComment = async (taskId: string, commentText: string) => {
+  const createComment = async (
+    taskId: string,
+    comment: CommentNode | CommentNode[],
+  ) => {
     return await getManagementJson(`/tasks/${taskId}/comments`, {
-      body: { commentText },
+      body: {
+        comment,
+      },
       method: "POST",
     });
   };

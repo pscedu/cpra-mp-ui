@@ -3,7 +3,7 @@ import { portalBaseUrl } from "@/helpers/config";
 import { mergeHash } from "@/helpers/hash";
 
 export default function Markdown({ text }: { text: string }) {
-  return text.split(/\s+\n\s+/g).map((markdownText, i) => {
+  return text.split(/\s*\n\s*\n\s*/g).map((markdownText, i) => {
     const nodes = [];
     let lastIndex = 0;
     let match;

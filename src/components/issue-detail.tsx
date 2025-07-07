@@ -16,6 +16,7 @@ import TagsSelect from "./tags-select";
 import UserToken from "./user-token";
 import { Input } from "./ui/input";
 import { useSignal } from "@preact/signals-react";
+import { markdownToComment } from "@/helpers/clickup";
 
 export default function IssueDetail() {
   const { task, updateTask } = usePortalState();
@@ -157,7 +158,7 @@ export default function IssueDetail() {
         user={creator}
         date={dateCreated}
         action="opened"
-        commentText={markdownDescription}
+        comment={markdownToComment(markdownDescription)}
       />
       {comments &&
         comments

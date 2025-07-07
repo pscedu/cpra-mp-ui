@@ -1,9 +1,11 @@
+import { useRef } from "react";
 import { toTitleCase } from "@/helpers/utils";
 import { batch, useSignal } from "@preact/signals-react";
 import { usePortalState } from "@/helpers/state";
 
 import { Button } from "@/components/ui/button";
 import CommentEdit from "@/components/comment-edit";
+import CommentText from "@/components/comment-text";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,17 +16,18 @@ import {
 import { Check, EllipsisVertical, LoaderCircle, Pencil, X } from "lucide-react";
 import UserAvatar from "@/components/user-avatar";
 import RelativeTime from "@/components/relative-time";
-import Markdown from "./markdown";
+import { commentToMarkdown, markdownToComment } from "@/helpers/clickup";
 
 export default function Comment({
   user,
   action = "commented",
   date,
   id = null,
-  commentText,
+  comment,
 }) {
   const { task, updateComment, updateTask, user: authUser } = usePortalState();
-  const text = useSignal(commentText);
+  const initialMarkdown = useRef("");
+  const markdown = useSignal("");
   const isEditing = useSignal(false);
   const isProcessing = useSignal(false);
 
@@ -33,27 +36,52 @@ export default function Comment({
   const cacheSuffix = id ? `comment-${id}` : "description";
   const cacheKey = `issue-${taskId}-${cacheSuffix}`;
 
+  const startEditing = () => {
+    batch(() => {
+      const md = commentToMarkdown(comment);
+      initialMarkdown.current = md;
+      markdown.value = md;
+      isEditing.value = true;
+    });
+  };
+
+  const cancelEditing = () =>
+    batch(() => {
+      markdown.value = "";
+      initialMarkdown.current = "";
+      isEditing.value = false;
+      localStorage.removeItem(cacheKey);
+    });
+
   const saveComment = () => {
     isProcessing.value = true;
     (async () => {
       let res;
       if (id) {
-        res = await updateComment(id, { commentText: text.value });
+        res = await updateComment(id, {
+          comment: markdownToComment(markdown.value),
+        });
       } else {
-        res = await updateTask({ markdown_description: text.value });
+        res = await updateTask({ markdown_description: markdown.value });
       }
       batch(() => {
         if (res.error) {
           // TODO: Display an error toast.
-          text.value = commentText;
+          markdown.value = "";
+          initialMarkdown.current = "";
         } else {
           task.value = {
             ...task.value,
             comments: task.value.comments.map((comment) => ({
               ...comment,
-              commentText: id === comment.id ? text.value : comment.commentText,
+              comment:
+                id === comment.id
+                  ? markdownToComment(markdown.value)
+                  : comment.comment,
             })),
-            desciption: id ? task.value.desciption : text.value,
+            markdownDescription: id
+              ? task.value.markdownDescription
+              : markdown.value,
           };
         }
         isEditing.value = false;
@@ -93,7 +121,7 @@ export default function Comment({
                 <DropdownMenuItem
                   className="cursor-pointer"
                   disabled={isEditing.value || isProcessing.value}
-                  onSelect={() => (isEditing.value = true)}
+                  onSelect={startEditing}
                 >
                   <Pencil />
                   Edit comment
@@ -107,16 +135,16 @@ export default function Comment({
         {isEditing.value ? (
           <CommentEdit
             cacheKey={cacheKey}
-            defaultValue={commentText}
-            value={text.value}
-            setValue={(value) => (text.value = value)}
+            defaultValue={initialMarkdown.current}
+            value={markdown.value}
+            setValue={(value) => (markdown.value = value)}
           >
             <div>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={saveComment}
-                disabled={text.value.length == 0 || isProcessing.value}
+                disabled={markdown.value.length == 0 || isProcessing.value}
                 className="cursor-pointer"
                 aria-label="Save"
                 title="Save"
@@ -130,13 +158,7 @@ export default function Comment({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() =>
-                  batch(() => {
-                    text.value = commentText;
-                    isEditing.value = false;
-                    localStorage.removeItem(cacheKey);
-                  })
-                }
+                onClick={cancelEditing}
                 className="cursor-pointer"
                 aria-label="Cancel"
                 title="Cancel"
@@ -146,7 +168,7 @@ export default function Comment({
             </div>
           </CommentEdit>
         ) : (
-          <Markdown text={text.value} />
+          <CommentText comment={comment} />
         )}
       </div>
     </div>
