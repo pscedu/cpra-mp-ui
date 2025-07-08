@@ -248,14 +248,26 @@ export class Structure {
     );
     this.variablesMap = makeMap(this.variables);
     this.datasets = datasets
-      .map(
-        (dataset) =>
-          new Dataset({
-            variable: this.variablesMap[dataset.variable],
-            grid: this.gridsMap[dataset.grid],
-            time_unit: dataset.time_unit,
-          }),
-      )
+      .map((dataset) => {
+        const variable = this.variablesMap[dataset.variable];
+        const grid = this.gridsMap[dataset.grid];
+        if (!variable)
+          return console.warn(
+            `Ignoring dataset with invalid variable: ${dataset.variable}`,
+          );
+
+        if (!grid)
+          return console.warn(
+            `Ignoring dataset with invalid grid: ${dataset.grid}`,
+          );
+
+        return new Dataset({
+          variable,
+          grid,
+          time_unit: dataset.time_unit,
+        });
+      })
+      .filter((dataset) => dataset !== undefined)
       .sort((a, b) => (a.variable.label < b.variable.label ? -1 : 1));
   }
 
