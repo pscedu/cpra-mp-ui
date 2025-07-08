@@ -73,7 +73,7 @@ export default function CommentEdit({
           disabled={!structure.value}
           onClick={insertLink}
         >
-          <Link /> Current {label} link
+          <Link /> Insert current {label} link
         </Button>
         {children}
       </div>

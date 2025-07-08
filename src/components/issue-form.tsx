@@ -2,7 +2,7 @@ import { usePortalState } from "@/helpers/state";
 import { batch, useSignal } from "@preact/signals-react";
 
 import { Input } from "@/components/ui/input";
-import AssigneesSelect from "./assignees-select";
+import TaskAssigneesSelect from "./task-assignees-select";
 import CommentEdit from "./comment-edit";
 import CommentSaveButton from "./comment-save-button";
 import IssueCloseButton from "./issue-close-button";
@@ -62,7 +62,7 @@ export default function IssueForm() {
         />
       </div>
       <TagsSelect />
-      <AssigneesSelect />
+      <TaskAssigneesSelect />
       <div className="flex justify-end gap-2">
         <IssueCloseButton variant="outline">Cancel</IssueCloseButton>
         <CommentSaveButton

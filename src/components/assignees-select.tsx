@@ -1,11 +1,24 @@
 import { usePortalState } from "@/helpers/state";
+import { cn } from "@/lib/utils";
 
 import RSelect from "@/components/ui/rselect";
 
-export default function AssigneesSelect() {
-  const { users, task } = usePortalState();
+export default function AssigneesSelect({
+  className = "",
+  isMulti = true,
+  menuPlacement = "auto",
+  onChange,
+  value,
+}: {
+  className?: string;
+  isMulti?: boolean;
+  menuPlacement?: "top" | "bottom" | "auto";
+  onChange: (selected: any | any[]) => void;
+  value: any | any[];
+}) {
+  const { users } = usePortalState();
 
-  const optionsMap = {};
+  const optionsMap: { [username: string]: { value: any; label: string } } = {};
   for (let user of users.value)
     if (user.clickupId)
       optionsMap[user.id] = {
@@ -17,16 +30,26 @@ export default function AssigneesSelect() {
     <RSelect
       inputId="assignedTo"
       options={Object.values(optionsMap)}
-      isMulti={true}
+      isMulti={isMulti}
+      menuPlacement={menuPlacement}
       isClearable={true}
-      className="mb-4 w-full"
+      className={cn(`w-full ${className}`)}
       placeholder="Assigned to..."
-      value={task.value.assignees.map((user) => optionsMap[user.id])}
+      value={
+        Array.isArray(value)
+          ? value.map((user) => optionsMap[user.id])
+          : value
+            ? optionsMap[value.id]
+            : null
+      }
       onChange={(selected) =>
-        (task.value = {
-          ...task.value,
-          assignees: selected.map((option) => option.value),
-        })
+        onChange(
+          Array.isArray(selected)
+            ? selected.map((option) => option.value)
+            : selected
+              ? selected.value
+              : null,
+        )
       }
     />
   );

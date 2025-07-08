@@ -3,7 +3,9 @@ import { toTitleCase } from "@/helpers/utils";
 import { batch, useSignal } from "@preact/signals-react";
 import { usePortalState } from "@/helpers/state";
 
+import AssigneesSelect from "./assignees-select";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import CommentEdit from "@/components/comment-edit";
 import CommentText from "@/components/comment-text";
 import {
@@ -14,20 +16,24 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Check, EllipsisVertical, LoaderCircle, Pencil, X } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import UserAvatar from "@/components/user-avatar";
 import RelativeTime from "@/components/relative-time";
 import { commentToMarkdown, markdownToComment } from "@/helpers/clickup";
 
 export default function Comment({
-  user,
   action = "commented",
+  assignee: assigneeUser,
+  comment,
   date,
   id = null,
-  comment,
+  resolved,
+  user,
 }) {
   const { task, updateComment, updateTask, user: authUser } = usePortalState();
   const initialMarkdown = useRef("");
   const markdown = useSignal("");
+  const assignee = useSignal(assigneeUser);
   const isEditing = useSignal(false);
   const isProcessing = useSignal(false);
 
@@ -48,6 +54,7 @@ export default function Comment({
   const cancelEditing = () =>
     batch(() => {
       markdown.value = "";
+      assignee.value = assigneeUser;
       initialMarkdown.current = "";
       isEditing.value = false;
       localStorage.removeItem(cacheKey);
@@ -59,6 +66,7 @@ export default function Comment({
       let res;
       if (id) {
         res = await updateComment(id, {
+          assignee: assignee.value ? assignee.value.id : null,
           comment: markdownToComment(markdown.value),
         });
       } else {
@@ -68,6 +76,7 @@ export default function Comment({
         if (res.error) {
           // TODO: Display an error toast.
           markdown.value = "";
+          assignee.value = assigneeUser;
           initialMarkdown.current = "";
         } else {
           task.value = {
@@ -78,6 +87,7 @@ export default function Comment({
                 id === comment.id
                   ? markdownToComment(markdown.value)
                   : comment.comment,
+              assignee: id === comment.id ? assignee.value : comment.assignee,
             })),
             markdownDescription: id
               ? task.value.markdownDescription
@@ -85,6 +95,29 @@ export default function Comment({
           };
         }
         isEditing.value = false;
+        isProcessing.value = false;
+      });
+    })();
+  };
+
+  const saveResolved = (checked) => {
+    isProcessing.value = true;
+    (async () => {
+      const res = await updateComment(id, {
+        resolved: checked,
+      });
+      batch(() => {
+        if (res.error) {
+          // TODO: Display an error toast.
+        } else {
+          task.value = {
+            ...task.value,
+            comments: task.value.comments.map((comment) => ({
+              ...comment,
+              resolved: id === comment.id ? checked : comment.resolved,
+            })),
+          };
+        }
         isProcessing.value = false;
       });
     })();
@@ -133,44 +166,77 @@ export default function Comment({
       </div>
       <div className="p-2">
         {isEditing.value ? (
-          <CommentEdit
-            cacheKey={cacheKey}
-            defaultValue={initialMarkdown.current}
-            value={markdown.value}
-            setValue={(value) => (markdown.value = value)}
-          >
-            <div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={saveComment}
-                disabled={markdown.value.length == 0 || isProcessing.value}
-                className="cursor-pointer"
-                aria-label="Save"
-                title="Save"
-              >
-                {isProcessing.value ? (
-                  <LoaderCircle className="animate-spin" />
-                ) : (
-                  <Check />
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={cancelEditing}
-                className="cursor-pointer"
-                aria-label="Cancel"
-                title="Cancel"
-              >
-                <X />
-              </Button>
+          <>
+            <CommentEdit
+              cacheKey={cacheKey}
+              defaultValue={initialMarkdown.current}
+              value={markdown.value}
+              setValue={(value) => (markdown.value = value)}
+            />
+            <div className="flex mt-2 gap-2">
+              <AssigneesSelect
+                isMulti={false}
+                menuPlacement="top"
+                value={assignee.value === null ? [] : [assignee.value]}
+                onChange={(user) => (assignee.value = user)}
+              />
+              <div className="flex-none">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={saveComment}
+                  disabled={markdown.value.length == 0 || isProcessing.value}
+                  className="cursor-pointer"
+                  aria-label="Save"
+                  title="Save"
+                >
+                  {isProcessing.value ? (
+                    <LoaderCircle className="animate-spin" />
+                  ) : (
+                    <Check />
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={cancelEditing}
+                  className="cursor-pointer"
+                  aria-label="Cancel"
+                  title="Cancel"
+                >
+                  <X />
+                </Button>
+              </div>
             </div>
-          </CommentEdit>
+          </>
         ) : (
           <CommentText comment={comment} />
         )}
       </div>
+      {assignee.value && authUser.value && !isEditing.value && (
+        <div
+          className={`rounded-b-lg p-2 flex items-center gap-3 ${resolved ? " bg-green-200 dark:bg-green-950" : assignee.value.username === authUser.value.username ? " bg-purple-200 dark:bg-purple-950" : "bg-blue-200 dark:bg-blue-950"}`}
+        >
+          {isProcessing.value ? (
+            <LoaderCircle className="animate-spin" size={16} />
+          ) : (
+            <>
+              <Checkbox
+                id={`comment-${id}-resolved`}
+                checked={resolved}
+                onCheckedChange={saveResolved}
+                className="bg-accent"
+              />
+              <Label
+                htmlFor={`comment-${id}-resolved`}
+                className={resolved ? "line-through" : ""}
+              >
+                Assigned to <strong>{assignee.value.fullName}</strong>
+              </Label>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

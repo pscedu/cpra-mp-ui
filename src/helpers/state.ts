@@ -317,12 +317,10 @@ export function createPortalState() {
 
   const createComment = async (
     taskId: string,
-    comment: CommentNode | CommentNode[],
+    comment: { assignee?: any; comment: CommentNode | CommentNode[] },
   ) => {
     return await getManagementJson(`/tasks/${taskId}/comments`, {
-      body: {
-        comment,
-      },
+      body: comment,
       method: "POST",
     });
   };

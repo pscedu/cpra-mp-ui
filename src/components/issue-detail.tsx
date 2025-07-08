@@ -5,7 +5,7 @@ import { useRef } from "react";
 import { buttonVariants } from "./ui/button";
 
 import { ExternalLink, LoaderCircle } from "lucide-react";
-import AssigneesSelect from "./assignees-select";
+import TaskAssigneesSelect from "./task-assignees-select";
 import Comment from "./comment";
 import CommentForm from "./comment-form";
 import EditToggle from "./edit-toggle";
@@ -138,7 +138,7 @@ export default function IssueDetail() {
               <p className="italic me-2">Assigned to nobody</p>
             )
           }
-          edit={() => <AssigneesSelect />}
+          edit={() => <TaskAssigneesSelect />}
           onCancel={resetAssignees}
           onEdit={() => (currentAssignees.current = task.value.assignees)}
           onSave={async () => {
