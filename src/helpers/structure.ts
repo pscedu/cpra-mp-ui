@@ -305,17 +305,18 @@ export class Structure {
   }
 
   getDataLabel(catalogQuery: CatalogQuery, selectedGeographies?: number[]) {
-    const { dataset, filters } = catalogQuery;
+    const { dataset, response } = catalogQuery;
+    const { results } = response;
     const title: string[] = [toTitleCase(dataset.time_unit)];
     const subtitle: string[] = [];
     for (const dimension of this.getRequiredDimensions([dataset])) {
       const valueLabel: string = (
         dimension.values
-          ? filters[dimension.name].map(
+          ? results[dimension.name].map(
               (value) =>
                 dimension.values.find((dv) => dv.value == value)?.label,
             )
-          : filters[dimension.name]
+          : results[dimension.name]
       ).join(", ");
       if (dimension.name == "aggregate_type") title.push(valueLabel);
       else subtitle.push(`${dimension.label} ${valueLabel}`);
