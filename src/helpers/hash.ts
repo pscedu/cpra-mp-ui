@@ -1,4 +1,10 @@
-import { batch, effect, signal, untracked } from "@preact/signals-react";
+import {
+  batch,
+  effect,
+  signal,
+  Signal,
+  untracked,
+} from "@preact/signals-react";
 import { portalBaseUrl } from "./config";
 
 export const getHashParams = () =>
@@ -56,16 +62,18 @@ export const hashSignalBase = (fromHash, updateHash) => {
   return sig;
 };
 
-export const hashSignal = (
+export const hashSignal = <T>(
   hashKey: string,
-  defaultValue,
-  encoder = (val) => val,
-  decoder = (val) => val,
-) => {
-  const fromHash = (params) =>
+  defaultValue: T,
+  encoder = (val: T): string => val as string,
+  decoder = (val: string | null): T => val as T,
+  includeDefault = false,
+): Signal<T> => {
+  const fromHash = (params: URLSearchParams) =>
     params.has(hashKey) ? decoder(params.get(hashKey)) : defaultValue;
-  const updateHash = (params, value) => {
-    if (encoder(value) === encoder(defaultValue)) params.delete(hashKey);
+  const updateHash = (params: URLSearchParams, value: T) => {
+    if (!includeDefault && encoder(value) === encoder(defaultValue))
+      params.delete(hashKey);
     else params.set(hashKey, encoder(value));
   };
   return hashSignalBase(fromHash, updateHash);

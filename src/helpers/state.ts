@@ -48,8 +48,9 @@ export function createPortalState() {
     [8, 29.75, -91.5],
     (values) => values.map((value) => value.toFixed(2)).join("/"),
     (valueStr) => valueStr.split("/").map((value) => parseFloat(value)),
+    true,
   );
-  const selectedGeographies = hashSignal(
+  const selectedGeographies = hashSignal<number[]>(
     "geography",
     [],
     (values) => values.map((value) => value.toString()).join("-"),
