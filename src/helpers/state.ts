@@ -10,7 +10,7 @@ import {
 import { jwtDecode } from "jwt-decode";
 import { loadUser, saveUser } from "./auth";
 import { CommentNode, exportTask, importTask } from "./clickup";
-import { fowaModelGroupIds, managementBaseUrl } from "./config";
+import { managementBaseUrl } from "./config";
 import {
   datasetsSignal,
   filtersSignal,
@@ -55,6 +55,12 @@ export function createPortalState() {
     [],
     (values) => values.map((value) => value.toString()).join("-"),
     (str) => str.split("-").map((valueStr) => parseInt(valueStr)),
+  );
+  const showProjects = hashSignal(
+    "show-projects",
+    true,
+    (value) => (value ? "true" : "false"),
+    (value) => value !== "false",
   );
   initHashSignals();
 
@@ -145,6 +151,10 @@ export function createPortalState() {
       : null,
   );
 
+  const projectsModelGroup = computed(
+    () => (mapCatalogQuery.value?.response?.results?.model_group_id || [-1])[0],
+  );
+
   const tagOptions = computed(() => {
     const options = [];
     if (structure.value) {
@@ -186,12 +196,6 @@ export function createPortalState() {
           visualizationType.value,
         )
       : null;
-  });
-
-  const showProjects = computed(() => {
-    const { combinedFilters } = catalogQueries.value || {};
-    if (!combinedFilters || !combinedFilters.model_group_id) return false;
-    return !fowaModelGroupIds.includes(combinedFilters.model_group_id[0]);
   });
 
   const projectsYear = computed(() => {
@@ -540,14 +544,15 @@ export function createPortalState() {
     mapPosition,
     mapTileUrl,
     mapTilesLoading,
+    projectsModelGroup,
     projectsYear,
-    showProjects,
     reloadTask,
     reloadTasks,
     selectedGeographies,
     setSelectedDatasets,
     setSelectedFilterChoices,
     setTimeValues,
+    showProjects,
     structure,
     tagOptions,
     task,

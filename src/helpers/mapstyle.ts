@@ -13,7 +13,7 @@ const colorRamp = (legend) => {
   return ramp;
 };
 
-const linearZoom = (min, max) => {
+const linearZoom = <T>(min: T, max: T) => {
   return ["interpolate", ["linear"], ["zoom"], 6, min, 12, max];
 };
 
@@ -35,9 +35,14 @@ export const rasterSource = ({
   };
 };
 
-export const vectorSource = ({ gridName }) => ({
+export const vectorSource = ({ gridName }: { gridName: string }) => ({
   type: "vector",
   url: `${staticTilesBaseUrl}/${gridName}`,
+});
+
+export const projectsSource = ({ modelGroup }: { modelGroup: number }) => ({
+  type: "vector",
+  url: `${staticTilesBaseUrl}/f_generate_tile_element_project?model_group_id=${modelGroup}`,
 });
 
 export function getBaseStyle(): StyleSpecification {
@@ -113,7 +118,7 @@ export function getBaseStyle(): StyleSpecification {
         type: "line",
         source: "basemap-vector",
         "source-layer": "road",
-        filter: ["==", ["get", "type"], "S"],
+        filter: ["==", ["get", "element_type_code"], "S"],
         paint: {
           "line-color": "#a4a4a4",
           "line-opacity": 0.5,
@@ -125,7 +130,7 @@ export function getBaseStyle(): StyleSpecification {
         type: "line",
         source: "basemap-vector",
         "source-layer": "road",
-        filter: ["==", ["get", "type"], "P"],
+        filter: ["==", ["get", "element_type_code"], "P"],
         paint: {
           "line-color": "#a4a4a4",
           "line-width": 1.333,
@@ -138,10 +143,15 @@ export function getBaseStyle(): StyleSpecification {
         "source-layer": "label",
         layout: {
           "text-field": ["get", "text"],
-          "text-size": ["case", ["==", "community", ["get", "type"]], 16, 13],
+          "text-size": [
+            "case",
+            ["==", "community", ["get", "element_type_code"]],
+            16,
+            13,
+          ],
           "text-font": [
             "case",
-            ["==", "community", ["get", "type"]],
+            ["==", "community", ["get", "element_type_code"]],
             ["literal", ["Franklin Gothic Demi Regular"]],
             ["literal", ["Franklin Gothic Book Regular"]],
           ],
@@ -239,8 +249,25 @@ export function vectorLayers({
   ];
 }
 
-export function projectLayers(filter, isOverlay, suffix = "") {
+export function projectLayers(year, isOverlay, suffix = "") {
+  const yearFilter = ["<=", ["get", "start_year"], year];
   const overlay = (yes, no) => (isOverlay ? yes : no);
+  const projectLayer = (
+    gisType: string,
+    elementTypeCode: string,
+    type: string,
+  ) => ({
+    id: `project-${gisType.toLowerCase()}-${elementTypeCode.toLowerCase()}-${type}${suffix}`,
+    type,
+    source: "projects",
+    "source-layer": "project_element",
+    filter: [
+      "all",
+      ["==", ["get", "gis_type"], gisType],
+      ["==", ["get", "element_type_code"], elementTypeCode],
+      yearFilter,
+    ],
+  });
   const overlayStrokeColor = linearZoom(
     "rgba(0, 0, 0, 0.1)",
     "rgba(0, 0, 0, 0.25)",
@@ -251,131 +278,93 @@ export function projectLayers(filter, isOverlay, suffix = "") {
     "rgba(0, 0, 0, 0.15)",
   );
   return [
-    // Diversion polygon
+    // Diversion polygon fill
     {
-      id: `project-polygon-di${suffix}`,
-      type: "fill",
-      source: "basemap-vector",
-      "source-layer": "project_polygon",
-      filter: ["all", ["==", ["get", "type"], "DI"], filter],
+      ...projectLayer("Polygon", "DI", "fill"),
       paint: {
         "fill-color": overlay(overlayFillColor, "#000000"),
         "fill-opacity": overlay(1, 0),
       },
     },
-    // Diversion polygon outline
+    // Diversion polygon line
     {
-      id: `project-polygon-di-outline${suffix}`,
-      type: "line",
-      source: "basemap-vector",
-      "source-layer": "project_polygon",
-      filter: ["all", ["==", ["get", "type"], "DI"], filter],
+      ...projectLayer("Polygon", "DI", "line"),
       paint: {
         "line-color": overlay(overlayStrokeColor, "#ed6731"),
         "line-dasharray": [2, 1],
         "line-width": overlay(overlayStrokeWidth, linearZoom(1, 3)),
       },
     },
-    // Landbridge polygon
+    // Landbridge polygon fill
     {
-      id: `project-polygon-lb${suffix}`,
-      type: "fill",
-      source: "basemap-vector",
-      "source-layer": "project_polygon",
-      filter: ["all", ["==", ["get", "type"], "LB"], filter],
+      ...projectLayer("Polygon", "LB", "fill"),
       paint: {
         "fill-color": overlay(overlayFillColor, "#5C913A"),
       },
     },
+    // Landbridge polygon line
     {
-      id: `project-polygon-lb-outline${suffix}`,
-      type: "line",
-      source: "basemap-vector",
-      "source-layer": "project_polygon",
-      filter: ["all", ["==", ["get", "type"], "LB"], filter],
+      ...projectLayer("Polygon", "LB", "line"),
       paint: {
         "line-color": overlayStrokeColor,
         "line-width": overlayStrokeWidth,
       },
       layout: { visibility: overlay("visible", "none") },
     },
-    // Marsh creation polygon
+    // Marsh creation polygon fill
     {
-      id: `project-polygon-mc${suffix}`,
-      type: "fill",
-      source: "basemap-vector",
-      "source-layer": "project_polygon",
-      filter: ["all", ["==", ["get", "type"], "MC"], filter],
+      ...projectLayer("Polygon", "MC", "fill"),
       paint: overlay(
         { "fill-color": overlayFillColor },
         { "fill-pattern": "green-dots" },
       ),
     },
+    // Marsh creation polygon line
     {
-      id: `project-polygon-mc-outline${suffix}`,
-      type: "line",
-      source: "basemap-vector",
-      "source-layer": "project_polygon",
-      filter: ["all", ["==", ["get", "type"], "MC"], filter],
+      ...projectLayer("Polygon", "MC", "line"),
       paint: {
         "line-color": overlayStrokeColor,
         "line-width": overlayStrokeWidth,
       },
       layout: { visibility: overlay("visible", "none") },
     },
-    // Bank stabilization lines
+    // Bank stabilization line
     {
-      id: `project-line-bs${suffix}`,
-      type: "line",
-      source: "basemap-vector",
-      "source-layer": "project_line",
-      filter: ["all", ["==", ["get", "type"], "BS"], filter],
+      ...projectLayer("Line", "BS", "line"),
       paint: {
         "line-color": overlay(overlayStrokeColor, "#D9A73B"),
         "line-width": overlay(overlayStrokeWidth, linearZoom(2, 5)),
       },
     },
-    // Structural risk reduction lines
+    // Structural risk reduction line
     {
-      id: `project-line-sr${suffix}`,
-      type: "line",
-      source: "basemap-vector",
-      "source-layer": "project_line",
-      filter: ["all", ["==", ["get", "type"], "SR"], filter],
+      ...projectLayer("Line", "SR", "line"),
       paint: {
         "line-color": "#404042",
         "line-width": linearZoom(2, 5),
       },
     },
-    // Diversion and hydrologic restoration lines
+    // Diversion line
     {
-      id: `project-line-di-hr${suffix}`,
-      type: "line",
-      source: "basemap-vector",
-      "source-layer": "project_line",
-      filter: [
-        "all",
-        ["in", ["get", "type"], ["literal", ["DI", "HR"]]],
-        filter,
-      ],
+      ...projectLayer("Line", "DI", "line"),
       paint: {
-        "line-color": overlay(overlayStrokeColor, [
-          "case",
-          ["==", ["get", "type"], "DI"],
-          "#ED6731",
-          "#1DBEF0",
-        ]),
+        "line-color": overlay(overlayStrokeColor, "#ED6731"),
+        "line-dasharray": [2, 1],
+        "line-width": overlay(overlayStrokeWidth, linearZoom(2, 6.75)),
+      },
+    },
+    // Hydrologic restoration line
+    {
+      ...projectLayer("Line", "HR", "line"),
+      paint: {
+        "line-color": overlay(overlayStrokeColor, "#1DBEF0"),
         "line-dasharray": [2, 1],
         "line-width": overlay(overlayStrokeWidth, linearZoom(2, 6.75)),
       },
     },
     // Ridge restoration line
     {
-      id: `project-line-rr${suffix}`,
-      type: "line",
-      source: "basemap-vector",
-      "source-layer": "project_line",
-      filter: ["all", ["==", ["get", "type"], "RR"], filter],
+      ...projectLayer("Line", "RR", "line"),
       paint: {
         "line-color": overlay(overlayStrokeColor, "#1C4E7F"),
         "line-width": overlay(overlayStrokeWidth, linearZoom(1.5, 2.5)),
@@ -383,46 +372,35 @@ export function projectLayers(filter, isOverlay, suffix = "") {
     },
     // Shoreline protection line
     {
-      id: `project-line-sp${suffix}`,
-      type: "line",
-      source: "basemap-vector",
-      "source-layer": "project_line",
-      filter: ["all", ["==", ["get", "type"], "SP"], filter],
+      ...projectLayer("Line", "SP", "line"),
       paint: {
         "line-color": overlay(overlayStrokeColor, "#19A598"),
         "line-width": overlay(overlayStrokeWidth, linearZoom(3, 4.5)),
       },
     },
-    // Diversion and hydrologic restoration points
+    // Diversion point
     {
-      id: `project-point-di-hr${suffix}`,
-      type: "circle",
-      source: "basemap-vector",
-      "source-layer": "project_point",
-      filter: [
-        "all",
-        ["in", ["get", "type"], ["literal", ["DI", "HR"]]],
-        filter,
-      ],
+      ...projectLayer("Point", "DI", "circle"),
       paint: {
         "circle-color": overlay(overlayFillColor, "#FFFFFF"),
         "circle-radius": overlay(linearZoom(1, 3), linearZoom(2, 5)),
-        "circle-stroke-color": overlay(overlayStrokeColor, [
-          "case",
-          ["==", ["get", "type"], "DI"],
-          "#ED6731",
-          "#1DBEF0",
-        ]),
+        "circle-stroke-color": overlay(overlayStrokeColor, "#ED6731"),
+        "circle-stroke-width": overlay(overlayStrokeWidth, linearZoom(1.5, 4)),
+      },
+    },
+    // Hydrologic restoration point
+    {
+      ...projectLayer("Point", "HR", "circle"),
+      paint: {
+        "circle-color": overlay(overlayFillColor, "#FFFFFF"),
+        "circle-radius": overlay(linearZoom(1, 3), linearZoom(2, 5)),
+        "circle-stroke-color": overlay(overlayStrokeColor, "#1DBEF0"),
         "circle-stroke-width": overlay(overlayStrokeWidth, linearZoom(1.5, 4)),
       },
     },
     // Structural risk reduction point
     {
-      id: `project-point-sr${suffix}`,
-      type: "symbol",
-      source: "basemap-vector",
-      "source-layer": "project_point",
-      filter: ["all", ["==", ["get", "type"], "SR"], filter],
+      ...projectLayer("Point", "SR", "symbol"),
       paint: {
         "icon-opacity": 1,
       },
@@ -436,13 +414,13 @@ export function projectLayers(filter, isOverlay, suffix = "") {
     {
       id: `project-label${suffix}`,
       type: "symbol",
-      source: "basemap-vector",
+      source: "projects",
       "source-layer": "project_label",
-      filter: ["all", ["!=", ["get", "type"], "OR"], filter],
+      filter: ["all", ["!=", ["get", "element_type_code"], "OR"], yearFilter],
       minzoom: 9,
       layout: {
         "text-anchor": "top",
-        "text-field": ["get", "name"],
+        "text-field": ["get", "project_name"],
         "text-offset": ["literal", [0, 1.5]],
         "text-size": 14,
         "text-font": ["literal", ["Franklin Gothic Demi Regular"]],
@@ -457,27 +435,27 @@ export function projectLayers(filter, isOverlay, suffix = "") {
     {
       id: `project-icon${suffix}`,
       type: "symbol",
-      source: "basemap-vector",
+      source: "projects",
       "source-layer": "project_label",
-      filter: ["all", ["!=", ["get", "type"], "OR"], filter],
+      filter: ["all", ["!=", ["get", "element_type_code"], "OR"], yearFilter],
       minzoom: 10,
       layout: {
-        "icon-image": ["get", "type"],
+        "icon-image": ["get", "element_type_code"],
         "icon-size": linearZoom(0.5, 2.5),
       },
     },
     {
       id: `project-icon-dot${suffix}`,
       type: "circle",
-      source: "basemap-vector",
+      source: "projects",
       "source-layer": "project_label",
-      filter: ["all", ["!=", ["get", "type"], "OR"], filter],
+      filter: ["all", ["!=", ["get", "element_type_code"], "OR"], yearFilter],
       maxzoom: 10,
       minzoom: 8,
       paint: {
         "circle-color": [
           "match",
-          ["get", "type"],
+          ["get", "element_type_code"],
           "BH",
           "#a2e5e0",
           "BS",

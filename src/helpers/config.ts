@@ -16,7 +16,6 @@ export const managementBaseUrl =
   "https://api.mpdp.coastal.la.gov/v1/management";
 export const loginUrl = `${managementBaseUrl}/login`;
 export const clickupUrl = `${managementBaseUrl}/clickup`;
-export const fowaModelGroupIds = [500, 520];
 export const selectionColors = [
   "ff0000",
   "0aefff",

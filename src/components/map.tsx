@@ -4,6 +4,7 @@ import { usePortalState } from "@/helpers/state";
 import {
   getBaseStyle,
   projectLayers,
+  projectsSource,
   rasterLayers,
   rasterSource,
   vectorLayers,
@@ -22,6 +23,7 @@ export default function Map() {
     mapPosition,
     mapTileUrl,
     mapTilesLoading,
+    projectsModelGroup,
     projectsYear,
     selectedGeographies,
     showProjects,
@@ -75,6 +77,8 @@ export default function Map() {
       }
     });
     map.current.on(
+      projectsModelGroup,
+
       "mousemove",
       layerId,
       () => (map.current.getCanvas().style.cursor = "pointer"),
@@ -162,16 +166,13 @@ export default function Map() {
     prevDataset.current = mapCatalogQuery.value.dataset;
   };
 
-  const updateProjectLayers = (show: boolean) => {
+  const updateProjectLayers = () => {
     const mapStyle = map.current.getStyle();
     for (let layer of mapStyle.layers)
       if (layer.id.startsWith("project-")) map.current.removeLayer(layer.id);
 
-    if (show)
-      for (let layer of projectLayers(
-        ["<=", ["get", "year"], projectsYear.value - 2019],
-        true,
-      ))
+    if (showProjects.value)
+      for (let layer of projectLayers(projectsYear.value, true))
         map.current.addLayer(layer, "label");
   };
 
@@ -231,13 +232,25 @@ export default function Map() {
     })();
   }, [mapCatalogQuery.value, mapTileUrl.value]);
 
+  // Update projects source.
+  useEffect(() => {
+    (async () => {
+      await ensureStyleLoaded();
+      const style = map.current.getStyle();
+      style.sources.projects = projectsSource({
+        modelGroup: projectsModelGroup.value,
+      });
+      map.current.setStyle(style);
+    })();
+  }, [projectsModelGroup.value]);
+
   // Update project layers.
   useEffect(() => {
     (async () => {
       await ensureStyleLoaded();
-      updateProjectLayers(showProjects.value);
+      updateProjectLayers();
     })();
-  }, [showProjects.value, projectsYear.value]);
+  }, [projectsYear.value, showProjects.value]);
 
   // Update the map feature state when new data are loaded or the selection changes.
   useEffect(() => {
