@@ -184,6 +184,7 @@ export function vectorLayers({
   lineWidths = [0.5, 3],
   legend,
   sourceId,
+  showLabels = false,
 }) {
   const ramp = colorRamp(legend);
 
@@ -238,6 +239,7 @@ export function vectorLayers({
         "text-offset": [0, 0],
         "text-size": 12,
         "text-font": ["literal", ["Franklin Gothic Demi Regular"]],
+        visibility: showLabels ? "visible" : "none",
       },
       paint: {
         "text-halo-blur": 0.5,

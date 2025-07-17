@@ -9,12 +9,13 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import Map from "./map";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "./ui/resizable";
+import MapOptionsMenu from "./map-options-menu";
 import TimeSelect from "./time-select";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "./ui/resizable";
 import Visualization from "./visualization";
 
 export default function MapPage() {
@@ -31,6 +32,7 @@ export default function MapPage() {
             <MapDataLoading />
             <Separator orientation="vertical" className="mr-2 h-4" />
             <TimeSelect />
+            <MapOptionsMenu />
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">

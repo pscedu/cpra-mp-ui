@@ -26,6 +26,7 @@ export default function Map() {
     projectsModelGroup,
     projectsYear,
     selectedGeographies,
+    showGridLabels,
     showProjects,
   } = usePortalState();
 
@@ -112,6 +113,7 @@ export default function Map() {
       ? vectorLayers({
           ...ids,
           legend: dataset.variable.legend,
+          showLabels: showGridLabels.value,
         })
       : rasterLayers(ids);
 
@@ -231,6 +233,20 @@ export default function Map() {
       updateStyle();
     })();
   }, [mapCatalogQuery.value, mapTileUrl.value]);
+
+  // Update grid label visibility.
+  useEffect(() => {
+    (async () => {
+      await ensureStyleLoaded();
+      const layerId = `${getLayerId()}-label`;
+      if (map.current.getLayer(layerId))
+        map.current.setLayoutProperty(
+          layerId,
+          "visibility",
+          showGridLabels.value ? "visible" : "none",
+        );
+    })();
+  }, [showGridLabels.value]);
 
   // Update projects source.
   useEffect(() => {

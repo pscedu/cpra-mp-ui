@@ -56,6 +56,12 @@ export function createPortalState() {
     (values) => values.map((value) => value.toString()).join("-"),
     (str) => str.split("-").map((valueStr) => parseInt(valueStr)),
   );
+  const showGridLabels = hashSignal(
+    "show-grid-labels",
+    false,
+    (value) => (value ? "true" : "false"),
+    (value) => value === "true",
+  );
   const showProjects = hashSignal(
     "show-projects",
     true,
@@ -552,6 +558,7 @@ export function createPortalState() {
     setSelectedDatasets,
     setSelectedFilterChoices,
     setTimeValues,
+    showGridLabels,
     showProjects,
     structure,
     tagOptions,
