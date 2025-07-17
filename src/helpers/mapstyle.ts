@@ -254,17 +254,17 @@ export function projectLayers(year, isOverlay, suffix = "") {
   const overlay = (yes, no) => (isOverlay ? yes : no);
   const projectLayer = (
     gisType: string,
-    elementTypeCode: string,
+    projectTypeCode: string,
     type: string,
   ) => ({
-    id: `project-${gisType.toLowerCase()}-${elementTypeCode.toLowerCase()}-${type}${suffix}`,
+    id: `project-${gisType.toLowerCase()}-${projectTypeCode.toLowerCase()}-${type}${suffix}`,
     type,
     source: "projects",
     "source-layer": "project_element",
     filter: [
       "all",
       ["==", ["get", "gis_type"], gisType],
-      ["==", ["get", "element_type_code"], elementTypeCode],
+      ["==", ["get", "project_type_code"], projectTypeCode],
       yearFilter,
     ],
   });
@@ -416,12 +416,12 @@ export function projectLayers(year, isOverlay, suffix = "") {
       type: "symbol",
       source: "projects",
       "source-layer": "project_label",
-      filter: ["all", ["!=", ["get", "element_type_code"], "OR"], yearFilter],
+      filter: ["all", ["!=", ["get", "project_type_code"], "OR"], yearFilter],
       minzoom: 9,
       layout: {
         "text-anchor": "top",
         "text-field": ["get", "project_name"],
-        "text-offset": ["literal", [0, 1.5]],
+        "text-offset": ["literal", [0, 0.75]],
         "text-size": 14,
         "text-font": ["literal", ["Franklin Gothic Demi Regular"]],
       },
@@ -433,29 +433,16 @@ export function projectLayers(year, isOverlay, suffix = "") {
       },
     },
     {
-      id: `project-icon${suffix}`,
-      type: "symbol",
-      source: "projects",
-      "source-layer": "project_label",
-      filter: ["all", ["!=", ["get", "element_type_code"], "OR"], yearFilter],
-      minzoom: 10,
-      layout: {
-        "icon-image": ["get", "element_type_code"],
-        "icon-size": linearZoom(0.5, 2.5),
-      },
-    },
-    {
       id: `project-icon-dot${suffix}`,
       type: "circle",
       source: "projects",
       "source-layer": "project_label",
-      filter: ["all", ["!=", ["get", "element_type_code"], "OR"], yearFilter],
-      maxzoom: 10,
+      filter: ["all", yearFilter],
       minzoom: 8,
       paint: {
         "circle-color": [
           "match",
-          ["get", "element_type_code"],
+          ["get", "project_type_code"],
           "BH",
           "#a2e5e0",
           "BS",
@@ -480,7 +467,7 @@ export function projectLayers(year, isOverlay, suffix = "") {
           "#414143",
           "#c8c8c8",
         ],
-        "circle-radius": linearZoom(2, 12),
+        "circle-radius": linearZoom(2, 6),
         "circle-stroke-color": "#FFFFFF",
         "circle-stroke-width": 1,
       },
