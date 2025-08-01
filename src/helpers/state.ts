@@ -492,14 +492,6 @@ export function createPortalState() {
     saveUser(user.value);
   });
 
-  // Load the visualization spec when the URL changes.
-  effect(() => {
-    (async () =>
-      (visualizationSpec.value = visualizationSpecUrl.value
-        ? await getJson(visualizationSpecUrl.value)
-        : null))();
-  });
-
   // Reset the activity when the user logs out.
   effect(() => {
     if (activity.value !== "data" && !user.value) activity.value = "data";
@@ -572,7 +564,7 @@ export function createPortalState() {
     updateTask,
     user,
     users,
-    visualizationSpec,
+    visualizationSpecUrl,
   };
 }
 

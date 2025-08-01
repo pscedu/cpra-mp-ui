@@ -1,20 +1,50 @@
+import useMeasure from "react-use-measure";
 import { useTheme } from "@/components/theme-provider";
 import { VegaLite } from "react-vega";
 import { dark, excel } from "vega-themes";
+import { useSignal } from "@preact/signals-react";
+import { useEffect } from "react";
+import { getJson } from "@/helpers/utils";
 
 const darkTheme = { ...dark, background: "#161b22" };
 const lightTheme = excel;
 
-export default function Visualization({ spec }) {
+import { LoaderCircle } from "lucide-react";
+
+export default function Visualization({ actions = false, spec, padding = 16 }) {
+  const [ref, { height, width }] = useMeasure();
+  const specJson = useSignal(typeof spec === "string" ? null : spec);
   const theme = useTheme();
 
+  useEffect(() => {
+    if (typeof spec === "string") {
+      if (height && width) {
+        (async () => {
+          const specUrl = `${spec}${spec.includes("?") ? "" : "?"}&height=${Math.floor(height)}&width=${Math.floor(width)}`;
+          specJson.value = await getJson(specUrl);
+        })();
+      }
+    } else {
+      specJson.value = spec;
+    }
+  }, [specJson, spec, height, width]);
+
   return (
-    <VegaLite
-      actions={false}
-      spec={spec}
-      style={{ width: "calc(100% - 32px)" }}
-      padding={16}
-      config={theme.theme === "dark" ? darkTheme : lightTheme}
-    />
+    <div className="h-full w-full relative" ref={ref}>
+      <LoaderCircle className="animate-spin absolute" />
+      {specJson.value ? (
+        <VegaLite
+          actions={actions}
+          className="absolute rounded-xl overflow-hidden"
+          spec={specJson.value}
+          style={{
+            height: `${height}px`,
+            width: `${width}px`,
+          }}
+          padding={padding}
+          config={theme.theme === "dark" ? darkTheme : lightTheme}
+        />
+      ) : null}
+    </div>
   );
 }

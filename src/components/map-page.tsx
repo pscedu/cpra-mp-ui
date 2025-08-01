@@ -19,7 +19,7 @@ import {
 import Visualization from "./visualization";
 
 export default function MapPage() {
-  const { visualizationSpec } = usePortalState();
+  const { visualizationSpecUrl } = usePortalState();
 
   return (
     <SidebarProvider>
@@ -40,11 +40,11 @@ export default function MapPage() {
             <ResizablePanel>
               <Map />
             </ResizablePanel>
-            {visualizationSpec.value ? (
+            {visualizationSpecUrl.value ? (
               <>
                 <ResizableHandle className="h-16" />
                 <ResizablePanel>
-                  <Visualization spec={visualizationSpec.value} />
+                  <Visualization spec={visualizationSpecUrl.value} />
                 </ResizablePanel>
               </>
             ) : null}
