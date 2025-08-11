@@ -71,6 +71,9 @@ export default function TimeSelect() {
               onSelect={(value) =>
                 setTimeValues([value.toISOString().split("T")[0]])
               }
+              disabled={(date) =>
+                !choices.includes(date.toISOString().split("T")[0])
+              }
               initialFocus
             />
           )}
