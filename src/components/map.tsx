@@ -201,6 +201,11 @@ export default function Map() {
     while (!map.current || !map.current.isStyleLoaded()) await sleep(100);
   };
 
+  const ensureSourceLoaded = async () => {
+    while (!map.current || !map.current.getSource(getSourceId()))
+      await sleep(100);
+  };
+
   // Initialize the map.
   useEffect(() => {
     if (container.current && !map.current) initMap();
@@ -271,6 +276,7 @@ export default function Map() {
   useEffect(() => {
     (async () => {
       await ensureStyleLoaded();
+      await ensureSourceLoaded();
       updateFeatureState();
     })();
   }, [mapFeatureValues.value, selectedGeographies.value]);
