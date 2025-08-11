@@ -17,6 +17,7 @@ import {
   ResizablePanelGroup,
 } from "./ui/resizable";
 import Visualization from "./visualization";
+import MapContextMenu from "./map-context-menu";
 
 export default function MapPage() {
   const { visualizationSpecUrl } = usePortalState();
@@ -38,7 +39,9 @@ export default function MapPage() {
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
           <ResizablePanelGroup direction="vertical">
             <ResizablePanel>
-              <Map />
+              <MapContextMenu>
+                <Map />
+              </MapContextMenu>
             </ResizablePanel>
             {visualizationSpecUrl.value ? (
               <>

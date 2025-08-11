@@ -88,10 +88,10 @@ export function createPortalState() {
   const mapTilesLoading = signal(false);
 
   const visualizationType = hashSignal("visualization", "time-series-line");
-  const visualizationSpec = signal(null);
 
   const issueFilterTags = signal([]);
   const taskStatuses = signal(null);
+  const contextMenu = signal(null);
 
   // Query the catalog API for each selected dataset when the selected
   // datasets or dimension values change.
@@ -198,7 +198,9 @@ export function createPortalState() {
       selectedGeographies.value &&
       selectedGeographies.value.length
       ? mapCatalogQuery.value.dataset.getVisualizationUrl(
-          mapCatalogQuery.value.getFilterParams(selectedGeographies.value),
+          mapCatalogQuery.value.getFilterParams(
+            selectedGeographies.value.slice(0, 10),
+          ),
           visualizationType.value,
         )
       : null;
@@ -214,6 +216,14 @@ export function createPortalState() {
     }
     return 0;
   });
+
+  const rotateSelectedGeographies = (offset: number) => {
+    if (offset != 0)
+      selectedGeographies.value = [
+        ...selectedGeographies.value.slice(offset),
+        ...selectedGeographies.value.slice(0, offset),
+      ];
+  };
 
   const setTimeValues = (values) => {
     timeValues.value = values;
@@ -527,6 +537,7 @@ export function createPortalState() {
     avatarCacheKey,
     catalogQueries,
     completeLogin,
+    contextMenu,
     createComment,
     createTask,
     datasets,
@@ -546,6 +557,7 @@ export function createPortalState() {
     projectsYear,
     reloadTask,
     reloadTasks,
+    rotateSelectedGeographies,
     selectedGeographies,
     setSelectedDatasets,
     setSelectedFilterChoices,

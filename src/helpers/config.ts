@@ -28,3 +28,15 @@ export const selectionColors = [
   "a1ff0a",
   "147df5",
 ];
+export const selectionColorLabels = [
+  "Red",
+  "Cyan",
+  "Yellow",
+  "Purple",
+  "Teal",
+  "Indigo",
+  "Lime",
+  "Orange",
+  "Green",
+  "Blue",
+];

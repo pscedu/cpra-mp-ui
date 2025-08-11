@@ -18,6 +18,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 // Map using MapLibre GL.
 export default function Map() {
   const {
+    contextMenu,
     mapCatalogQuery,
     mapFeatureValues,
     mapPosition,
@@ -52,20 +53,18 @@ export default function Map() {
       const { lat, lng } = map.current.getCenter();
       mapPosition.value = [map.current.getZoom(), lat, lng];
     });
+    map.current.dragRotate.disable();
   };
 
   const addLayerClickHandlers = (layerId) => {
-    // map.current.on("contextmenu", "geography-fill", (e) => {
-    //   // Stop propagation of the click event so that it doesn't cause the context menu
-    //   // to close.
-    //   e.originalEvent.stopPropagation();
-    //   contextMenu.value = {
-    //     type: "geography-select",
-    //     feature: e.features[0],
-    //     x: e.originalEvent.clientX,
-    //     y: e.originalEvent.clientY,
-    //   };
-    // });
+    map.current.on("contextmenu", layerId, (e) => {
+      contextMenu.value = {
+        type: "geography-select",
+        feature: e.features[0],
+        x: e.originalEvent.clientX,
+        y: e.originalEvent.clientY,
+      };
+    });
 
     map.current.on("click", layerId, (e) => {
       if (e.features) {
