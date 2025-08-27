@@ -50,11 +50,20 @@ export function createPortalState() {
     (valueStr) => valueStr.split("/").map((value) => parseFloat(value)),
     true,
   );
-  const selectedGeographies = hashSignal<number[]>(
+  const selectedGeographies = hashSignal<(number[] | number)[]>(
     "geography",
     [],
-    (values) => values.map((value) => value.toString()).join("-"),
-    (str) => str.split("-").map((valueStr) => parseInt(valueStr)),
+    (values) => values.map((value) => value.toString()).join(","),
+    (str) => {
+      const geos = str.split(",");
+      if (str.includes(".")) {
+        const pairs = [];
+        for (let i = 0; i < geos.length; i += 2)
+          pairs.push(geos.slice(i, i + 2).map((coord) => parseFloat(coord)));
+        return pairs;
+      }
+      return geos.map((geo) => parseInt(geo));
+    },
   );
   const showGridLabels = hashSignal(
     "show-grid-labels",
