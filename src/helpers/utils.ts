@@ -156,8 +156,11 @@ export const adjustColor = (color: string, amount: number) =>
  * @param {number} adjustment - Luminosity adjustment.
  * @returns
  */
-export const getSelectionColor = (i: number, adjustment?: number) =>
-  adjustColor(selectionColors[i] || "000000", adjustment || 0);
+export const getSelectionColor = (
+  i: number,
+  { adjustment, count }: { adjustment?: number; count?: number } = {},
+) =>
+  adjustColor(selectionColors.slice(0, count)[i] || "000000", adjustment || 0);
 
 export const parseDate = (dateStr: string) => {
   const dateParts = dateStr.split("-").map((val) => parseInt(val));

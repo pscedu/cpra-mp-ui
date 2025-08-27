@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { Map as GLMap } from "maplibre-gl";
+import { Ref, useEffect, useRef } from "react";
+import { Map as GLMap, Marker } from "maplibre-gl";
 import { usePortalState } from "@/helpers/state";
 import {
   getBaseStyle,
@@ -14,6 +14,12 @@ import { Dataset } from "@/helpers/structure";
 import { getSelectionColor, sleep } from "../helpers/utils";
 
 import "maplibre-gl/dist/maplibre-gl.css";
+
+const getRasterGeography = (e) => {
+  const { lngLat } = e;
+  const { lng, lat } = lngLat;
+  return [lng.toFixed(5), lat.toFixed(5)];
+};
 
 // Map using MapLibre GL.
 export default function Map() {
@@ -37,6 +43,7 @@ export default function Map() {
   const prevDataset = useRef(null);
   const dataSourceIdx = useRef(0);
   const dataLayerIdx = useRef(0);
+  const markers: Ref<Marker[]> = useRef([]);
 
   const initMap = () => {
     const [z, y, x] = mapPosition.value;
@@ -47,6 +54,24 @@ export default function Map() {
       zoom: z,
     });
 
+    map.current.on("click", (e) => {
+      if (mapCatalogQuery.value.dataset.grid.grid_type === "raster") {
+        selectedGeographies.value = [
+          ...selectedGeographies.value,
+          getRasterGeography(e),
+        ];
+      }
+    });
+    map.current.on("contextmenu", (e) => {
+      if (mapCatalogQuery.value.dataset.grid.grid_type === "raster") {
+        contextMenu.value = {
+          type: "geography-select",
+          geography: getRasterGeography(e),
+          x: e.originalEvent.clientX,
+          y: e.originalEvent.clientY,
+        };
+      }
+    });
     map.current.on("data", () => (mapTilesLoading.value = true));
     map.current.on("idle", () => (mapTilesLoading.value = false));
     map.current.on("moveend", () => {
@@ -60,7 +85,7 @@ export default function Map() {
     map.current.on("contextmenu", layerId, (e) => {
       contextMenu.value = {
         type: "geography-select",
-        feature: e.features[0],
+        geography: e.features[0].id,
         x: e.originalEvent.clientX,
         y: e.originalEvent.clientY,
       };
@@ -77,8 +102,6 @@ export default function Map() {
       }
     });
     map.current.on(
-      projectsModelGroup,
-
       "mousemove",
       layerId,
       () => (map.current.getCanvas().style.cursor = "pointer"),
@@ -197,6 +220,35 @@ export default function Map() {
         }
   };
 
+  const updateMarkers = () => {
+    markers.current.forEach((marker) => marker.remove());
+    markers.current = selectedGeographies.value
+      .filter((geo) => Array.isArray(geo))
+      .map((geo, i) => {
+        const marker = new Marker({
+          color: getSelectionColor(i),
+          draggable: true,
+        })
+          .setLngLat(geo)
+          .addTo(map.current);
+        marker.getElement().addEventListener("click", (e) => {
+          e.stopPropagation();
+          selectedGeographies.value = selectedGeographies.value.filter(
+            (_geo, idx) => idx !== i,
+          );
+        });
+        marker.getElement().addEventListener("contextmenu", (e) => {
+          contextMenu.value = {
+            type: "geography-select",
+            geography: geo,
+            x: e.clientX,
+            y: e.clientY,
+          };
+        });
+        return marker;
+      });
+  };
+
   const ensureStyleLoaded = async () => {
     while (!map.current || !map.current.isStyleLoaded()) await sleep(100);
   };
@@ -278,6 +330,7 @@ export default function Map() {
       await ensureStyleLoaded();
       await ensureSourceLoaded();
       updateFeatureState();
+      updateMarkers();
     })();
   }, [mapFeatureValues.value, selectedGeographies.value]);
 

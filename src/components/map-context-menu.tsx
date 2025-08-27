@@ -30,7 +30,7 @@ export default function MapContextMenu({ children }) {
   } = usePortalState();
   const trigger = useRef(null);
 
-  const feature = contextMenu.value?.feature;
+  const geography = contextMenu.value?.geography;
   const selectionCount = selectedGeographies.value.length;
 
   useSignalEffect(() => {
@@ -58,7 +58,7 @@ export default function MapContextMenu({ children }) {
     >
       <ContextMenuTrigger ref={trigger}>{children}</ContextMenuTrigger>
       <ContextMenuContent>
-        {feature && (
+        {geography && (
           <>
             <ContextMenuSub>
               <ContextMenuSubTrigger inset>
@@ -66,7 +66,7 @@ export default function MapContextMenu({ children }) {
               </ContextMenuSubTrigger>
               <ContextMenuSubContent>
                 <ContextMenuLabel>Choose outline color</ContextMenuLabel>
-                <ColorChooserMenuItems feature={feature} />
+                <ColorChooserMenuItems geography={geography} />
               </ContextMenuSubContent>
             </ContextMenuSub>
             <ContextMenuSeparator />
