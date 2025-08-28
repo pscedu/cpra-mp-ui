@@ -1,5 +1,5 @@
 import { Ref, useEffect, useRef } from "react";
-import { Map as GLMap, Marker } from "maplibre-gl";
+import { LngLatBounds, Map as GLMap, Marker } from "maplibre-gl";
 import { usePortalState } from "@/helpers/state";
 import {
   getBaseStyle,
@@ -14,12 +14,6 @@ import { Dataset } from "@/helpers/structure";
 import { getSelectionColor, sleep } from "../helpers/utils";
 
 import "maplibre-gl/dist/maplibre-gl.css";
-
-const getRasterGeography = (e) => {
-  const { lngLat } = e;
-  const { lng, lat } = lngLat;
-  return [lng.toFixed(5), lat.toFixed(5)];
-};
 
 // Map using MapLibre GL.
 export default function Map() {
@@ -45,6 +39,44 @@ export default function Map() {
   const dataLayerIdx = useRef(0);
   const markers: Ref<Marker[]> = useRef([]);
 
+  const getSourceId = () => `data-source-${dataSourceIdx.current}`;
+  const getLayerId = () => `data-layer-${dataLayerIdx.current}`;
+  const getIsRaster = () =>
+    mapCatalogQuery.value.dataset.grid.grid_type === "raster";
+  const getGeography = (e) => {
+    const source = map.current.getSource(getSourceId());
+    if (!source) return;
+    if (getIsRaster()) {
+      const { lngLat } = e;
+      const { lng, lat } = lngLat;
+
+      const bounds = new LngLatBounds(source.bounds);
+      if (bounds.contains(lngLat)) return [lng.toFixed(5), lat.toFixed(5)];
+    } else {
+      const features = map.current.queryRenderedFeatures(e.point, {
+        layers: ["fill", "line", "selected", "label"].map(
+          (suffix) => `${getLayerId()}-${suffix}`,
+        ),
+      });
+      if (features.length) return features[0].id;
+    }
+  };
+  const toggleGeographySelected = (geo) => {
+    const geos = selectedGeographies.value.slice();
+    let idx = geos.indexOf(geo);
+    if (idx === -1) geos.push(geo);
+    else geos.splice(idx, 1);
+    selectedGeographies.value = geos;
+  };
+  const openContextMenu = (geo, e) => {
+    contextMenu.value = {
+      type: "geography-select",
+      geography: geo,
+      x: e.originalEvent.clientX,
+      y: e.originalEvent.clientY,
+    };
+  };
+
   const initMap = () => {
     const [z, y, x] = mapPosition.value;
     map.current = new GLMap({
@@ -55,22 +87,16 @@ export default function Map() {
     });
 
     map.current.on("click", (e) => {
-      if (mapCatalogQuery.value.dataset.grid.grid_type === "raster") {
-        selectedGeographies.value = [
-          ...selectedGeographies.value,
-          getRasterGeography(e),
-        ];
-      }
+      const geo = getGeography(e);
+      if (geo) toggleGeographySelected(geo);
     });
     map.current.on("contextmenu", (e) => {
-      if (mapCatalogQuery.value.dataset.grid.grid_type === "raster") {
-        contextMenu.value = {
-          type: "geography-select",
-          geography: getRasterGeography(e),
-          x: e.originalEvent.clientX,
-          y: e.originalEvent.clientY,
-        };
-      }
+      const geo = getGeography(e);
+      if (geo) openContextMenu(geo, e);
+    });
+    map.current.on("mousemove", (e) => {
+      const geo = getGeography(e);
+      map.current.getCanvas().style.cursor = geo ? "pointer" : "";
     });
     map.current.on("data", () => (mapTilesLoading.value = true));
     map.current.on("idle", () => (mapTilesLoading.value = false));
@@ -80,41 +106,6 @@ export default function Map() {
     });
     map.current.dragRotate.disable();
   };
-
-  const addLayerClickHandlers = (layerId) => {
-    map.current.on("contextmenu", layerId, (e) => {
-      contextMenu.value = {
-        type: "geography-select",
-        geography: e.features[0].id,
-        x: e.originalEvent.clientX,
-        y: e.originalEvent.clientY,
-      };
-    });
-
-    map.current.on("click", layerId, (e) => {
-      if (e.features) {
-        const geos = selectedGeographies.peek().slice();
-        for (let feature of e.features) {
-          let idx = geos.indexOf(feature.id);
-          idx === -1 ? geos.push(feature.id) : geos.splice(idx, 1);
-        }
-        selectedGeographies.value = geos;
-      }
-    });
-    map.current.on(
-      "mousemove",
-      layerId,
-      () => (map.current.getCanvas().style.cursor = "pointer"),
-    );
-    map.current.on(
-      "mouseleave",
-      layerId,
-      () => (map.current.getCanvas().style.cursor = ""),
-    );
-  };
-
-  const getSourceId = () => `data-source-${dataSourceIdx.current}`;
-  const getLayerId = () => `data-layer-${dataLayerIdx.current}`;
 
   const addSource = (tileUrl: string, dataset: Dataset) => {
     mapTilesLoading.value = true;
@@ -139,10 +130,7 @@ export default function Map() {
         })
       : rasterLayers(ids);
 
-    for (let layer of layers) {
-      map.current.addLayer(layer, "levee");
-      addLayerClickHandlers(layer.id);
-    }
+    for (let layer of layers) map.current.addLayer(layer, "levee");
   };
 
   const cleanup = () => {
@@ -233,18 +221,11 @@ export default function Map() {
           .addTo(map.current);
         marker.getElement().addEventListener("click", (e) => {
           e.stopPropagation();
-          selectedGeographies.value = selectedGeographies.value.filter(
-            (_geo, idx) => idx !== i,
-          );
+          toggleGeographySelected(geo);
         });
-        marker.getElement().addEventListener("contextmenu", (e) => {
-          contextMenu.value = {
-            type: "geography-select",
-            geography: geo,
-            x: e.clientX,
-            y: e.clientY,
-          };
-        });
+        marker
+          .getElement()
+          .addEventListener("contextmenu", (e) => openContextMenu(geo, e));
         return marker;
       });
   };
