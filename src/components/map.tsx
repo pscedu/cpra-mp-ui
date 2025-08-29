@@ -29,6 +29,7 @@ export default function Map() {
     selectedGeographies,
     showGridLabels,
     showProjects,
+    visualization,
   } = usePortalState();
 
   const container = useRef(null);
@@ -38,6 +39,10 @@ export default function Map() {
   const dataSourceIdx = useRef(0);
   const dataLayerIdx = useRef(0);
   const markers: Ref<Marker[]> = useRef([]);
+
+  const selectionColorOptions = {
+    count: visualization?.value?.max_geographies || 10,
+  };
 
   const getSourceId = () => `data-source-${dataSourceIdx.current}`;
   const getLayerId = () => `data-layer-${dataLayerIdx.current}`;
@@ -206,7 +211,10 @@ export default function Map() {
               id: featureId,
             },
             {
-              selected: geoIdx >= 0 ? getSelectionColor(geoIdx) : null,
+              selected:
+                geoIdx >= 0
+                  ? getSelectionColor(geoIdx, selectionColorOptions)
+                  : null,
               value: mapFeatureValues.value[featureId],
             },
           );
@@ -219,7 +227,7 @@ export default function Map() {
       .filter((geo) => Array.isArray(geo))
       .map((geo, i) => {
         const marker = new Marker({
-          color: getSelectionColor(i),
+          color: getSelectionColor(i, selectionColorOptions),
           draggable: true,
         })
           .setLngLat(geo)
@@ -322,7 +330,7 @@ export default function Map() {
       updateFeatureState();
       updateMarkers();
     })();
-  }, [mapFeatureValues.value, selectedGeographies.value]);
+  }, [mapFeatureValues.value, selectedGeographies.value, visualization.value]);
 
   // Clean up the map before the component unloads.
   useEffect(() => {

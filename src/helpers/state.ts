@@ -225,6 +225,12 @@ export function createPortalState() {
     return 0;
   });
 
+  const visualization = computed(() =>
+    structure.value && visualizationType.value
+      ? structure.value.visualizationsMap[visualizationType.value]
+      : null,
+  );
+
   const rotateSelectedGeographies = (offset: number) => {
     if (offset != 0)
       selectedGeographies.value = [
@@ -584,6 +590,7 @@ export function createPortalState() {
     updateTask,
     user,
     users,
+    visualization,
     visualizationType,
     visualizationSpecUrl,
   };
