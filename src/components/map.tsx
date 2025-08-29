@@ -82,8 +82,8 @@ export default function Map() {
     contextMenu.value = {
       type: "geography-select",
       geography: geo,
-      x: e.originalEvent.clientX,
-      y: e.originalEvent.clientY,
+      x: (e.originalEvent || e).clientX,
+      y: (e.originalEvent || e).clientY,
     };
   };
 
