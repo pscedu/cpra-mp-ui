@@ -584,6 +584,7 @@ export function createPortalState() {
     updateTask,
     user,
     users,
+    visualizationType,
     visualizationSpecUrl,
   };
 }

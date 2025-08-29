@@ -16,6 +16,7 @@ import Dimensions from "./dimensions";
 import IssueDetail from "./issue-detail";
 import IssueForm from "./issue-form";
 import Issues from "./issues";
+import VisualizationSidebar from "./visualization-sidebar";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { activity, issue } = usePortalState();
@@ -29,7 +30,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         {open && (
           <>
-            {activity.value === "data" && <Dimensions />}
+            {activity.value === "data" && (
+              <>
+                <Dimensions />
+                <VisualizationSidebar />
+              </>
+            )}
             {activity.value === "issues" && (
               <>
                 {issue.value ? (
