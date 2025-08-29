@@ -203,11 +203,44 @@ export class Dataset {
       ? "calendar_year"
       : "calendar_day";
   }
+}
 
-  getVisualizationUrl(params: [string, any][], visualizationType: string) {
-    return `${this.getBaseUrl()}/visualization/${visualizationType}.json${makeQueryString(
-      params,
-    )}`;
+export class Visualization {
+  name: string;
+  label: string;
+  type: string;
+  max_geographies: number;
+  variables: string[] | null;
+
+  constructor({
+    name,
+    label,
+    type,
+    max_geographies,
+    variables,
+  }: {
+    name: string;
+    label: string;
+    type: string;
+    max_geographies: number;
+    variables: string[] | null;
+  }) {
+    this.name = name;
+    this.label = label;
+    this.type = type;
+    this.max_geographies = max_geographies;
+    this.variables = variables;
+  }
+
+  getSpecUrl(catalogQuery: CatalogQuery, geographies: number[] | number[][]) {
+    const params = catalogQuery.getFilterParams(
+      geographies.slice(0, this.max_geographies),
+    );
+    const baseUrl =
+      this.type === "dataset"
+        ? `${catalogQuery.dataset.getBaseUrl()}/visualization`
+        : `${dataBaseUrl}/visualizations`;
+    return `${baseUrl}/${this.name}.json${makeQueryString(params)}`;
   }
 }
 
@@ -221,8 +254,10 @@ export class Structure {
   gridsMap: { [key: string]: Grid };
   legends: Legend[];
   legendsMap: { [key: string]: Legend };
+  visualizations: Visualization[];
+  visualizationsMap: { [key: string]: Visualization };
 
-  constructor(datasets, dimensions, variables, grids, legends) {
+  constructor(datasets, dimensions, variables, grids, legends, visualizations) {
     this.dimensions = dimensions.map((dimension) => new Dimension(dimension));
     this.dimensionsMap = makeMap(this.dimensions);
 
@@ -231,6 +266,11 @@ export class Structure {
 
     this.legends = legends.map((legend) => new Legend(legend));
     this.legendsMap = makeMap(this.legends);
+
+    this.visualizations = visualizations.map(
+      (visualization) => new Visualization(visualization),
+    );
+    this.visualizationsMap = makeMap(this.visualizations);
 
     this.variables = variables.map(
       (variable) =>
@@ -330,11 +370,16 @@ export class Structure {
 
 export async function getStructure() {
   const datasetsData = getNdJson(`${dataBaseUrl}/datasets.ndjson`);
-  const staticData = ["dimensions", "variables", "grids", "legends"].map(
-    (endpoint) => getJson(`${dataBaseUrl}/${endpoint}.json`),
-  );
+  const staticData = [
+    "dimensions",
+    "variables",
+    "grids",
+    "legends",
+    "visualizations",
+  ].map((endpoint) => getJson(`${dataBaseUrl}/${endpoint}.json`));
   return new Structure(
     ...((await Promise.all([datasetsData, ...staticData])) as [
+      object,
       object,
       object,
       object,

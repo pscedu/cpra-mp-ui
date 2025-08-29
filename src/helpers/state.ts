@@ -50,7 +50,7 @@ export function createPortalState() {
     (valueStr) => valueStr.split("/").map((value) => parseFloat(value)),
     true,
   );
-  const selectedGeographies = hashSignal<(number[] | number)[]>(
+  const selectedGeographies = hashSignal<number[] | number[][]>(
     "geography",
     [],
     (values) => values.map((value) => value.toString()).join(","),
@@ -202,15 +202,14 @@ export function createPortalState() {
   );
 
   const visualizationSpecUrl = computed(() => {
-    return mapCatalogQuery.value &&
+    return structure.value &&
+      mapCatalogQuery.value &&
       visualizationType.value &&
       selectedGeographies.value &&
       selectedGeographies.value.length
-      ? mapCatalogQuery.value.dataset.getVisualizationUrl(
-          mapCatalogQuery.value.getFilterParams(
-            selectedGeographies.value.slice(0, 10),
-          ),
-          visualizationType.value,
+      ? structure.value.visualizationsMap[visualizationType.value].getSpecUrl(
+          mapCatalogQuery.value,
+          selectedGeographies.value,
         )
       : null;
   });

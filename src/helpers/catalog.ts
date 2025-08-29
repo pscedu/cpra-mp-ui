@@ -34,7 +34,9 @@ export class CatalogQuery {
     this.response = await getJson(requestPath);
   }
 
-  getFilterParams(geographies: number[] | null = null): [string, any][] {
+  getFilterParams(
+    geographies: number[] | number[][] | null = null,
+  ): [string, any][] {
     const requiredDimensions = this.structure.getRequiredDimensions([
       this.dataset,
     ]);
