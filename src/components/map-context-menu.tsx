@@ -27,11 +27,13 @@ export default function MapContextMenu({ children }) {
     mapCatalogQuery,
     rotateSelectedGeographies,
     selectedGeographies,
+    visualization,
   } = usePortalState();
   const trigger = useRef(null);
 
   const geography = contextMenu.value?.geography;
   const selectionCount = selectedGeographies.value.length;
+  const maxGeographies = visualization?.value?.max_geographies || 10;
 
   useSignalEffect(() => {
     if (
@@ -90,18 +92,22 @@ export default function MapContextMenu({ children }) {
         >
           <ChevronRight /> Next selection
         </ContextMenuItem>
-        <ContextMenuItem
-          disabled={selectionCount < 10}
-          onSelect={() => rotateSelectedGeographies(-10)}
-        >
-          <ChevronsLeft /> Previous 10 selections
-        </ContextMenuItem>
-        <ContextMenuItem
-          disabled={selectionCount < 10}
-          onSelect={() => rotateSelectedGeographies(10)}
-        >
-          <ChevronsRight /> Next 10 selections
-        </ContextMenuItem>
+        {maxGeographies > 1 && (
+          <>
+            <ContextMenuItem
+              disabled={selectionCount < maxGeographies}
+              onSelect={() => rotateSelectedGeographies(-1 * maxGeographies)}
+            >
+              <ChevronsLeft /> Previous 10 selections
+            </ContextMenuItem>
+            <ContextMenuItem
+              disabled={selectionCount < maxGeographies}
+              onSelect={() => rotateSelectedGeographies(maxGeographies)}
+            >
+              <ChevronsRight /> Next 10 selections
+            </ContextMenuItem>
+          </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );
