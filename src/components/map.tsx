@@ -61,6 +61,11 @@ export default function Map() {
       if (features.length) return features[0].id;
     }
   };
+  const updateGeography = (i, newGeo) => {
+    const geos = selectedGeographies.value.slice();
+    geos[i] = newGeo;
+    selectedGeographies.value = geos;
+  };
   const toggleGeographySelected = (geo) => {
     const geos = selectedGeographies.value.slice();
     let idx = geos.indexOf(geo);
@@ -219,6 +224,10 @@ export default function Map() {
         })
           .setLngLat(geo)
           .addTo(map.current);
+        marker.on("dragend", () => {
+          const { lng, lat } = marker.getLngLat();
+          updateGeography(i, [lng, lat]);
+        });
         marker.getElement().addEventListener("click", (e) => {
           e.stopPropagation();
           toggleGeographySelected(geo);
