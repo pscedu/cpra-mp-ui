@@ -11,6 +11,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
   ContextMenuLabel,
+  ContextMenuShortcut,
 } from "@/components/ui/context-menu";
 import {
   ChevronLeft,
@@ -79,32 +80,37 @@ export default function MapContextMenu({ children }) {
           onSelect={() => (selectedGeographies.value = [])}
         >
           <X /> Clear selection
+          <ContextMenuShortcut>Esc</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
           disabled={!selectionCount}
           onSelect={() => rotateSelectedGeographies(-1)}
         >
           <ChevronLeft /> Previous selection
+          <ContextMenuShortcut>Ctrl &larr;</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
           disabled={!selectionCount}
           onSelect={() => rotateSelectedGeographies(1)}
         >
           <ChevronRight /> Next selection
+          <ContextMenuShortcut>Ctrl &rarr;</ContextMenuShortcut>
         </ContextMenuItem>
         {maxGeographies > 1 && (
           <>
             <ContextMenuItem
-              disabled={selectionCount < maxGeographies}
+              disabled={selectionCount <= maxGeographies}
               onSelect={() => rotateSelectedGeographies(-1 * maxGeographies)}
             >
-              <ChevronsLeft /> Previous 10 selections
+              <ChevronsLeft /> Previous {maxGeographies} selections
+              <ContextMenuShortcut>Ctrl &uarr;</ContextMenuShortcut>
             </ContextMenuItem>
             <ContextMenuItem
-              disabled={selectionCount < maxGeographies}
+              disabled={selectionCount <= maxGeographies}
               onSelect={() => rotateSelectedGeographies(maxGeographies)}
             >
-              <ChevronsRight /> Next 10 selections
+              <ChevronsRight /> Next {maxGeographies} selections
+              <ContextMenuShortcut>Ctrl &darr;</ContextMenuShortcut>
             </ContextMenuItem>
           </>
         )}

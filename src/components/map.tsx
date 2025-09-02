@@ -26,6 +26,7 @@ export default function Map() {
     mapTilesLoading,
     projectsModelGroup,
     projectsYear,
+    rotateSelectedGeographies,
     selectedGeographies,
     showGridLabels,
     showProjects,
@@ -337,6 +338,30 @@ export default function Map() {
     return () => {
       if (map.current) map.current.remove();
     };
+  }, []);
+
+  // Add listeners for selection key combinations.
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey) {
+        const selectionCount = selectedGeographies.value.length;
+        const maxGeographies = visualization?.value?.max_geographies || 10;
+        if (selectionCount) {
+          if (e.key === "ArrowLeft") rotateSelectedGeographies(-1);
+          else if (e.key === "ArrowRight") rotateSelectedGeographies(1);
+        }
+        if (selectionCount > maxGeographies) {
+          if (e.key === "ArrowUp")
+            rotateSelectedGeographies(-1 * maxGeographies);
+          else if (e.key === "ArrowDown")
+            rotateSelectedGeographies(maxGeographies);
+        }
+      } else if (e.key === "Escape") {
+        selectedGeographies.value = [];
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   return <div className="h-full rounded-xl overflow-hidden" ref={container} />;
