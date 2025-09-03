@@ -11,6 +11,7 @@ export const getHashParams = () =>
   new URLSearchParams(window.location.hash.replace(/^#/, ""));
 
 export const getHashString = (params: URLSearchParams) => {
+  params.sort();
   let hashString = params.toString();
   // Fix encoding of map parameter.
   if (params.has("map"))
@@ -21,8 +22,12 @@ export const getHashString = (params: URLSearchParams) => {
   return hashString ? `#${hashString}` : "";
 };
 
-export const setHash = (params: URLSearchParams) =>
-  window.history.replaceState(window.history.state, "", getHashString(params));
+let enableSetHash = true;
+export const setHash = (params: URLSearchParams) => {
+  const newHashString = getHashString(params);
+  if (enableSetHash && newHashString !== window.location.hash)
+    window.history.pushState(window.history.state, "", getHashString(params));
+};
 
 const hashCallbacks: ((params: URLSearchParams) => void)[] = [];
 
@@ -32,9 +37,11 @@ export const initHashSignals = () => {
       "hashchange",
       () => {
         const params = getHashParams();
+        enableSetHash = false;
         batch(() => {
           for (const hashCallback of hashCallbacks) hashCallback(params);
         });
+        enableSetHash = true;
       },
       false,
     );
