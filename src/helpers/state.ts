@@ -77,7 +77,47 @@ export function createPortalState() {
     (value) => (value ? "true" : "false"),
     (value) => value !== "false",
   );
-  initHashSignals();
+  const reconcileDatasets = () =>
+    untracked(() => {
+      if (!datasets.value.length) return;
+      // TODO: Allow the user to select the map dataset.
+      const mapDataset = datasets.value[0];
+
+      // Reset selected geographies when the grid changes.
+      if (
+        mapCatalogQuery.value &&
+        mapCatalogQuery.value.dataset.grid !== mapDataset.grid
+      )
+        selectedGeographies.value = [];
+
+      // Handle changing from daily/monthly datasets to annual/decadal datasets
+      // and vice-versa.
+      const timeColumn = mapDataset.getTimeColumn();
+      const newFilters = { ...filters.value };
+      if ("calendar_day" in filters.value && timeColumn === "calendar_year") {
+        newFilters["calendar_year"] = filters.value["calendar_day"].map(
+          (dateStr) => {
+            let year = parseInt(dateStr.substr(0, 4));
+            if (mapDataset.time_unit === "decadal")
+              year = Math.round(year / 10) * 10;
+            return year;
+          },
+        );
+        delete newFilters["calendar_day"];
+        filters.value = newFilters;
+      } else if (
+        "calendar_year" in filters.value &&
+        timeColumn === "calendar_day"
+      ) {
+        newFilters["calendar_day"] = filters.value["calendar_year"].map(
+          (year) => `${year}-01-01`,
+        );
+        delete newFilters["calendar_year"];
+        filters.value = newFilters;
+      }
+    });
+
+  initHashSignals(reconcileDatasets);
 
   // Other signals
   const tasks = signal(null);
@@ -251,33 +291,7 @@ export function createPortalState() {
   const setSelectedDatasets = (selected: Dataset[]) => {
     batch(() => {
       datasets.value = selected;
-
-      // Handle changing from daily/monthly datasets to annual/decadal datasets
-      // and vice-versa.
-      const timeDataset = selected[0];
-      const timeColumn = timeDataset.getTimeColumn();
-      const newFilters = { ...filters.value };
-      if ("calendar_day" in filters.value && timeColumn === "calendar_year") {
-        newFilters["calendar_year"] = filters.value["calendar_day"].map(
-          (dateStr) => {
-            let year = parseInt(dateStr.substr(0, 4));
-            if (timeDataset.time_unit === "decadal")
-              year = Math.round(year / 10) * 10;
-            return year;
-          },
-        );
-        delete newFilters["calendar_day"];
-        filters.value = newFilters;
-      } else if (
-        "calendar_year" in filters.value &&
-        timeColumn === "calendar_day"
-      ) {
-        newFilters["calendar_day"] = filters.value["calendar_year"].map(
-          (year) => `${year}-01-01`,
-        );
-        delete newFilters["calendar_year"];
-        filters.value = newFilters;
-      }
+      reconcileDatasets();
     });
   };
 

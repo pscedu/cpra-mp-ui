@@ -171,8 +171,6 @@ export default function Map() {
     const legendChanged =
       !prevDataset.current ||
       dataset.variable.legend !== prevDataset.current.variable.legend;
-    const gridChanged =
-      prevDataset.current && dataset.grid !== prevDataset.current.grid;
 
     // We update the source when the dataset changes (even though the tile URL might
     // be the same) to make sure the feature state gets cleared.
@@ -181,9 +179,6 @@ export default function Map() {
       addLayers(dataset);
       datasetChanged ? cleanup() : scheduleCleanup(dataset);
     }
-
-    // Reset geography selection when the grid changes.
-    if (gridChanged) selectedGeographies.value = [];
 
     prevTileUrl.current = tileUrl;
     prevDataset.current = mapCatalogQuery.value.dataset;

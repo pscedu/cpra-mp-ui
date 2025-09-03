@@ -31,7 +31,7 @@ export const setHash = (params: URLSearchParams) => {
 
 const hashCallbacks: ((params: URLSearchParams) => void)[] = [];
 
-export const initHashSignals = () => {
+export const initHashSignals = (reconcileState: () => void) => {
   effect(() => {
     window.addEventListener(
       "hashchange",
@@ -40,6 +40,7 @@ export const initHashSignals = () => {
         enableSetHash = false;
         batch(() => {
           for (const hashCallback of hashCallbacks) hashCallback(params);
+          reconcileState();
         });
         enableSetHash = true;
       },
