@@ -22,14 +22,37 @@ export const getHashString = (params: URLSearchParams) => {
   return hashString ? `#${hashString}` : "";
 };
 
-let enableSetHash = true;
-export const setHash = (params: URLSearchParams) => {
-  const newHashString = getHashString(params);
-  if (enableSetHash && newHashString !== window.location.hash)
-    window.history.pushState(window.history.state, "", getHashString(params));
+let hashUpdateMode: string | null = "push";
+let hashPushTime: number = new Date().getTime();
+
+export const setHashUpdateMode = (mode: string | null) => {
+  hashUpdateMode = mode;
 };
 
-const hashCallbacks: ((params: URLSearchParams) => void)[] = [];
+export const setHash = (params: URLSearchParams) => {
+  const newHashString = getHashString(params);
+  if (hashUpdateMode && newHashString !== window.location.hash) {
+    const currentTime = new Date().getTime();
+    const updateMethod =
+      hashUpdateMode === "replace" || currentTime - hashPushTime <= 1000
+        ? "replaceState"
+        : "pushState";
+    window.history[updateMethod](
+      window.history.state,
+      "",
+      getHashString(params),
+    );
+    if (hashUpdateMode === "pushState") hashPushTime = currentTime;
+  }
+};
+
+type HashSignal<T> = {
+  signal: Signal<T>;
+  fromHash: (params: URLSearchParams) => void;
+  updateHash: (params: URLSearchParams, value: T) => void;
+};
+
+const hashSignals: HashSignal<any>[] = [];
 
 export const initHashSignals = (reconcileState: () => void) => {
   effect(() => {
@@ -37,36 +60,37 @@ export const initHashSignals = (reconcileState: () => void) => {
       "hashchange",
       () => {
         const params = getHashParams();
-        enableSetHash = false;
+        setHashUpdateMode(null);
         batch(() => {
-          for (const hashCallback of hashCallbacks) hashCallback(params);
-          reconcileState();
+          for (const hs of hashSignals)
+            hs.signal.value = untracked(() => hs.fromHash(params));
+          untracked(reconcileState);
         });
-        enableSetHash = true;
+        setHashUpdateMode("push");
       },
       false,
     );
   });
-};
-
-export const hashSignalBase = (fromHash, updateHash) => {
-  // Create the signal.
-  const sig = signal(fromHash(getHashParams()));
-
-  // Register a callback to be called when the hash changes.
-  hashCallbacks.push(
-    (params: URLSearchParams) =>
-      (sig.value = untracked(() => fromHash(params))),
-  );
 
   // When the signal value changes, rebuild the URL hash.
   effect(() => {
     const params = getHashParams();
-    const value = sig.value;
-    untracked(() => updateHash(params, value));
+    for (const hs of hashSignals) {
+      const value = hs.signal.value;
+      untracked(() => hs.updateHash(params, value));
+    }
+
     setHash(params);
   });
+};
 
+export const hashSignalBase = (fromHash, updateHash) => {
+  const sig = signal(fromHash(getHashParams()));
+  hashSignals.push({
+    signal: sig,
+    fromHash,
+    updateHash,
+  });
   return sig;
 };
 

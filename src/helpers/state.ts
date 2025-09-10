@@ -16,6 +16,7 @@ import {
   filtersSignal,
   hashSignal,
   initHashSignals,
+  setHashUpdateMode,
 } from "./hash";
 import { getStructure, Structure } from "./structure";
 import { getJson, getNdJson } from "./utils";
@@ -77,45 +78,49 @@ export function createPortalState() {
     (value) => (value ? "true" : "false"),
     (value) => value !== "false",
   );
-  const reconcileDatasets = () =>
-    untracked(() => {
-      if (!datasets.value.length) return;
-      // TODO: Allow the user to select the map dataset.
-      const mapDataset = datasets.value[0];
+  const reconcileDatasets = (
+    { updateGeographies }: { updateGeographies: boolean } = {
+      updateGeographies: false,
+    },
+  ) => {
+    if (!datasets.value.length) return;
+    // TODO: Allow the user to select the map dataset.
+    const mapDataset = datasets.value[0];
 
-      // Reset selected geographies when the grid changes.
-      if (
-        mapCatalogQuery.value &&
-        mapCatalogQuery.value.dataset.grid !== mapDataset.grid
-      )
-        selectedGeographies.value = [];
+    // Reset selected geographies when the grid changes.
+    if (
+      updateGeographies &&
+      mapCatalogQuery.value &&
+      mapCatalogQuery.value.dataset.grid !== mapDataset.grid
+    )
+      selectedGeographies.value = [];
 
-      // Handle changing from daily/monthly datasets to annual/decadal datasets
-      // and vice-versa.
-      const timeColumn = mapDataset.getTimeColumn();
-      const newFilters = { ...filters.value };
-      if ("calendar_day" in filters.value && timeColumn === "calendar_year") {
-        newFilters["calendar_year"] = filters.value["calendar_day"].map(
-          (dateStr) => {
-            let year = parseInt(dateStr.substr(0, 4));
-            if (mapDataset.time_unit === "decadal")
-              year = Math.round(year / 10) * 10;
-            return year;
-          },
-        );
-        delete newFilters["calendar_day"];
-        filters.value = newFilters;
-      } else if (
-        "calendar_year" in filters.value &&
-        timeColumn === "calendar_day"
-      ) {
-        newFilters["calendar_day"] = filters.value["calendar_year"].map(
-          (year) => `${year}-01-01`,
-        );
-        delete newFilters["calendar_year"];
-        filters.value = newFilters;
-      }
-    });
+    // Handle changing from daily/monthly datasets to annual/decadal datasets
+    // and vice-versa.
+    const timeColumn = mapDataset.getTimeColumn();
+    const newFilters = { ...filters.value };
+    if ("calendar_day" in filters.value && timeColumn === "calendar_year") {
+      newFilters["calendar_year"] = filters.value["calendar_day"].map(
+        (dateStr) => {
+          let year = parseInt(dateStr.substr(0, 4));
+          if (mapDataset.time_unit === "decadal")
+            year = Math.round(year / 10) * 10;
+          return year;
+        },
+      );
+      delete newFilters["calendar_day"];
+      filters.value = newFilters;
+    } else if (
+      "calendar_year" in filters.value &&
+      timeColumn === "calendar_day"
+    ) {
+      newFilters["calendar_day"] = filters.value["calendar_year"].map(
+        (year) => `${year}-01-01`,
+      );
+      delete newFilters["calendar_year"];
+      filters.value = newFilters;
+    }
+  };
 
   initHashSignals(reconcileDatasets);
 
@@ -152,10 +157,12 @@ export function createPortalState() {
         structure.value,
       );
       await cqs.executeAll();
+      setHashUpdateMode("replace");
       batch(() => {
         catalogQueries.value = cqs;
         filters.value = cqs.combinedFilters;
       });
+      setHashUpdateMode("push");
     })();
   };
 
@@ -291,7 +298,7 @@ export function createPortalState() {
   const setSelectedDatasets = (selected: Dataset[]) => {
     batch(() => {
       datasets.value = selected;
-      reconcileDatasets();
+      reconcileDatasets({ updateGeographies: true });
     });
   };
 
