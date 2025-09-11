@@ -1,3 +1,5 @@
+import { usePortalState } from "@/helpers/state";
+
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -7,6 +9,10 @@ import {
 import VisualizationSelect from "./visualization-select";
 
 export default function VisualizationSidebar() {
+  const { mapCatalogQuery, structure } = usePortalState();
+
+  if (!structure.value || !mapCatalogQuery.value) return;
+
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Select visualization</SidebarGroupLabel>
