@@ -21,7 +21,7 @@ export default function VisualizationSelect({
             viz.variables === null ||
             viz.variables.includes(mapCatalogQuery.value.dataset.variable.name),
         )
-        .map((viz) => ({ label: viz.label, value: viz }))
+        .map((viz) => ({ label: viz.label, value: viz.name }))
     : [];
 
   return (
@@ -33,8 +33,8 @@ export default function VisualizationSelect({
       isClearable={false}
       className={cn(`w-full ${className}`)}
       placeholder="Visualization type..."
-      value={structure.value.visualizationsMap[visualizationType.value]}
-      onChange={(selected) => (visualizationType.value = selected.value.name)}
+      value={options.find((option) => option.value === visualizationType.value)}
+      onChange={(selected) => (visualizationType.value = selected.value)}
     />
   );
 }
