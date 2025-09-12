@@ -1,4 +1,4 @@
-import React, { ReactElement, Ref } from "react";
+import React, { ReactElement } from "react";
 import SelectComponent, {
   components,
   ClassNamesConfig,
@@ -26,7 +26,7 @@ export type OptionType = { label: string; value: string | number };
  */
 const selectStyles = {
   controlStyles: {
-    base: "flex !min-h-9 w-full rounded-md border border-input dark:bg-input/30 dark:hover:bg-input/50 bg-transparent pl-3 py-1 pr-1 gap-1 text-sm shadow-sm transition-colors hover:cursor-pointer",
+    base: "flex !min-h-9 w-full rounded-md border border-input dark:bg-input/30 dark:hover:bg-input/50 bg-transparent pl-3 py-1 pr-1 gap-1 text-sm shadow-sm transition-colors hover:cursor-pointer !flex-nowrap",
     focus: "outline-none ring-1 ring-ring",
     disabled: "cursor-not-allowed opacity-50",
   },
@@ -248,6 +248,18 @@ export const MenuList = (props: MenuListProps<OptionType>) => {
   );
 };
 
+export const ValueContainer = ({ children, ...props }) => {
+  const Icon = props.selectProps.icon;
+  return (
+    <div className="flex">
+      {Icon && <Icon className="mr-2" size={20} />}
+      <components.ValueContainer {...props}>
+        {children}
+      </components.ValueContainer>
+    </div>
+  );
+};
+
 const BaseSelect = <IsMulti extends boolean = false>(
   props: Props<OptionType, IsMulti> & { isMulti?: IsMulti },
   ref: React.Ref<SelectInstance<OptionType, IsMulti, GroupBase<OptionType>>>,
@@ -276,6 +288,7 @@ const BaseSelect = <IsMulti extends boolean = false>(
         Option,
         Menu,
         MenuList,
+        ValueContainer,
         ...components,
       }}
       styles={styles}
