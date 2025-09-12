@@ -1,15 +1,9 @@
 import { usePortalState } from "@/helpers/state";
-import { cn } from "@/lib/utils";
 
-import RSelect from "@/components/ui/rselect";
+import SidebarSelect from "@/components/sidebar-select";
+import { ChartLine } from "lucide-react";
 
-export default function VisualizationSelect({
-  className = "",
-  menuPlacement = "auto",
-}: {
-  className?: string;
-  menuPlacement?: "top" | "bottom" | "auto";
-}) {
+export default function VisualizationSelect() {
   const { mapCatalogQuery, structure, visualizationType } = usePortalState();
 
   if (!structure.value || !mapCatalogQuery.value) return;
@@ -25,16 +19,11 @@ export default function VisualizationSelect({
     : [];
 
   return (
-    <RSelect
-      inputId="visualization"
+    <SidebarSelect
+      label="visualization"
       options={options}
-      isMulti={false}
-      menuPlacement={menuPlacement}
-      isClearable={false}
-      className={cn(`w-full ${className}`)}
-      placeholder="Visualization type..."
-      value={options.find((option) => option.value === visualizationType.value)}
-      onChange={(selected) => (visualizationType.value = selected.value)}
+      signal={visualizationType}
+      icon={ChartLine}
     />
   );
 }

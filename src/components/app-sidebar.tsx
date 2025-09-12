@@ -12,7 +12,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-import Dimensions from "./dimensions";
+import DataSidebar from "@/components/data-sidebar";
 import IssueDetail from "./issue-detail";
 import IssueForm from "./issue-form";
 import Issues from "./issues";
@@ -32,7 +32,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <>
             {activity.value === "data" && (
               <>
-                <Dimensions />
+                <DataSidebar />
                 <VisualizationSidebar />
               </>
             )}
