@@ -29,10 +29,17 @@ export default function DatasetSelect() {
     }));
 
   const setTimeUnit = (newTimeUnit) => {
-    const filter = (dataset) => dataset.time_unit === newTimeUnit;
-    let newDatasets = datasets.value.filter(filter);
-    if (newDatasets.length === 0)
-      newDatasets = [structure.value.datasets.find(filter)];
+    const canidateDatasets = structure.value.datasets.filter(
+      (dataset) => dataset.time_unit === newTimeUnit,
+    );
+    let newDatasets = canidateDatasets.filter((candidate) =>
+      datasets.value.find(
+        (dataset) =>
+          dataset.variable === candidate.variable &&
+          dataset.grid === candidate.grid,
+      ),
+    );
+    if (newDatasets.length === 0) newDatasets = [canidateDatasets[0]];
     setSelectedDatasets(newDatasets);
   };
 
