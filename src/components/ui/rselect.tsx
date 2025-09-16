@@ -31,7 +31,7 @@ const selectStyles = {
     disabled: "cursor-not-allowed opacity-50",
   },
   placeholderStyles: "text-muted-foreground text-sm ml-1 font-medium",
-  valueContainerStyles: "gap-1",
+  valueContainerStyles: "gap-1 max-w-full",
   multiValueStyles:
     "inline-flex items-center gap-2 rounded-md border border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80 px-1.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
   indicatorsContainerStyles: "gap-1",
@@ -251,7 +251,7 @@ export const MenuList = (props: MenuListProps<OptionType>) => {
 export const ValueContainer = ({ children, ...props }) => {
   const Icon = props.selectProps.icon;
   return (
-    <div className="flex">
+    <div className="flex" style={{ maxWidth: "calc(100% - 36px)" }}>
       {Icon && <Icon className="mr-2" size={20} />}
       <components.ValueContainer {...props}>
         {children}

@@ -2,9 +2,12 @@ import { useSignal } from "@preact/signals-react";
 import { cn } from "@/lib/utils";
 
 import RSelect from "@/components/ui/rselect";
+import { SelectionModeDropdown } from "./selection-mode-dropdown";
+import { useEffect } from "react";
 
 export default function SidebarSelect({
   className = "",
+  id,
   label,
   onChange = null,
   options,
@@ -15,32 +18,57 @@ export default function SidebarSelect({
   const valueOrValues = explicitValue || signal.value;
   const supportsMulti = Array.isArray(valueOrValues);
   const values = supportsMulti ? valueOrValues : [valueOrValues];
-  const isMulti = useSignal(values.length > 1);
+  const maxLength = useSignal(values.length === 1 ? 1 : Infinity);
+  const isMulti = maxLength.value > 1;
   const changeHandler = onChange || ((value) => (signal.value = value));
+
+  useEffect(() => {
+    if (values.length > maxLength.value) {
+      const newValues = values.slice(0, maxLength.value);
+      changeHandler(supportsMulti ? newValues : newValues[0]);
+    }
+  }, [maxLength.value]);
 
   return (
     <div className="flex">
       <RSelect
-        className={cn(`w-full mb-2 ${className}`)}
-        inputId={label.toLowerCase().replace(" ", "-")}
+        className={cn(`w-84 mb-2 ${className}`)}
+        isDisabled={options.length === 1}
+        inputId={id}
         isClearable={false}
-        isMulti={isMulti.value}
+        isMulti={isMulti}
+        isOptionDisabled={() => values.length >= maxLength.value}
         menuPlacement="auto"
         onChange={(selectedOptions) => {
           const selectedValues = Array.isArray(selectedOptions)
             ? selectedOptions.map((option) => option.value)
             : [selectedOptions.value];
-          changeHandler(supportsMulti ? selectedValues : selectedValues[0]);
+          changeHandler(
+            supportsMulti
+              ? selectedValues.slice(0, maxLength.value)
+              : selectedValues[0],
+          );
         }}
         options={options}
-        placeholder={`Select ${label}...`}
+        placeholder={`Select ${label.toLowerCase()}...`}
         value={
-          isMulti.value
+          isMulti
             ? options.filter((option) => values.includes(option.value))
             : options.find((option) => option.value === values[0])
         }
         {...rest}
       />
+      {supportsMulti && (
+        <SelectionModeDropdown
+          className="ml-2"
+          dimensionLabel={label}
+          dimensionName={id}
+          maxLength={maxLength.value}
+          optionsLength={options.length}
+          setMaxLength={(value) => (maxLength.value = value)}
+          supportsConcatenate={false}
+        />
+      )}
     </div>
   );
 }

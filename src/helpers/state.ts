@@ -142,6 +142,7 @@ export function createPortalState() {
   const mapTilesLoading = signal(false);
 
   const visualizationType = hashSignal("visualization", "time-series-line");
+  const analysisType = hashSignal("analysis", "single");
 
   const issueFilterTags = signal([]);
   const taskStatuses = signal(null);
@@ -569,6 +570,7 @@ export function createPortalState() {
 
   return {
     activity,
+    analysisType,
     avatarCacheKey,
     catalogQueries,
     completeLogin,

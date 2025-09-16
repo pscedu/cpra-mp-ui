@@ -40,14 +40,14 @@ export default function DatasetSelect() {
     <>
       <SidebarSelect
         icon={Calendar}
-        label="time unit"
+        label="Time Unit"
         onChange={setTimeUnit}
         options={timeOptions}
         value={timeUnit}
       />
       <SidebarSelect
         icon={Ruler}
-        label="variable"
+        label="Variable"
         onChange={setSelectedDatasets}
         options={variableOptions}
         value={datasets.value}

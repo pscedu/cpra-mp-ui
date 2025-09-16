@@ -30,7 +30,8 @@ export default function DimensionsSelect() {
       }
       return (
         <SidebarSelect
-          label={dimension.label.toLowerCase()}
+          id={dimension.name}
+          label={dimension.label}
           key={dimension.name}
           value={cqs.combinedFilters[dimension.name]}
           onChange={(value) => setSelectedFilterChoices(dimension.name, value)}
