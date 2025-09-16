@@ -27,6 +27,7 @@ export function SelectionModeDropdown({
   maxLength,
   optionsLength,
   setMaxLength,
+  supportsSubtract,
   supportsConcatenate,
 }) {
   const { analysisType } = usePortalState();
@@ -45,20 +46,24 @@ export function SelectionModeDropdown({
       icon: SquareStack,
       maxLength: Infinity,
     },
-    {
-      value: "subtract-asc",
-      label: "Subtract: A - B",
-      icon: SquaresSubtract,
-      maxLength: 2,
-    },
-    {
-      value: "subtract-desc",
-      label: "Subtract: B - A",
-      icon: SquaresSubtract,
-      className: "rotate-180",
-      maxLength: 2,
-    },
   ];
+
+  if (supportsSubtract)
+    options.push(
+      {
+        value: "subtract-asc",
+        label: "Subtract: A - B",
+        icon: SquaresSubtract,
+        maxLength: 2,
+      },
+      {
+        value: "subtract-desc",
+        label: "Subtract: B - A",
+        icon: SquaresSubtract,
+        className: "rotate-180",
+        maxLength: 2,
+      },
+    );
 
   if (supportsConcatenate)
     options.push({
@@ -106,7 +111,7 @@ export function SelectionModeDropdown({
           <SelectedIcon className={selectedOption?.className} />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-75" align="start">
+      <DropdownMenuContent className="w-55" align="start">
         <DropdownMenuLabel>{dimensionLabel} Selection Mode</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuRadioGroup

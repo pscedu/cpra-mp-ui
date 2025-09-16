@@ -36,6 +36,7 @@ export default function DimensionsSelect() {
           value={cqs.combinedFilters[dimension.name]}
           onChange={(value) => setSelectedFilterChoices(dimension.name, value)}
           options={options}
+          supportsSubtract={true}
         />
       );
     });

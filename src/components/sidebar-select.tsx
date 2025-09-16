@@ -12,6 +12,7 @@ export default function SidebarSelect({
   onChange = null,
   options,
   signal = null,
+  supportsSubtract = false,
   value: explicitValue = null,
   ...rest
 }) {
@@ -37,7 +38,7 @@ export default function SidebarSelect({
         inputId={id}
         isClearable={false}
         isMulti={isMulti}
-        isOptionDisabled={() => values.length >= maxLength.value}
+        isOptionDisabled={() => isMulti && values.length >= maxLength.value}
         menuPlacement="auto"
         onChange={(selectedOptions) => {
           const selectedValues = Array.isArray(selectedOptions)
@@ -66,6 +67,7 @@ export default function SidebarSelect({
           maxLength={maxLength.value}
           optionsLength={options.length}
           setMaxLength={(value) => (maxLength.value = value)}
+          supportsSubtract={supportsSubtract}
           supportsConcatenate={false}
         />
       )}
