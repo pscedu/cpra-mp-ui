@@ -1,9 +1,9 @@
+import { useEffect } from "react";
 import { useSignal } from "@preact/signals-react";
 import { cn } from "@/lib/utils";
 
 import RSelect from "@/components/ui/rselect";
 import { SelectionModeDropdown } from "./selection-mode-dropdown";
-import { useEffect } from "react";
 
 export default function SidebarSelect({
   className = "",
@@ -31,7 +31,7 @@ export default function SidebarSelect({
   }, [maxLength.value]);
 
   return (
-    <div className="flex">
+    <div className="flex" title={label}>
       <RSelect
         className={cn(`w-84 mb-2 ${className}`)}
         isDisabled={options.length === 1}
