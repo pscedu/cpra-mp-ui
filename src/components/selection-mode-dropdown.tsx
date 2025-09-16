@@ -36,7 +36,7 @@ export function SelectionModeDropdown({
   const options = [
     {
       value: "single",
-      label: "Single",
+      label: "View Single",
       icon: Square,
       maxLength: 1,
     },
@@ -65,13 +65,13 @@ export function SelectionModeDropdown({
       },
     );
 
-  if (supportsConcatenate)
-    options.push({
-      value: "concatenate",
-      label: "Concatenate",
-      icon: Ampersand,
-      maxLength: 2,
-    });
+  // if (supportsConcatenate)
+  //   options.push({
+  //     value: "concatenate",
+  //     label: "Concatenate",
+  //     icon: Ampersand,
+  //     maxLength: 2,
+  //   });
 
   const selectedOption = options.find(
     (option) =>
