@@ -12,8 +12,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-import { Range } from "react-range";
 import { SelectionModeDropdown } from "./selection-mode-dropdown";
+import { Slider } from "./ui/slider";
 
 export default function TimeSelect() {
   const { timeChoices, timeDimension, timeValues, setTimeValues } =
@@ -82,55 +82,15 @@ export default function TimeSelect() {
       </Popover>
       {/* Time slider */}
       <div className="w-full px-4">
-        <Range
-          label="Select your value"
+        <Slider
           step={1}
           disabled={choices.length < 2}
           min={0}
           max={choices.length > 1 ? choices.length - 1 : 1}
-          values={values}
-          onChange={(idxs) => setTimeValues(idxs.map((idx) => choices[idx]))}
-          renderTrack={({ props, children }) => (
-            <div
-              {...props}
-              className="w-full bg-accent"
-              style={{
-                ...props.style,
-                height: "6px",
-              }}
-            >
-              {children}
-            </div>
-          )}
-          // Index needs to be here for multiple thumbs to work, even though it's not used.
-          renderThumb={({ props, isDragged, index }) => (
-            <div
-              {...props}
-              key={props.key}
-              className="bg-muted"
-              style={{
-                ...props.style,
-                alignItems: "center",
-                borderWidth: "1px",
-                borderStyle: "solid",
-                borderRadius: "4px",
-                boxShadow: "0px 2px 6px rgba(0, 0, 0, 0.2)",
-                display: "flex",
-                height: "24px",
-                justifyContent: "center",
-                width: "24px",
-              }}
-            >
-              {/* Tick */}
-              <div
-                className={isDragged ? "bg-foreground" : "bg-ring"}
-                style={{
-                  height: "16px",
-                  width: "5px",
-                }}
-              />
-            </div>
-          )}
+          value={values}
+          onValueChange={(idxs) =>
+            setTimeValues(idxs.map((idx) => choices[idx]))
+          }
         />
       </div>
       <SelectionModeDropdown
