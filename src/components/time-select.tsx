@@ -35,7 +35,9 @@ export default function TimeSelect() {
         <PopoverTrigger asChild>
           <Button
             variant={"outline"}
-            className={cn("w-[140px] justify-start text-left font-normal")}
+            className={cn(
+              `${values.length > 1 && !isYear ? "w-[230px]" : "w-[140px]"} justify-start text-left font-normal`,
+            )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
             {selected.join(", ")}
@@ -65,18 +67,27 @@ export default function TimeSelect() {
               ))}
             </>
           ) : (
-            <Calendar
-              mode={selected.length > 1 ? "multiple" : "single"}
-              selected={selected.map(parseDate)}
-              defaultMonth={parseDate(selected[0])}
-              onSelect={(value) =>
-                setTimeValues([value.toISOString().split("T")[0]])
-              }
-              disabled={(date) =>
-                !choices.includes(date.toISOString().split("T")[0])
-              }
-              initialFocus
-            />
+            selected.map((value, i) => {
+              const date = parseDate(value);
+              return (
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  defaultMonth={date}
+                  onSelect={(newDate) => {
+                    const newSelected = [...selected];
+                    newSelected[i] = (newDate || date)
+                      .toISOString()
+                      .split("T")[0];
+                    setTimeValues(newSelected);
+                  }}
+                  disabled={(date) =>
+                    !choices.includes(date.toISOString().split("T")[0])
+                  }
+                  initialFocus={i === 0}
+                />
+              );
+            })
           )}
         </PopoverContent>
       </Popover>
