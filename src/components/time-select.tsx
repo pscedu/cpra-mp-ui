@@ -71,6 +71,7 @@ export default function TimeSelect() {
               const date = parseDate(value);
               return (
                 <Calendar
+                  key={i}
                   mode="single"
                   selected={date}
                   defaultMonth={date}
