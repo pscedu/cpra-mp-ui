@@ -106,7 +106,7 @@ export function SelectionModeDropdown({
         <Button
           variant="ghost"
           className={className}
-          disabled={optionsLength === 1}
+          disabled={optionsLength === 1 || options.length === 1}
         >
           <SelectedIcon className={selectedOption?.className} />
         </Button>
