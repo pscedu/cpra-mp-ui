@@ -1,4 +1,5 @@
 import { dataBaseUrl } from "./config";
+import { QueryOptions } from "./query";
 import { Dataset, Dimension, Structure } from "./structure";
 import {
   extractCatalogObject,
@@ -34,8 +35,12 @@ export class CatalogQuery {
     this.response = await getJson(requestPath);
   }
 
-  getFilterParams(
-    geographies: number[] | number[][] | null = null,
+  getQueryParams(
+    { analysis, geographies, maxGeographies }: QueryOptions = {
+      analysis: null,
+      geographies: null,
+      maxGeographies: null,
+    },
   ): [string, any][] {
     const requiredDimensions = this.structure.getRequiredDimensions([
       this.dataset,
@@ -45,13 +50,37 @@ export class CatalogQuery {
     // value for each dimension.
     const selectedFilters = {};
     for (const dimension of requiredDimensions)
-      if (geographies === null || dimension.filterType !== "time")
-        selectedFilters[dimension.name] = [
-          this.response.results[dimension.name][0],
-        ];
+      if (!geographies || dimension.filterType !== "time")
+        selectedFilters[dimension.name] = this.response.results[dimension.name];
 
     const params = getFilterParams(requiredDimensions, selectedFilters);
-    return geographies ? params.concat([["geography", geographies]]) : params;
+
+    if (analysis) {
+      const [analysisOperation, analysisDimension] = analysis.split(":");
+      if (analysisOperation.startsWith("subtract-")) {
+        const values = this.response.results[analysisDimension];
+        if (values.length === 2) {
+          const negateValue = values[analysisOperation.endsWith("asc") ? 1 : 0];
+          const groupByNames = requiredDimensions
+            .map(({ name }) => name)
+            .filter((name) => name !== analysisDimension);
+          params.push([
+            "negate",
+            `${analysisDimension}=${typeof negateValue === "number" ? negateValue : `"${negateValue}"`}`,
+          ]);
+          params.push(["group_by", groupByNames]);
+          params.push(["group_aggregate", "sum"]);
+        }
+      }
+    }
+
+    if (geographies)
+      params.push([
+        "geography",
+        maxGeographies ? geographies.slice(0, maxGeographies) : geographies,
+      ]);
+
+    return params;
   }
 }
 

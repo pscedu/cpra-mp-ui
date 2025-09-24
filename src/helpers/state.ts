@@ -203,7 +203,7 @@ export function createPortalState() {
     )
       return null;
     return mapCatalogQuery.value.dataset.getDataUrl(
-      mapCatalogQuery.value.getFilterParams(),
+      mapCatalogQuery.value.getQueryParams({ analysis: analysisType.value }),
       "ndjson",
     );
   });
@@ -211,7 +211,9 @@ export function createPortalState() {
   const mapTileUrl = computed(() =>
     mapCatalogQuery.value
       ? mapCatalogQuery.value.dataset.getTileUrl(
-          mapCatalogQuery.value.getFilterParams(),
+          mapCatalogQuery.value.getQueryParams({
+            analysis: analysisType.value,
+          }),
         )
       : null,
   );
@@ -259,7 +261,10 @@ export function createPortalState() {
       selectedGeographies.value.length
       ? structure.value.visualizationsMap[visualizationType.value].getSpecUrl(
           mapCatalogQuery.value,
-          selectedGeographies.value,
+          {
+            analysis: analysisType.value,
+            geographies: selectedGeographies.value,
+          },
         )
       : null;
   });
@@ -495,6 +500,7 @@ export function createPortalState() {
   // Update map feature state when the dataset or filters change.
   effect(() => {
     (async () => {
+      console.log(mapDataUrl.value);
       if (mapDataUrl.value) {
         if (mapFeatureValuesAbortController)
           mapFeatureValuesAbortController.abort("map state changed");

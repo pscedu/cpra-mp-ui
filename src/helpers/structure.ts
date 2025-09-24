@@ -1,5 +1,6 @@
 import { CatalogQuery } from "./catalog";
 import { dataBaseUrl, staticTilesBaseUrl } from "./config";
+import { QueryOptions } from "./query";
 import {
   getJson,
   getNdJson,
@@ -232,10 +233,11 @@ export class Visualization {
     this.variables = variables;
   }
 
-  getSpecUrl(catalogQuery: CatalogQuery, geographies: number[] | number[][]) {
-    const params = catalogQuery.getFilterParams(
-      geographies.slice(0, this.max_geographies),
-    );
+  getSpecUrl(catalogQuery: CatalogQuery, options: QueryOptions) {
+    const params = catalogQuery.getQueryParams({
+      ...options,
+      maxGeographies: this.max_geographies,
+    });
     const baseUrl =
       this.type === "dataset"
         ? `${catalogQuery.dataset.getBaseUrl()}/visualization`
