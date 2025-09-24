@@ -67,17 +67,19 @@ export function createPortalState() {
     },
   );
   const showGridLabels = hashSignal(
-    "show-grid-labels",
+    "show_grid_labels",
     false,
     (value) => (value ? "true" : "false"),
     (value) => value === "true",
   );
   const showProjects = hashSignal(
-    "show-projects",
+    "show_projects",
     true,
     (value) => (value ? "true" : "false"),
     (value) => value !== "false",
   );
+  const startDate = hashSignal("start_date", null);
+  const endDate = hashSignal("end_date", null);
   const reconcileDatasets = (
     { updateGeographies }: { updateGeographies: boolean } = {
       updateGeographies: false,
@@ -578,6 +580,7 @@ export function createPortalState() {
     createComment,
     createTask,
     datasets,
+    endDate,
     filters,
     getTask,
     getTasks,
@@ -601,6 +604,7 @@ export function createPortalState() {
     setTimeValues,
     showGridLabels,
     showProjects,
+    startDate,
     structure,
     tagOptions,
     task,
