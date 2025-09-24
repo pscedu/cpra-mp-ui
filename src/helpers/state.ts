@@ -500,7 +500,6 @@ export function createPortalState() {
   // Update map feature state when the dataset or filters change.
   effect(() => {
     (async () => {
-      console.log(mapDataUrl.value);
       if (mapDataUrl.value) {
         if (mapFeatureValuesAbortController)
           mapFeatureValuesAbortController.abort("map state changed");

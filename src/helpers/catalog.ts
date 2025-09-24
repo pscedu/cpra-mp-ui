@@ -59,7 +59,7 @@ export class CatalogQuery {
       const [analysisOperation, analysisDimension] = analysis.split(":");
       if (analysisOperation.startsWith("subtract-")) {
         const values = this.response.results[analysisDimension];
-        if (values.length === 2) {
+        if (values && values.length === 2) {
           const negateValue = values[analysisOperation.endsWith("asc") ? 1 : 0];
           const groupByNames = requiredDimensions
             .map(({ name }) => name)
