@@ -40,12 +40,12 @@ export function SelectionModeDropdown({
       icon: Square,
       maxLength: 1,
     },
-    {
-      value: "compare",
-      label: "Compare Multiple",
-      icon: SquareStack,
-      maxLength: Infinity,
-    },
+    // {
+    //   value: "compare",
+    //   label: "Compare Multiple",
+    //   icon: SquareStack,
+    //   maxLength: Infinity,
+    // },
   ];
 
   if (supportsSubtract)
