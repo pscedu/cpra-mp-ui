@@ -203,7 +203,7 @@ export function createPortalState() {
     )
       return null;
     return mapCatalogQuery.value.dataset.getDataUrl(
-      mapCatalogQuery.value.getQueryParams({ analysis: analysisType.value }),
+      mapCatalogQuery.value.getQueryParams({ analysis: analysis.value }),
       "ndjson",
     );
   });
@@ -212,7 +212,7 @@ export function createPortalState() {
     mapCatalogQuery.value
       ? mapCatalogQuery.value.dataset.getTileUrl(
           mapCatalogQuery.value.getQueryParams({
-            analysis: analysisType.value,
+            analysis: analysis.value,
           }),
         )
       : null,
@@ -253,6 +253,11 @@ export function createPortalState() {
       : [],
   );
 
+  const analysis = computed(() => {
+    const [operation, dimension] = analysisType.value.split(":");
+    return { operation, dimension };
+  });
+
   const visualizationSpecUrl = computed(() => {
     return structure.value &&
       mapCatalogQuery.value &&
@@ -262,7 +267,7 @@ export function createPortalState() {
       ? structure.value.visualizationsMap[visualizationType.value].getSpecUrl(
           mapCatalogQuery.value,
           {
-            analysis: analysisType.value,
+            analysis: analysis.value,
             geographies: selectedGeographies.value,
           },
         )
@@ -577,6 +582,7 @@ export function createPortalState() {
 
   return {
     activity,
+    analysis,
     analysisType,
     avatarCacheKey,
     catalogQueries,

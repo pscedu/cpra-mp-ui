@@ -1,5 +1,5 @@
 export type QueryOptions = {
-  analysis?: string | null;
+  analysis?: { operation: string; dimension: string | null };
   geographies?: number[] | number[][] | null;
   maxGeographies?: number | null;
 };

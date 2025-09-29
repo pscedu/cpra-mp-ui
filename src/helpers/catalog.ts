@@ -56,17 +56,17 @@ export class CatalogQuery {
     const params = getFilterParams(requiredDimensions, selectedFilters);
 
     if (analysis) {
-      const [analysisOperation, analysisDimension] = analysis.split(":");
-      if (analysisOperation.startsWith("subtract-")) {
-        const values = this.response.results[analysisDimension];
+      const { operation, dimension } = analysis;
+      if (operation.startsWith("subtract-")) {
+        const values = this.response.results[dimension];
         if (values && values.length === 2) {
-          const negateValue = values[analysisOperation.endsWith("asc") ? 1 : 0];
+          const negateValue = values[operation.endsWith("asc") ? 1 : 0];
           const groupByNames = requiredDimensions
             .map(({ name }) => name)
-            .filter((name) => name !== analysisDimension);
+            .filter((name) => name !== dimension);
           params.push([
             "negate",
-            `${analysisDimension}=${typeof negateValue === "number" ? negateValue : `"${negateValue}"`}`,
+            `${dimension}=${typeof negateValue === "number" ? negateValue : `"${negateValue}"`}`,
           ]);
           params.push(["group_by", groupByNames]);
           params.push(["group_aggregate", "sum"]);

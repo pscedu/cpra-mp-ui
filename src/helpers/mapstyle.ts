@@ -1,16 +1,36 @@
 import { glyphsBaseUrl, spritesBaseUrl, staticTilesBaseUrl } from "./config";
 import { StyleSpecification } from "maplibre-gl";
+import { Legend } from "./structure";
 
-const colorRamp = (legend) => {
+const colorRamp = (legend: Legend) => {
   const ramp = [];
   let foundBound = false;
-  for (let { color, upper_bound } of legend.break_points) {
+  for (const { color, upper_bound } of legend.break_points) {
     foundBound = foundBound || upper_bound !== null;
     if (!foundBound) continue;
     ramp.push(color);
     if (upper_bound !== null) ramp.push(upper_bound);
   }
-  return ramp;
+  return ["step", ["feature-state", "value"], ...ramp];
+};
+
+const differenceColorRamp = (legend: Legend) => {
+  let maxUpperBound = -Infinity;
+  for (const { upper_bound } of legend.break_points)
+    if (upper_bound !== null && upper_bound > maxUpperBound)
+      maxUpperBound = upper_bound;
+
+  return [
+    "interpolate",
+    ["linear"],
+    ["feature-state", "value"],
+    -1 * maxUpperBound,
+    "#d53e4f",
+    0,
+    "#ffffff",
+    maxUpperBound,
+    "#3288bd",
+  ];
 };
 
 const linearZoom = <T>(min: T, max: T) => {
@@ -179,6 +199,7 @@ export function rasterLayers({ layerId, sourceId }) {
 }
 
 export function vectorLayers({
+  difference = false,
   layerId,
   lineColors = ["#DDDDDD", "#666666"],
   lineWidths = [0.5, 3],
@@ -186,7 +207,7 @@ export function vectorLayers({
   sourceId,
   showLabels = false,
 }) {
-  const ramp = colorRamp(legend);
+  const ramp = difference ? differenceColorRamp(legend) : colorRamp(legend);
 
   return [
     {
@@ -199,7 +220,7 @@ export function vectorLayers({
           "case",
           ["==", ["feature-state", "value"], null],
           "transparent",
-          ["step", ["feature-state", "value"], ...ramp],
+          ramp,
         ],
       },
     },

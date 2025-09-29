@@ -30,8 +30,8 @@ export function SelectionModeDropdown({
   supportsSubtract,
   supportsConcatenate,
 }) {
-  const { analysisType } = usePortalState();
-  const [analysisOperation, analysisDimension] = analysisType.value.split(":");
+  const { analysis, analysisType } = usePortalState();
+  const { operation, dimension } = analysis.value;
 
   const options = [
     {
@@ -76,8 +76,8 @@ export function SelectionModeDropdown({
   const selectedOption = options.find(
     (option) =>
       option.value ===
-      (analysisDimension === dimensionName
-        ? analysisOperation
+      (dimension === dimensionName
+        ? operation
         : maxLength > 1
           ? "compare"
           : "single"),

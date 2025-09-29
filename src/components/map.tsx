@@ -18,6 +18,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 // Map using MapLibre GL.
 export default function Map() {
   const {
+    analysis,
     contextMenu,
     mapCatalogQuery,
     mapFeatureValues,
@@ -37,6 +38,7 @@ export default function Map() {
   const map = useRef(null);
   const prevTileUrl = useRef(null);
   const prevDataset = useRef(null);
+  const prevDifference = useRef(null);
   const dataSourceIdx = useRef(0);
   const dataLayerIdx = useRef(0);
   const markers: Ref<Marker[]> = useRef([]);
@@ -44,6 +46,12 @@ export default function Map() {
   const selectionColorOptions = {
     count: visualization?.value?.max_geographies || 10,
   };
+
+  const { operation, dimension } = analysis.value;
+  const difference =
+    operation.startsWith("subtract-") &&
+    mapCatalogQuery.value &&
+    mapCatalogQuery.value.response.results[dimension].length > 1;
 
   const getSourceId = () => `data-source-${dataSourceIdx.current}`;
   const getLayerId = () => `data-layer-${dataLayerIdx.current}`;
@@ -136,6 +144,7 @@ export default function Map() {
     const layers = dataset.grid.isVector()
       ? vectorLayers({
           ...ids,
+          difference,
           legend: dataset.variable.legend,
           showLabels: showGridLabels.value,
         })
@@ -170,18 +179,21 @@ export default function Map() {
     const datasetChanged = dataset !== prevDataset.current;
     const legendChanged =
       !prevDataset.current ||
-      dataset.variable.legend !== prevDataset.current.variable.legend;
+      dataset.variable.legend !== prevDataset.current.variable.legend ||
+      difference !== prevDifference.current;
 
     // We update the source when the dataset changes (even though the tile URL might
     // be the same) to make sure the feature state gets cleared.
-    if (tilesChanged || datasetChanged) addSource(tileUrl, dataset);
     if (tilesChanged || legendChanged || datasetChanged) {
+      addSource(tileUrl, dataset);
       addLayers(dataset);
-      datasetChanged ? cleanup() : scheduleCleanup(dataset);
+      if (datasetChanged || legendChanged) cleanup();
+      else scheduleCleanup(dataset);
     }
 
     prevTileUrl.current = tileUrl;
     prevDataset.current = mapCatalogQuery.value.dataset;
+    prevDifference.current = difference;
   };
 
   const updateProjectLayers = () => {
@@ -282,7 +294,7 @@ export default function Map() {
       await ensureStyleLoaded();
       updateStyle();
     })();
-  }, [mapCatalogQuery.value, mapTileUrl.value]);
+  }, [mapCatalogQuery.value, mapTileUrl.value, difference]);
 
   // Update grid label visibility.
   useEffect(() => {
