@@ -131,7 +131,11 @@ export default function Map() {
     dataSourceIdx.current++;
     const source = dataset.grid.isVector()
       ? vectorSource({ gridName: dataset.grid.name })
-      : rasterSource({ tileUrls: [tileUrl] });
+      : rasterSource({
+          tileUrls: [tileUrl],
+          variable: dataset.variable,
+          difference: difference,
+        });
     map.current.addSource(getSourceId(), source);
   };
 
@@ -145,8 +149,8 @@ export default function Map() {
       ? vectorLayers({
           ...ids,
           difference,
-          legend: dataset.variable.legend,
           showLabels: showGridLabels.value,
+          variable: dataset.variable,
         })
       : rasterLayers(ids);
 
@@ -179,15 +183,15 @@ export default function Map() {
     const datasetChanged = dataset !== prevDataset.current;
     const legendChanged =
       !prevDataset.current ||
-      dataset.variable.legend !== prevDataset.current.variable.legend ||
-      difference !== prevDifference.current;
+      dataset.variable.legend !== prevDataset.current.variable.legend;
+    const differenceChanged = difference !== prevDifference.current;
 
     // We update the source when the dataset changes (even though the tile URL might
     // be the same) to make sure the feature state gets cleared.
-    if (tilesChanged || legendChanged || datasetChanged) {
+    if (tilesChanged || legendChanged || datasetChanged || differenceChanged) {
       addSource(tileUrl, dataset);
       addLayers(dataset);
-      if (datasetChanged || legendChanged) cleanup();
+      if (datasetChanged || legendChanged || differenceChanged) cleanup();
       else scheduleCleanup(dataset);
     }
 

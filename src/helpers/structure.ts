@@ -74,6 +74,8 @@ export class Variable {
   geographic_units: string[];
   time_units: string[];
   required_dimensions: Dimension<any>[];
+  number_format: string | null;
+  difference_legend_limit: string | null;
 
   constructor({
     name,
@@ -86,6 +88,8 @@ export class Variable {
     geographic_units,
     time_units,
     required_dimensions,
+    number_format,
+    difference_legend_limit,
   }) {
     this.name = name;
     this.label = label;
@@ -97,6 +101,8 @@ export class Variable {
     this.geographic_units = geographic_units;
     this.time_units = time_units;
     this.required_dimensions = required_dimensions;
+    this.number_format = number_format;
+    this.difference_legend_limit = difference_legend_limit;
   }
 }
 

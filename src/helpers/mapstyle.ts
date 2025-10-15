@@ -1,6 +1,6 @@
 import { glyphsBaseUrl, spritesBaseUrl, staticTilesBaseUrl } from "./config";
 import { StyleSpecification } from "maplibre-gl";
-import { Legend } from "./structure";
+import { Legend, Variable } from "./structure";
 
 const colorRamp = (legend: Legend) => {
   const ramp = [];
@@ -14,22 +14,19 @@ const colorRamp = (legend: Legend) => {
   return ["step", ["feature-state", "value"], ...ramp];
 };
 
-const differenceColorRamp = (legend: Legend) => {
-  let maxUpperBound = -Infinity;
-  for (const { upper_bound } of legend.break_points)
-    if (upper_bound !== null && upper_bound > maxUpperBound)
-      maxUpperBound = upper_bound;
+const differenceBreaksColors = (variable: Variable) => {
+  const limit: number = variable.difference_legend_limit || 1;
+  return limit > 0
+    ? [-1 * limit, "#d53e4f", 0, "#ffffff", limit, "#3288bd"]
+    : [limit, "#3288bd", 0, "#ffffff", limit * -1, "#d53e4f"];
+};
 
+const differenceColorRamp = (variable: Variable) => {
   return [
     "interpolate",
     ["linear"],
     ["feature-state", "value"],
-    -1 * maxUpperBound,
-    "#d53e4f",
-    0,
-    "#ffffff",
-    maxUpperBound,
-    "#3288bd",
+    ...differenceBreaksColors(variable),
   ];
 };
 
@@ -45,12 +42,17 @@ export const rasterSource = ({
   maxZoom = 13,
   tileSize = 256,
   tileUrls = [],
+  difference = false,
+  variable,
 }) => {
   return {
     bounds,
     maxzoom: maxZoom,
     type: "raster",
-    tiles: tileUrls,
+    tiles: tileUrls.map(
+      (tileUrl) =>
+        `${tileUrl}${difference ? `&color_map=${encodeURIComponent(`continuous:${differenceBreaksColors(variable).join(",")}`)}` : ""}`,
+    ),
     tileSize,
   };
 };
@@ -203,11 +205,13 @@ export function vectorLayers({
   layerId,
   lineColors = ["#DDDDDD", "#666666"],
   lineWidths = [0.5, 3],
-  legend,
   sourceId,
   showLabels = false,
+  variable,
 }) {
-  const ramp = difference ? differenceColorRamp(legend) : colorRamp(legend);
+  const ramp = difference
+    ? differenceColorRamp(variable)
+    : colorRamp(variable.legend);
 
   return [
     {
