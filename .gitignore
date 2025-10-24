@@ -25,3 +25,4 @@ public/style
 *.sw?
 
 .env
+scratch/

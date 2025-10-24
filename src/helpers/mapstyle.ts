@@ -14,11 +14,14 @@ const colorRamp = (legend: Legend) => {
   return ["step", ["feature-state", "value"], ...ramp];
 };
 
-const differenceBreaksColors = (variable: Variable) => {
+const differenceBreaksColors = (
+  variable: Variable,
+  zeroColor: string = "#ffffff",
+) => {
   const limit: number = variable.difference_legend_limit || 1;
   return limit > 0
-    ? [-1 * limit, "#d53e4f", 0, "#ffffff", limit, "#3288bd"]
-    : [limit, "#3288bd", 0, "#ffffff", limit * -1, "#d53e4f"];
+    ? [-1 * limit, "#d53e4f", 0, zeroColor, limit, "#3288bd"]
+    : [limit, "#3288bd", 0, zeroColor, limit * -1, "#d53e4f"];
 };
 
 const differenceColorRamp = (variable: Variable) => {
@@ -51,7 +54,7 @@ export const rasterSource = ({
     type: "raster",
     tiles: tileUrls.map(
       (tileUrl) =>
-        `${tileUrl}${difference ? `&color_map=${encodeURIComponent(`continuous:${differenceBreaksColors(variable).join(",")}`)}` : ""}`,
+        `${tileUrl}${difference ? `&color_map=${encodeURIComponent(`continuous:${differenceBreaksColors(variable, "#00000000").join(",")}`)}` : ""}`,
     ),
     tileSize,
   };
