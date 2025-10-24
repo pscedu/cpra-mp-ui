@@ -2,6 +2,7 @@ import { Ref, useEffect, useRef } from "react";
 import { LngLatBounds, Map as GLMap, Marker } from "maplibre-gl";
 import { usePortalState } from "@/helpers/state";
 import {
+  differenceRasterSource,
   getBaseStyle,
   projectLayers,
   projectsSource,
@@ -31,6 +32,8 @@ export default function Map() {
     selectedGeographies,
     showGridLabels,
     showProjects,
+    showWater,
+    structure,
     visualization,
   } = usePortalState();
 
@@ -131,11 +134,14 @@ export default function Map() {
     dataSourceIdx.current++;
     const source = dataset.grid.isVector()
       ? vectorSource({ gridName: dataset.grid.name })
-      : rasterSource({
-          tileUrls: [tileUrl],
-          variable: dataset.variable,
-          difference: difference,
-        });
+      : difference
+        ? differenceRasterSource({
+            tileUrls: [tileUrl],
+            variable: dataset.variable,
+          })
+        : rasterSource({
+            tileUrls: [tileUrl],
+          });
     map.current.addSource(getSourceId(), source);
   };
 
@@ -333,6 +339,49 @@ export default function Map() {
       updateProjectLayers();
     })();
   }, [projectsYear.value, showProjects.value]);
+
+  // Update water source and layer.
+  useEffect(() => {
+    if (structure.value && mapCatalogQuery.value)
+      (async () => {
+        const annualLndType = structure.value.datasets.find(
+          (dataset) =>
+            dataset.variable.name === "lnd_type" &&
+            dataset.time_unit === "annual",
+        );
+        if (!annualLndType) return;
+
+        console.log(structure.value);
+
+        await ensureStyleLoaded();
+        const style = map.current.getStyle();
+        // FIXME: Handle case where there is more than one model group or scenario selected.
+        const params = [
+          ...mapCatalogQuery.value
+            .getQueryParams()
+            .filter(([key]) => ["model_group_id", "scenario_id"].includes(key)),
+          ["calendar_year", projectsYear.value],
+        ];
+        style.sources.water = rasterSource({
+          tileUrls: [annualLndType.getTileUrl(params)],
+          colorMap: "discrete:#00000000,2,#ffffff,3,#00000000",
+        });
+        map.current.setStyle(style);
+
+        if (map.current.getLayer("water")) map.current.removeLayer("water");
+        if (showWater.value)
+          for (let layer of rasterLayers({
+            layerId: "water",
+            sourceId: "water",
+          }))
+            map.current.addLayer(layer, "road-secondary");
+      })();
+  }, [
+    structure.value,
+    projectsYear.value,
+    mapCatalogQuery.value,
+    showWater.value,
+  ]);
 
   // Update the map feature state when new data are loaded or the selection changes.
   useEffect(() => {

@@ -78,6 +78,12 @@ export function createPortalState() {
     (value) => (value ? "true" : "false"),
     (value) => value !== "false",
   );
+  const showWater = hashSignal(
+    "show_water",
+    true,
+    (value) => (value ? "true" : "false"),
+    (value) => value !== "false",
+  );
   const startDate = hashSignal("start_date", null);
   const endDate = hashSignal("end_date", null);
   const reconcileDatasets = (
@@ -615,6 +621,7 @@ export function createPortalState() {
     setTimeValues,
     showGridLabels,
     showProjects,
+    showWater,
     startDate,
     structure,
     tagOptions,

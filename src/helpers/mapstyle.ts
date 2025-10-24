@@ -45,8 +45,7 @@ export const rasterSource = ({
   maxZoom = 13,
   tileSize = 256,
   tileUrls = [],
-  difference = false,
-  variable,
+  colorMap = "",
 }) => {
   return {
     bounds,
@@ -54,11 +53,17 @@ export const rasterSource = ({
     type: "raster",
     tiles: tileUrls.map(
       (tileUrl) =>
-        `${tileUrl}${difference ? `&color_map=${encodeURIComponent(`continuous:${differenceBreaksColors(variable, "#00000000").join(",")}`)}` : ""}`,
+        `${tileUrl}${colorMap ? `&color_map=${encodeURIComponent(colorMap)}` : ""}`,
     ),
     tileSize,
   };
 };
+
+export const differenceRasterSource = ({ variable, ...rest }) =>
+  rasterSource({
+    ...rest,
+    colorMap: `continuous:${differenceBreaksColors(variable, "#00000000").join(",")}`,
+  });
 
 export const vectorSource = ({ gridName }: { gridName: string }) => ({
   type: "vector",
