@@ -12,7 +12,7 @@ import {
 import { EllipsisVertical } from "lucide-react";
 
 export default function MapOptionsMenu() {
-  const { showGridLabels, showProjects } = usePortalState();
+  const { showGridLabels, showProjects, showWater } = usePortalState();
 
   return (
     <DropdownMenu>
@@ -35,6 +35,12 @@ export default function MapOptionsMenu() {
           onCheckedChange={(checked) => (showProjects.value = checked)}
         >
           Show Projects
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          checked={showWater.value}
+          onCheckedChange={(checked) => (showWater.value = checked)}
+        >
+          Show Water
         </DropdownMenuCheckboxItem>
       </DropdownMenuContent>
     </DropdownMenu>

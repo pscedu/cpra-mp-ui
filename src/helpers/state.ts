@@ -80,7 +80,7 @@ export function createPortalState() {
   );
   const showWater = hashSignal(
     "show_water",
-    true,
+    false,
     (value) => (value ? "true" : "false"),
     (value) => value !== "false",
   );
