@@ -351,15 +351,12 @@ export default function Map() {
         );
         if (!annualLndType) return;
 
-        console.log(structure.value);
-
         await ensureStyleLoaded();
         const style = map.current.getStyle();
-        // FIXME: Handle case where there is more than one model group or scenario selected.
+        const dataParams = mapCatalogQuery.value.getQueryParams();
         const params = [
-          ...mapCatalogQuery.value
-            .getQueryParams()
-            .filter(([key]) => ["model_group_id", "scenario_id"].includes(key)),
+          dataParams.find(([key]) => key === "model_group_id"),
+          dataParams.find(([key]) => key === "scenario_id"),
           ["calendar_year", projectsYear.value],
         ];
         style.sources.water = rasterSource({
