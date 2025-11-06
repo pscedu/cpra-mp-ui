@@ -283,7 +283,9 @@ export function createPortalState() {
       ? structure.value.visualizationsMap[visualizationType.value].getSpecUrl(
           mapCatalogQuery.value,
           {
-            analysis: analysis.value,
+            analysis: analysis.value.dimension?.startsWith("calendar_")
+              ? null
+              : analysis.value,
             geographies: selectedGeographies.value,
           },
         )
