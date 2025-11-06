@@ -124,6 +124,8 @@ export function createPortalState() {
       );
       delete newFilters["calendar_day"];
       filters.value = newFilters;
+      if (analysis.value.dimension === "calendar_day")
+        analysisType.value = `${analysis.value.operation}:calendar_year`;
     } else if (
       "calendar_year" in filters.value &&
       timeColumn === "calendar_day"
@@ -133,6 +135,8 @@ export function createPortalState() {
       );
       delete newFilters["calendar_year"];
       filters.value = newFilters;
+      if (analysis.value.dimension === "calendar_year")
+        analysisType.value = `${analysis.value.operation}:calendar_day`;
     }
   };
 

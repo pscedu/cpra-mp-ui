@@ -66,7 +66,7 @@ export class CatalogQuery {
             .filter((name) => name !== dimension);
           params.push([
             "negate",
-            `${dimension}=${typeof negateValue === "number" ? negateValue : `"${negateValue}"`}`,
+            `${dimension}=${dimension === "calendar_day" ? `'${negateValue}'::date` : typeof negateValue === "number" ? negateValue : `'${negateValue}'`}`,
           ]);
           params.push(["group_by", groupByNames]);
           params.push(["group_aggregate", "sum"]);

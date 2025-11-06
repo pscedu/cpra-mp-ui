@@ -55,7 +55,7 @@ export default function Map() {
   const difference =
     operation.startsWith("subtract-") &&
     mapCatalogQuery.value &&
-    mapCatalogQuery.value.response.results[dimension].length > 1;
+    mapCatalogQuery.value.response.results[dimension]?.length > 1;
 
   const getSourceId = () => `data-source-${dataSourceIdx.current}`;
   const getLayerId = () => `data-layer-${dataLayerIdx.current}`;
