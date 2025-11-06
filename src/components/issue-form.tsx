@@ -42,7 +42,7 @@ export default function IssueForm() {
   return (
     <div className="mx-4">
       <div className="flex items-start justify-between">
-        <h2 className="font-bold mb-2 text-2xl">New Issue</h2>
+        <h2 className="font-bold mb-2 text-2xl">New Observation</h2>
         <IssueCloseButton />
       </div>
       <Input

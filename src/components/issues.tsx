@@ -32,7 +32,7 @@ export default function Issues() {
           className="cursor-pointer bg-green-700 hover:bg-green-600 text-white font-bold"
           onClick={() => (issue.value = "new")}
         >
-          New Issue
+          New Observation
         </Button>
       </div>
       <div className="rounded-lg border bg-card text-card-foreground shadow-sm mx-4">

@@ -40,14 +40,14 @@ export function ActivitySwitcher() {
     choices.push(
       {
         name: "issues",
-        label: "Issues",
+        label: "Observations",
         logo: CircleDot,
       },
       {
         name: "simulations",
         label: "Simulations",
         logo: GalleryVerticalEnd,
-      }
+      },
     );
 
   if (choices.length < 2) return null;
