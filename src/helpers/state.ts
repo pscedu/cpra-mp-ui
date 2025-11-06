@@ -72,6 +72,12 @@ export function createPortalState() {
     (value) => (value ? "true" : "false"),
     (value) => value === "true",
   );
+  const showGridLines = hashSignal(
+    "show_grid_lines",
+    true,
+    (value) => (value ? "true" : "false"),
+    (value) => value === "true",
+  );
   const showProjects = hashSignal(
     "show_projects",
     true,
@@ -620,6 +626,7 @@ export function createPortalState() {
     setSelectedFilterChoices,
     setTimeValues,
     showGridLabels,
+    showGridLines,
     showProjects,
     showWater,
     startDate,

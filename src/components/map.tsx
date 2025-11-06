@@ -31,6 +31,7 @@ export default function Map() {
     rotateSelectedGeographies,
     selectedGeographies,
     showGridLabels,
+    showGridLines,
     showProjects,
     showWater,
     structure,
@@ -156,6 +157,7 @@ export default function Map() {
           ...ids,
           difference,
           showLabels: showGridLabels.value,
+          showLines: showGridLines.value,
           variable: dataset.variable,
         })
       : rasterLayers(ids);
@@ -319,6 +321,20 @@ export default function Map() {
         );
     })();
   }, [showGridLabels.value]);
+
+  // Update grid ;ome visibility.
+  useEffect(() => {
+    (async () => {
+      await ensureStyleLoaded();
+      const layerId = `${getLayerId()}-line`;
+      if (map.current.getLayer(layerId))
+        map.current.setLayoutProperty(
+          layerId,
+          "visibility",
+          showGridLines.value ? "visible" : "none",
+        );
+    })();
+  }, [showGridLines.value]);
 
   // Update projects source.
   useEffect(() => {

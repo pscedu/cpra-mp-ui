@@ -215,6 +215,7 @@ export function vectorLayers({
   lineWidths = [0.5, 3],
   sourceId,
   showLabels = false,
+  showLines = true,
   variable,
 }) {
   const ramp = difference
@@ -241,6 +242,7 @@ export function vectorLayers({
       type: "line",
       source: sourceId,
       "source-layer": "boundary",
+      layout: { visibility: showLines ? "visible" : "none" },
       paint: {
         "line-color": linearZoom(...(lineColors as [string, string])),
         "line-width": linearZoom(...(lineWidths as [number, number])),
