@@ -1,26 +1,28 @@
-import { usePortalState } from "@/helpers/state";
+import { useAtom, useAtomValue } from "jotai";
+import { tagOptionsAtom, taskAtom } from "@/helpers/state";
 
 import RSelect from "@/components/ui/rselect";
 
 export default function TagsSelect() {
-  const { tagOptions, task } = usePortalState();
+  const tagOptions = useAtomValue(tagOptionsAtom);
+  const [task, setTask] = useAtom(taskAtom);
 
   const optionsMap = {};
-  for (let option of tagOptions.value) optionsMap[option.value] = option;
+  for (let option of tagOptions) optionsMap[option.value] = option;
 
   return (
-    tagOptions.value.length > 0 && (
+    tagOptions.length > 0 && (
       <RSelect
         inputId="tags"
-        options={tagOptions.value}
+        options={tagOptions}
         isMulti={true}
         isClearable={true}
         className="mb-4 w-full"
         placeholder="Tags..."
-        value={task.value.tags.map((tag) => optionsMap[tag.name])}
+        value={task.tags.map((tag) => optionsMap[tag.name])}
         onChange={(selected) =>
-          (task.value = {
-            ...task.value,
+          setTask({
+            ...task,
             tags: selected.map((option) => ({ name: option.value })),
           })
         }

@@ -1,27 +1,33 @@
-import { usePortalState } from "@/helpers/state";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import {
+  datasetsAtom,
+  setSelectedDatasetsAtom,
+  structureAtom,
+} from "@/helpers/state";
 import { toTitleCase } from "@/helpers/utils";
 
 import SidebarSelect from "@/components/sidebar-select";
 import { Calendar, Ruler } from "lucide-react";
 
 export default function DatasetSelect() {
-  const { datasets, setSelectedDatasets, structure } = usePortalState();
+  const structure = useAtomValue(structureAtom);
+  const [datasets, setDatasets] = useAtom(datasetsAtom);
+  const setSelectedDatasets = useSetAtom(setSelectedDatasetsAtom);
 
-  if (!structure.value) return;
+  if (!structure) return;
 
   const timeUnits = [
-    ...new Set(structure.value.datasets.map((dataset) => dataset.time_unit)),
+    ...new Set(structure.datasets.map((dataset) => dataset.time_unit)),
   ].sort();
 
-  const timeUnit =
-    (datasets.value.length && datasets.value[0].time_unit) || "annual";
+  const timeUnit = (datasets.length && datasets[0].time_unit) || "annual";
 
   const timeOptions = timeUnits.map((value) => ({
     label: toTitleCase(value),
     value,
   }));
 
-  const variableOptions = structure.value.datasets
+  const variableOptions = structure.datasets
     .filter((dataset) => dataset.time_unit === timeUnit)
     .map((dataset) => ({
       label: dataset.variable.label,
@@ -29,11 +35,11 @@ export default function DatasetSelect() {
     }));
 
   const setTimeUnit = (newTimeUnit) => {
-    const canidateDatasets = structure.value.datasets.filter(
+    const canidateDatasets = structure.datasets.filter(
       (dataset) => dataset.time_unit === newTimeUnit,
     );
     let newDatasets = canidateDatasets.filter((candidate) =>
-      datasets.value.find(
+      datasets.find(
         (dataset) =>
           dataset.variable === candidate.variable &&
           dataset.grid === candidate.grid,
@@ -57,7 +63,7 @@ export default function DatasetSelect() {
         label="Variable"
         onChange={setSelectedDatasets}
         options={variableOptions}
-        value={datasets.value}
+        value={datasets}
       />
     </>
   );

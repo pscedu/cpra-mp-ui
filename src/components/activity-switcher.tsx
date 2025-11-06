@@ -1,4 +1,5 @@
-import { usePortalState } from "@/helpers/state";
+import { useAtom, useAtomValue } from "jotai";
+import { activityAtom, userAtom } from "@/helpers/state";
 import {
   ChevronsUpDown,
   CircleDot,
@@ -21,7 +22,9 @@ import {
 } from "@/components/ui/sidebar";
 
 export function ActivitySwitcher() {
-  const { activity, user } = usePortalState();
+  const [activity, setActivity] = useAtom(activityAtom);
+  const user = useAtomValue(userAtom);
+
   const { isMobile } = useSidebar();
 
   const choices: {
@@ -36,7 +39,7 @@ export function ActivitySwitcher() {
     },
   ];
 
-  if (user.value && user.value.clickupId)
+  if (user && user.clickupId)
     choices.push(
       {
         name: "issues",
@@ -47,12 +50,12 @@ export function ActivitySwitcher() {
         name: "simulations",
         label: "Simulations",
         logo: GalleryVerticalEnd,
-      }
+      },
     );
 
   if (choices.length < 2) return null;
 
-  const activeChoice = choices.find((choice) => choice.name === activity.value);
+  const activeChoice = choices.find((choice) => choice.name === activity);
 
   if (!activeChoice) return null;
 
@@ -88,7 +91,7 @@ export function ActivitySwitcher() {
             {choices.map((choice) => (
               <DropdownMenuItem
                 key={choice.name}
-                onClick={() => (activity.value = choice.name)}
+                onClick={() => setActivity(choice.name)}
                 className="gap-2 p-2"
               >
                 <div className="flex size-6 items-center justify-center rounded-md border">

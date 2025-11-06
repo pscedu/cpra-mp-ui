@@ -1,4 +1,4 @@
-import { batch, useSignal } from "@preact/signals-react";
+import { useState } from "react";
 
 import { Check, LoaderCircle, Pencil, X } from "lucide-react";
 import { Button } from "./ui/button";
@@ -18,23 +18,21 @@ export default function EditToggle({
   onEdit?: Function;
   onSave?: Function;
 }) {
-  const isEditing = useSignal(false);
-  const isProcessing = useSignal(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const exit = (handler: Function) => {
-    isProcessing.value = true;
+    setIsProcessing(true);
     (async () => {
       await handler();
-      batch(() => {
-        isEditing.value = false;
-        isProcessing.value = false;
-      });
+      setIsEditing(false);
+      setIsProcessing(false);
     })();
   };
 
-  if (isProcessing.value) return <LoaderCircle className="animate-spin" />;
+  if (isProcessing) return <LoaderCircle className="animate-spin" />;
   if (!isEditable) return display();
-  return isEditing.value ? (
+  return isEditing ? (
     <div className="flex justify-between">
       {edit()}
       <div className="ms-2">
@@ -68,7 +66,7 @@ export default function EditToggle({
       onClick={() => {
         (async () => {
           await onEdit();
-          isEditing.value = true;
+          setIsEditing(true);
         })();
       }}
       className="group/edit-button cursor-pointer flex items-center"

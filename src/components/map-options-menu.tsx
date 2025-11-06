@@ -1,4 +1,9 @@
-import { usePortalState } from "@/helpers/state";
+import { useAtom } from "jotai";
+import {
+  showGridLabelsAtom,
+  showProjectsAtom,
+  showWaterAtom,
+} from "@/helpers/state";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +17,9 @@ import {
 import { EllipsisVertical } from "lucide-react";
 
 export default function MapOptionsMenu() {
-  const { showGridLabels, showProjects, showWater } = usePortalState();
+  const [showGridLabels, setShowGridLabels] = useAtom(showGridLabelsAtom);
+  const [showProjects, setShowProjects] = useAtom(showProjectsAtom);
+  const [showWater, setShowWater] = useAtom(showWaterAtom);
 
   return (
     <DropdownMenu>
@@ -25,20 +32,20 @@ export default function MapOptionsMenu() {
         <DropdownMenuLabel>Map Options</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuCheckboxItem
-          checked={showGridLabels.value}
-          onCheckedChange={(checked) => (showGridLabels.value = checked)}
+          checked={showGridLabels}
+          onCheckedChange={(checked) => setShowGridLabels(checked)}
         >
           Show Grid Labels
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
-          checked={showProjects.value}
-          onCheckedChange={(checked) => (showProjects.value = checked)}
+          checked={showProjects}
+          onCheckedChange={(checked) => setShowProjects(checked)}
         >
           Show Projects
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
-          checked={showWater.value}
-          onCheckedChange={(checked) => (showWater.value = checked)}
+          checked={showWater}
+          onCheckedChange={(checked) => setShowWater(checked)}
         >
           Show Water
         </DropdownMenuCheckboxItem>

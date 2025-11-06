@@ -1,21 +1,13 @@
-import { createContext, useContext } from "react";
-import {
-  batch,
-  computed,
-  effect,
-  Signal,
-  signal,
-  untracked,
-} from "@preact/signals-react";
+import { atom, Atom } from "jotai";
 import { jwtDecode } from "jwt-decode";
 import { loadUser, saveUser } from "./auth";
 import { CommentNode, exportTask, importTask } from "./clickup";
 import { managementBaseUrl } from "./config";
 import {
-  datasetsSignal,
-  filtersSignal,
-  hashSignal,
-  initHashSignals,
+  datasetsAtom as datasetsHashAtom,
+  filtersAtom as filtersHashAtom,
+  hashAtom,
+  initHashAtoms,
   setHashUpdateMode,
 } from "./hash";
 import { getStructure, Structure } from "./structure";
@@ -23,438 +15,558 @@ import { getJson, getNdJson } from "./utils";
 import { NavigateFunction } from "react-router";
 import { CatalogQueries } from "./catalog";
 
-export const PortalState = createContext(null);
-
-function dataSignal(loadFn: Function, defaultValue = null) {
-  const sig = signal(defaultValue);
-  effect(() => {
-    (async () => {
-      sig.value = await loadFn();
-    })();
-  });
-  return sig;
+function dataAtom<T>(loadFn: () => Promise<T>, defaultValue: T | null = null) {
+  const baseAtom = atom<T | null>(defaultValue);
+  const derivedAtom = atom(
+    (get) => get(baseAtom),
+    async (get, set) => {
+      const value = await loadFn();
+      set(baseAtom, value);
+    },
+  );
+  // Auto-load on mount
+  derivedAtom.onMount = (setAtom) => {
+    setAtom();
+  };
+  return derivedAtom;
 }
 
-export function createPortalState() {
-  // Data signals
-  const structure: Signal<Structure | null> = dataSignal(getStructure);
+// Data atoms
+export const structureAtom: Atom<Structure | null> = dataAtom(getStructure);
 
-  // URL hash isgnals
-  const activity = hashSignal("activity", "data");
-  const issue = hashSignal("issue", null);
-  const datasets = datasetsSignal(structure);
-  const filters = filtersSignal(structure);
-  const mapPosition = hashSignal(
-    "map",
-    [8, 29.75, -91.5],
-    (values) => values.map((value) => value.toFixed(2)).join("/"),
-    (valueStr) => valueStr.split("/").map((value) => parseFloat(value)),
-    true,
+// URL hash atoms
+export const activityAtom = hashAtom("activity", "data");
+export const issueAtom = hashAtom("issue", null);
+export const datasetsAtom = datasetsHashAtom(structureAtom);
+export const filtersAtom = filtersHashAtom(structureAtom);
+export const mapPositionAtom = hashAtom(
+  "map",
+  [8, 29.75, -91.5],
+  (values) => values.map((value) => value.toFixed(2)).join("/"),
+  (valueStr) => valueStr.split("/").map((value) => parseFloat(value)),
+  true,
+);
+export const selectedGeographiesAtom = hashAtom<number[] | number[][]>(
+  "geography",
+  [],
+  (values) => values.map((value) => value.toString()).join(","),
+  (str) => {
+    const geos = str.split(",");
+    if (str.includes(".")) {
+      const pairs = [];
+      for (let i = 0; i < geos.length; i += 2)
+        pairs.push(geos.slice(i, i + 2).map((coord) => parseFloat(coord)));
+      return pairs;
+    }
+    return geos.map((geo) => parseInt(geo));
+  },
+);
+export const showGridLabelsAtom = hashAtom(
+  "show_grid_labels",
+  false,
+  (value) => (value ? "true" : "false"),
+  (value) => value === "true",
+);
+export const showProjectsAtom = hashAtom(
+  "show_projects",
+  true,
+  (value) => (value ? "true" : "false"),
+  (value) => value !== "false",
+);
+export const showWaterAtom = hashAtom(
+  "show_water",
+  false,
+  (value) => (value ? "true" : "false"),
+  (value) => value !== "false",
+);
+export const startDateAtom = hashAtom("start_date", null);
+export const endDateAtom = hashAtom("end_date", null);
+
+export const reconcileDatasets = (
+  { updateGeographies }: { updateGeographies: boolean } = {
+    updateGeographies: false,
+  },
+) => {
+  // This function will be called from useEffect hooks in components
+  // that need to reconcile datasets when they change
+  return { updateGeographies };
+};
+
+initHashAtoms(reconcileDatasets);
+
+// Other atoms
+export const tasksAtom = atom<any>(null);
+export const taskAtom = atom<any>(null);
+
+const userBaseAtom = atom(loadUser());
+export const userAtom = atom(
+  (get) => get(userBaseAtom),
+  (get, set, newValue) => {
+    set(userBaseAtom, newValue);
+    saveUser(newValue);
+  },
+);
+export const usersAtom = atom<any[]>([]);
+export const avatarCacheKeyAtom = atom(new Date().getTime());
+
+export const catalogQueriesAtom: Atom<CatalogQueries | null> = atom(null);
+export const timeValuesAtom = atom<any[]>([]);
+export const timeValuesTimeoutAtom = atom<number | null>(null);
+
+export const mapFeatureValuesAtom = atom({});
+export const mapFeatureValuesAbortControllerAtom = atom<AbortController | null>(
+  null,
+);
+export const mapFeatureValuesLoadingAtom = atom(false);
+export const mapTilesLoadingAtom = atom(false);
+
+export const visualizationTypeAtom = hashAtom(
+  "visualization",
+  "time-series-line",
+);
+export const analysisTypeAtom = hashAtom("analysis", "single");
+
+export const issueFilterTagsAtom = atom<any[]>([]);
+export const taskStatusesAtom = atom<any>(null);
+export const contextMenuAtom = atom<any>(null);
+export const workerPageAtom = atom({
+  description: "",
+  heading: "",
+  status: "working",
+});
+
+// Query the catalog API for each selected dataset when the selected
+// datasets or dimension values change.
+export const queryCatalogAtom = atom(null, async (get, set) => {
+  const datasetsValue = get(datasetsAtom);
+  const filtersValue = get(filtersAtom);
+  const structureValue = get(structureAtom);
+
+  const cqs = new CatalogQueries(datasetsValue, filtersValue, structureValue);
+  await cqs.executeAll();
+  setHashUpdateMode("replace");
+  set(catalogQueriesAtom, cqs);
+  set(filtersAtom, cqs.combinedFilters);
+  setHashUpdateMode("push");
+});
+
+export const mapCatalogQueryAtom = atom((get) => {
+  const cqs = get(catalogQueriesAtom);
+  if (!cqs) return null;
+  // TODO: Allow user to select the active query/dataset.
+  return cqs.queries[0];
+});
+
+export const mapDataUrlAtom = atom((get) => {
+  const mapCq = get(mapCatalogQueryAtom);
+  const analysisValue = get(analysisAtom);
+  if (!mapCq || mapCq.dataset.grid.grid_type === "raster") return null;
+  return mapCq.dataset.getDataUrl(
+    mapCq.getQueryParams({ analysis: analysisValue }),
+    "ndjson",
   );
-  const selectedGeographies = hashSignal<number[] | number[][]>(
-    "geography",
-    [],
-    (values) => values.map((value) => value.toString()).join(","),
-    (str) => {
-      const geos = str.split(",");
-      if (str.includes(".")) {
-        const pairs = [];
-        for (let i = 0; i < geos.length; i += 2)
-          pairs.push(geos.slice(i, i + 2).map((coord) => parseFloat(coord)));
-        return pairs;
+});
+
+export const mapTileUrlAtom = atom((get) => {
+  const mapCq = get(mapCatalogQueryAtom);
+  const analysisValue = get(analysisAtom);
+  return mapCq
+    ? mapCq.dataset.getTileUrl(
+        mapCq.getQueryParams({
+          analysis: analysisValue,
+        }),
+      )
+    : null;
+});
+
+export const projectsModelGroupAtom = atom((get) => {
+  const mapCq = get(mapCatalogQueryAtom);
+  return (mapCq?.response?.results?.model_group_id || [-1])[0];
+});
+
+export const tagOptionsAtom = atom((get) => {
+  const structureValue = get(structureAtom);
+  const options = [];
+  if (structureValue) {
+    for (let dimension of structureValue.dimensions) {
+      if (dimension.values) {
+        options.push(
+          ...dimension.values.map((dv) => ({
+            value: `${dimension.name}:${dv.value}`,
+            label: `${dimension.label}: ${dv.label || dv.value}`,
+          })),
+        );
       }
-      return geos.map((geo) => parseInt(geo));
-    },
-  );
-  const showGridLabels = hashSignal(
-    "show_grid_labels",
-    false,
-    (value) => (value ? "true" : "false"),
-    (value) => value === "true",
-  );
-  const showProjects = hashSignal(
-    "show_projects",
-    true,
-    (value) => (value ? "true" : "false"),
-    (value) => value !== "false",
-  );
-  const showWater = hashSignal(
-    "show_water",
-    false,
-    (value) => (value ? "true" : "false"),
-    (value) => value !== "false",
-  );
-  const startDate = hashSignal("start_date", null);
-  const endDate = hashSignal("end_date", null);
-  const reconcileDatasets = (
-    { updateGeographies }: { updateGeographies: boolean } = {
-      updateGeographies: false,
-    },
-  ) => {
-    if (!datasets.value.length) return;
-    // TODO: Allow the user to select the map dataset.
-    const mapDataset = datasets.value[0];
+    }
+  }
+  return options;
+});
 
-    // Reset selected geographies when the grid changes.
-    if (
-      updateGeographies &&
-      mapCatalogQuery.value &&
-      mapCatalogQuery.value.dataset.grid !== mapDataset.grid
-    )
-      selectedGeographies.value = [];
+export const timeDimensionAtom = atom((get) => {
+  const cqs = get(catalogQueriesAtom);
+  return cqs
+    ? cqs.activeDimensions.filter((dim) => dim.filterType === "time")[0]
+    : null;
+});
 
-    // Handle changing from daily/monthly datasets to annual/decadal datasets
-    // and vice-versa.
-    const timeColumn = mapDataset.getTimeColumn();
-    const newFilters = { ...filters.value };
-    if ("calendar_day" in filters.value && timeColumn === "calendar_year") {
-      newFilters["calendar_year"] = filters.value["calendar_day"].map(
-        (dateStr) => {
-          let year = parseInt(dateStr.substr(0, 4));
-          if (mapDataset.time_unit === "decadal")
-            year = Math.round(year / 10) * 10;
-          return year;
+export const timeChoicesAtom = atom((get) => {
+  const timeDim = get(timeDimensionAtom);
+  const cqs = get(catalogQueriesAtom);
+  return timeDim && cqs ? cqs.combinedChoices[timeDim.name] || [] : [];
+});
+
+export const analysisAtom = atom((get) => {
+  const analysisTypeValue = get(analysisTypeAtom);
+  const [operation, dimension] = analysisTypeValue.split(":");
+  return { operation, dimension };
+});
+
+export const visualizationSpecUrlAtom = atom((get) => {
+  const structureValue = get(structureAtom);
+  const mapCq = get(mapCatalogQueryAtom);
+  const visualizationTypeValue = get(visualizationTypeAtom);
+  const selectedGeographiesValue = get(selectedGeographiesAtom);
+  const analysisValue = get(analysisAtom);
+
+  return structureValue &&
+    mapCq &&
+    visualizationTypeValue &&
+    selectedGeographiesValue &&
+    selectedGeographiesValue.length
+    ? structureValue.visualizationsMap[visualizationTypeValue].getSpecUrl(
+        mapCq,
+        {
+          analysis: analysisValue,
+          geographies: selectedGeographiesValue,
         },
-      );
-      delete newFilters["calendar_day"];
-      filters.value = newFilters;
-    } else if (
-      "calendar_year" in filters.value &&
-      timeColumn === "calendar_day"
-    ) {
-      newFilters["calendar_day"] = filters.value["calendar_year"].map(
-        (year) => `${year}-01-01`,
-      );
-      delete newFilters["calendar_year"];
-      filters.value = newFilters;
+      )
+    : null;
+});
+
+export const projectsYearAtom = atom((get) => {
+  const cqs = get(catalogQueriesAtom);
+  const { combinedFilters } = cqs || {};
+  if (combinedFilters) {
+    if (combinedFilters.calendar_day)
+      return parseInt(combinedFilters.calendar_day[0].substr(0, 4));
+    if (combinedFilters.calendar_year) return combinedFilters.calendar_year[0];
+  }
+  return 0;
+});
+
+export const visualizationAtom = atom((get) => {
+  const structureValue = get(structureAtom);
+  const visualizationTypeValue = get(visualizationTypeAtom);
+  return structureValue && visualizationTypeValue
+    ? structureValue.visualizationsMap[visualizationTypeValue]
+    : null;
+});
+
+export const rotateSelectedGeographiesAtom = atom(
+  null,
+  (get, set, offset: number) => {
+    if (offset != 0) {
+      const current = get(selectedGeographiesAtom);
+      set(selectedGeographiesAtom, [
+        ...current.slice(offset),
+        ...current.slice(0, offset),
+      ]);
     }
-  };
+  },
+);
 
-  initHashSignals(reconcileDatasets);
-
-  // Other signals
-  const tasks = signal(null);
-  const task = signal(null);
-
-  const user = signal(loadUser());
-  const users = signal([]);
-  const avatarCacheKey = signal(new Date().getTime());
-
-  const catalogQueries: Signal<CatalogQueries | null> = signal(null);
-  const timeValues = signal([]);
-  let timeValuesTimeout: number | null = null;
-
-  const mapFeatureValues = signal({});
-  let mapFeatureValuesAbortController: AbortController | null = null;
-  const mapFeatureValuesLoading = signal(false);
-  const mapTilesLoading = signal(false);
-
-  const visualizationType = hashSignal("visualization", "time-series-line");
-  const analysisType = hashSignal("analysis", "single");
-
-  const issueFilterTags = signal([]);
-  const taskStatuses = signal(null);
-  const contextMenu = signal(null);
-
-  // Query the catalog API for each selected dataset when the selected
-  // datasets or dimension values change.
-  const queryCatalog = () => {
-    (async () => {
-      const cqs = new CatalogQueries(
-        datasets.value,
-        filters.value,
-        structure.value,
-      );
-      await cqs.executeAll();
-      setHashUpdateMode("replace");
-      batch(() => {
-        catalogQueries.value = cqs;
-        filters.value = cqs.combinedFilters;
-      });
-      setHashUpdateMode("push");
-    })();
-  };
-
-  // Ensure there is always at least one dataset selected.
-  effect(() => {
-    if (structure.value) {
-      untracked(() => {
-        if (datasets.peek().length == 0)
-          datasets.value = [structure.value.datasets[0]];
-      });
-    }
-  });
-
-  // Query the catalog when datasets or filters change.
-  effect(() => {
-    if (!structure.value) return;
-    if (
-      !catalogQueries.value ||
-      datasets.value !== catalogQueries.value.datasets ||
-      filters.value !== catalogQueries.value.combinedFilters
-    )
-      return queryCatalog();
-  });
-
-  const mapCatalogQuery = computed(() => {
-    if (!catalogQueries.value) return null;
-    // TODO: Allow user to select the active query/dataset.
-    return catalogQueries.value.queries[0];
-  });
-
-  const mapDataUrl = computed(() => {
-    if (
-      !mapCatalogQuery.value ||
-      mapCatalogQuery.value.dataset.grid.grid_type === "raster"
-    )
-      return null;
-    return mapCatalogQuery.value.dataset.getDataUrl(
-      mapCatalogQuery.value.getQueryParams({ analysis: analysis.value }),
-      "ndjson",
-    );
-  });
-
-  const mapTileUrl = computed(() =>
-    mapCatalogQuery.value
-      ? mapCatalogQuery.value.dataset.getTileUrl(
-          mapCatalogQuery.value.getQueryParams({
-            analysis: analysis.value,
-          }),
-        )
-      : null,
-  );
-
-  const projectsModelGroup = computed(
-    () => (mapCatalogQuery.value?.response?.results?.model_group_id || [-1])[0],
-  );
-
-  const tagOptions = computed(() => {
-    const options = [];
-    if (structure.value) {
-      for (let dimension of structure.value.dimensions) {
-        if (dimension.values) {
-          options.push(
-            ...dimension.values.map((dv) => ({
-              value: `${dimension.name}:${dv.value}`,
-              label: `${dimension.label}: ${dv.label || dv.value}`,
-            })),
-          );
-        }
-      }
-    }
-    return options;
-  });
-
-  const timeDimension = computed(() =>
-    catalogQueries.value
-      ? catalogQueries.value.activeDimensions.filter(
-          (dim) => dim.filterType === "time",
-        )[0]
-      : null,
-  );
-
-  const timeChoices = computed(() =>
-    timeDimension.value && catalogQueries.value
-      ? catalogQueries.value.combinedChoices[timeDimension.value.name] || []
-      : [],
-  );
-
-  const analysis = computed(() => {
-    const [operation, dimension] = analysisType.value.split(":");
-    return { operation, dimension };
-  });
-
-  const visualizationSpecUrl = computed(() => {
-    return structure.value &&
-      mapCatalogQuery.value &&
-      visualizationType.value &&
-      selectedGeographies.value &&
-      selectedGeographies.value.length
-      ? structure.value.visualizationsMap[visualizationType.value].getSpecUrl(
-          mapCatalogQuery.value,
-          {
-            analysis: analysis.value,
-            geographies: selectedGeographies.value,
-          },
-        )
-      : null;
-  });
-
-  const projectsYear = computed(() => {
-    const { combinedFilters } = catalogQueries.value || {};
-    if (combinedFilters) {
-      if (combinedFilters.calendar_day)
-        return parseInt(combinedFilters.calendar_day[0].substr(0, 4));
-      if (combinedFilters.calendar_year)
-        return combinedFilters.calendar_year[0];
-    }
-    return 0;
-  });
-
-  const visualization = computed(() =>
-    structure.value && visualizationType.value
-      ? structure.value.visualizationsMap[visualizationType.value]
-      : null,
-  );
-
-  const rotateSelectedGeographies = (offset: number) => {
-    if (offset != 0)
-      selectedGeographies.value = [
-        ...selectedGeographies.value.slice(offset),
-        ...selectedGeographies.value.slice(0, offset),
-      ];
-  };
-
-  const setTimeValues = (values) => {
-    timeValues.value = values;
-    if (timeValuesTimeout) clearTimeout(timeValuesTimeout);
-    timeValuesTimeout = setTimeout(
-      () => setSelectedFilterChoices(timeDimension.value.name, values),
-      250,
-    );
-  };
-
-  const setSelectedDatasets = (selected: Dataset[]) => {
-    batch(() => {
-      datasets.value = selected;
-      reconcileDatasets({ updateGeographies: true });
+export const setTimeValuesAtom = atom(null, (get, set, values) => {
+  set(timeValuesAtom, values);
+  const currentTimeout = get(timeValuesTimeoutAtom);
+  if (currentTimeout) clearTimeout(currentTimeout);
+  const timeDim = get(timeDimensionAtom);
+  const newTimeout = setTimeout(() => {
+    const filtersValue = get(filtersAtom);
+    set(filtersAtom, {
+      ...filtersValue,
+      [timeDim.name]: values,
     });
-  };
+  }, 250) as unknown as number;
+  set(timeValuesTimeoutAtom, newTimeout);
+});
 
-  const setSelectedFilterChoices = (dimensionName: string, values: []) => {
-    filters.value = {
-      ...filters.value,
-      [dimensionName]: values,
-    };
-  };
+export const setSelectedDatasetsAtom = atom(
+  null,
+  (get, set, selected: any[]) => {
+    set(datasetsAtom, selected);
+    // reconcileDatasets logic would be handled in a useEffect
+  },
+);
 
-  const getManagementJson = async (
-    relativeUrl: string,
-    { accessToken = null, body = null, method = "GET", tryRefresh = true } = {},
+export const setSelectedFilterChoicesAtom = atom(
+  null,
+  (
+    get,
+    set,
+    { dimensionName, values }: { dimensionName: string; values: any[] },
   ) => {
-    const res = await getJson(`${managementBaseUrl}${relativeUrl}`, {
-      body,
-      headers: {
-        authorization: `Bearer ${
-          accessToken ? accessToken : user.peek().accessToken
-        }`,
-        "content-type": "application/json",
-      },
-      method,
+    const filtersValue = get(filtersAtom);
+    set(filtersAtom, {
+      ...filtersValue,
+      [dimensionName]: values,
     });
-    if (res.error && res.error.status === 401) {
-      // Try to obtain a new access token using the refresh token.
-      if (tryRefresh && (await refreshAccessToken()))
-        return await getManagementJson(relativeUrl, {
+  },
+);
+
+const getManagementJson = async (
+  relativeUrl: string,
+  { accessToken = null, body = null, method = "GET", tryRefresh = true } = {},
+  getCurrentUser: () => any,
+  setUser: (user: any) => void,
+  refreshAccessTokenFn: () => Promise<boolean>,
+) => {
+  const currentUser = getCurrentUser();
+  const res = await getJson(`${managementBaseUrl}${relativeUrl}`, {
+    body,
+    headers: {
+      authorization: `Bearer ${
+        accessToken ? accessToken : currentUser?.accessToken
+      }`,
+      "content-type": "application/json",
+    },
+    method,
+  });
+  if (res.error && res.error.status === 401) {
+    // Try to obtain a new access token using the refresh token.
+    if (tryRefresh && (await refreshAccessTokenFn()))
+      return await getManagementJson(
+        relativeUrl,
+        {
           accessToken,
           body,
           method,
           tryRefresh,
-        });
-      user.value = null;
-    }
-    return res;
-  };
+        },
+        getCurrentUser,
+        setUser,
+        refreshAccessTokenFn,
+      );
+    setUser(null);
+  }
+  return res;
+};
 
-  const refreshAccessToken = async () => {
-    const refreshToken = user.peek()?.refreshToken;
-    if (!refreshToken) return false;
-    const data = await getManagementJson("/login/refresh", {
+const refreshAccessTokenFn = async (
+  getCurrentUser: () => any,
+  setUser: (user: any) => void,
+) => {
+  const currentUser = getCurrentUser();
+  const refreshToken = currentUser?.refreshToken;
+  if (!refreshToken) return false;
+  const data = await getManagementJson(
+    "/login/refresh",
+    {
       accessToken: refreshToken,
       tryRefresh: false,
-    });
-    if (data.error) return false;
-    user.value = { ...user.value, accessToken: data.accessToken };
-    return true;
-  };
+    },
+    getCurrentUser,
+    setUser,
+    async () => false,
+  );
+  if (data.error) return false;
+  setUser({ ...currentUser, accessToken: data.accessToken });
+  return true;
+};
 
-  const getUserInfo = async (settings = {}) =>
-    await getManagementJson("/users/current_user", settings);
+export const getUserInfoFn = async (
+  settings = {},
+  getCurrentUser: () => any,
+  setUser: (user: any) => void,
+  refreshAccessTokenFn: () => Promise<boolean>,
+) =>
+  await getManagementJson(
+    "/users/current_user",
+    settings,
+    getCurrentUser,
+    setUser,
+    refreshAccessTokenFn,
+  );
 
-  const getTasks = async ({ tags } = {}) => {
-    const params = new URLSearchParams();
-    if (tags) for (const tag of tags) params.append("tags", tag.value);
-    return await getManagementJson(`/tasks?${params}`);
-  };
+export const getTasksFn = async (
+  { tags } = {} as { tags?: any[] },
+  getCurrentUser: () => any,
+  setUser: (user: any) => void,
+  refreshAccessTokenFn: () => Promise<boolean>,
+) => {
+  const params = new URLSearchParams();
+  if (tags) for (const tag of tags) params.append("tags", tag.value);
+  return await getManagementJson(
+    `/tasks?${params}`,
+    {},
+    getCurrentUser,
+    setUser,
+    refreshAccessTokenFn,
+  );
+};
 
-  const getTask = async (taskId: string, getComments: boolean = false) => {
-    return await getManagementJson(
-      `/tasks/${taskId}?getComments=${getComments.toString()}`,
-    );
-  };
+export const getTaskFn = async (
+  taskId: string,
+  getComments: boolean = false,
+  getCurrentUser: () => any,
+  setUser: (user: any) => void,
+  refreshAccessTokenFn: () => Promise<boolean>,
+) => {
+  return await getManagementJson(
+    `/tasks/${taskId}?getComments=${getComments.toString()}`,
+    {},
+    getCurrentUser,
+    setUser,
+    refreshAccessTokenFn,
+  );
+};
 
-  const createTask = async (task: any) => {
-    return await getManagementJson("/tasks", {
-      body: exportTask(task),
+export const createTaskFn = async (
+  taskData: any,
+  getCurrentUser: () => any,
+  setUser: (user: any) => void,
+  refreshAccessTokenFn: () => Promise<boolean>,
+) => {
+  return await getManagementJson(
+    "/tasks",
+    {
+      body: exportTask(taskData),
       method: "POST",
-    });
-  };
+    },
+    getCurrentUser,
+    setUser,
+    refreshAccessTokenFn,
+  );
+};
 
-  const createComment = async (
-    taskId: string,
-    comment: { assignee?: any; comment: CommentNode | CommentNode[] },
-  ) => {
-    return await getManagementJson(`/tasks/${taskId}/comments`, {
+export const createCommentFn = async (
+  taskId: string,
+  comment: { assignee?: any; comment: CommentNode | CommentNode[] },
+  getCurrentUser: () => any,
+  setUser: (user: any) => void,
+  refreshAccessTokenFn: () => Promise<boolean>,
+) => {
+  return await getManagementJson(
+    `/tasks/${taskId}/comments`,
+    {
       body: comment,
       method: "POST",
+    },
+    getCurrentUser,
+    setUser,
+    refreshAccessTokenFn,
+  );
+};
+
+export const getStatusesFn = async (
+  getCurrentUser: () => any,
+  setUser: (user: any) => void,
+  refreshAccessTokenFn: () => Promise<boolean>,
+) =>
+  await getManagementJson(
+    "/statuses",
+    {},
+    getCurrentUser,
+    setUser,
+    refreshAccessTokenFn,
+  );
+
+export const reloadTaskAtom = atom(null, async (get, set) => {
+  const issueValue = get(issueAtom);
+  const getCurrentUser = () => get(userAtom);
+  const setUser = (newUser: any) => set(userAtom, newUser);
+  const refreshToken = async () =>
+    await refreshAccessTokenFn(getCurrentUser, setUser);
+
+  set(taskAtom, null);
+  if (issueValue === "new")
+    set(taskAtom, {
+      assignees: [],
+      tags: [],
+      markdown_description: "",
+      name: "",
     });
-  };
+  else if (issueValue) {
+    const taskData = await getTaskFn(
+      issueValue,
+      true,
+      getCurrentUser,
+      setUser,
+      refreshToken,
+    );
+    set(taskAtom, importTask(taskData));
+  }
+});
 
-  const getStatuses = async () => await getManagementJson("/statuses");
+export const reloadTasksAtom = atom(null, async (get, set) => {
+  const issueFilterTagsValue = get(issueFilterTagsAtom);
+  const getCurrentUser = () => get(userAtom);
+  const setUser = (newUser: any) => set(userAtom, newUser);
+  const refreshToken = async () =>
+    await refreshAccessTokenFn(getCurrentUser, setUser);
 
-  const reloadTask = () => {
-    task.value = null;
-    (async () => {
-      if (issue.value === "new")
-        task.value = {
-          assignees: [],
-          tags: [],
-          markdown_description: "",
-          name: "",
-        };
-      else if (issue.value)
-        task.value = importTask(await getTask(issue.value, true));
-    })();
-  };
+  set(tasksAtom, null);
+  const tasksData = await getTasksFn(
+    { tags: issueFilterTagsValue },
+    getCurrentUser,
+    setUser,
+    refreshToken,
+  );
+  set(tasksAtom, tasksData.map(importTask));
+});
 
-  const reloadTasks = () => {
-    tasks.value = null;
-    (async () => {
-      tasks.value = (await getTasks({ tags: issueFilterTags.value })).map(
-        importTask,
-      );
-    })();
-  };
+export const updateCommentAtom = atom(
+  null,
+  async (
+    get,
+    set,
+    { commentId, commentUpdates }: { commentId: string; commentUpdates: any },
+  ) => {
+    const getCurrentUser = () => get(userAtom);
+    const setUser = (newUser: any) => set(userAtom, newUser);
+    const refreshToken = async () =>
+      await refreshAccessTokenFn(getCurrentUser, setUser);
 
-  const updateComment = async (commentId: string, commentUpdates: any) => {
-    return await getManagementJson(`/comments/${commentId}`, {
-      body: commentUpdates,
-      method: "PUT",
-    });
-  };
+    return await getManagementJson(
+      `/comments/${commentId}`,
+      {
+        body: commentUpdates,
+        method: "PUT",
+      },
+      getCurrentUser,
+      setUser,
+      refreshToken,
+    );
+  },
+);
 
-  const updateTask = async (taskUpdates: any) => {
-    return await getManagementJson(`/tasks/${task.value.id}`, {
+export const updateTaskAtom = atom(null, async (get, set, taskUpdates: any) => {
+  const taskValue = get(taskAtom);
+  const getCurrentUser = () => get(userAtom);
+  const setUser = (newUser: any) => set(userAtom, newUser);
+  const refreshToken = async () =>
+    await refreshAccessTokenFn(getCurrentUser, setUser);
+
+  return await getManagementJson(
+    `/tasks/${taskValue.id}`,
+    {
       body: exportTask(taskUpdates),
       method: "PUT",
-    });
-  };
+    },
+    getCurrentUser,
+    setUser,
+    refreshToken,
+  );
+});
 
-  const completeLogin = (
-    { search }: Location,
-    navigate: NavigateFunction,
-    {
-      description,
-      heading,
-      status,
-    }: { description: Signal; heading: Signal; status: Signal },
-  ) => {
+export const completeLoginAtom = atom(
+  null,
+  async (get, set, { search }, navigate: NavigateFunction) => {
     const query = new URLSearchParams(search);
-    const loginError = (msg: string) => {
-      batch(() => {
-        description.value = msg;
-        heading.value = "Login error";
-        status.value = "error";
+    const loginError = (description: string) => {
+      set(workerPageAtom, {
+        description,
+        heading: "Login error",
+        status: "error",
       });
     };
     if (!query.has("access_token") || !query.has("refresh_token"))
@@ -469,176 +581,45 @@ export function createPortalState() {
       return loginError(err as string);
     }
 
-    (async () => {
-      const currentUser = await getUserInfo({
+    const getCurrentUser = () => get(userAtom);
+    const setUser = (newUser: any) => set(userAtom, newUser);
+    const refreshTokenFn = async () =>
+      await refreshAccessTokenFn(getCurrentUser, setUser);
+
+    const currentUser = await getUserInfoFn(
+      {
         accessToken: accessToken,
-      });
+      },
+      getCurrentUser,
+      setUser,
+      refreshTokenFn,
+    );
 
-      if (currentUser.error)
-        return loginError("Failed to get user information");
+    if (currentUser.error) return loginError("Failed to get user information");
 
-      user.value = {
-        ...currentUser,
-        accessToken: accessToken,
-        refreshToken: refreshToken,
-      };
+    set(userAtom, {
+      ...currentUser,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    });
 
-      navigate("/");
-    })();
-  };
+    navigate("/");
+  },
+);
 
-  const linkClickup = ({ search }: Location, navigate: NavigateFunction) => {
+export const linkClickupAtom = atom(
+  null,
+  (get, set, { search }: { search: string }, navigate: NavigateFunction) => {
     const query = new URLSearchParams(search);
+    const currentUser = get(userAtom);
     if (query.get("status") === "success") {
-      user.value = {
-        ...user.value,
+      set(userAtom, {
+        ...currentUser,
         clickupId: query.get("clickup_id"),
-      };
+      });
     } else {
       // TODO: Add error handling for failed link operation.
     }
     navigate("/");
-  };
-
-  // Update time values when new catalog queries are performed.
-  // TODO: The delay logic can probably be handled inside the time-select component.
-  effect(() => {
-    const cqs = catalogQueries.value;
-    const timeDim = timeDimension.peek();
-    if (cqs && timeDim) timeValues.value = cqs.combinedFilters[timeDim.name];
-  });
-
-  // Update map feature state when the dataset or filters change.
-  effect(() => {
-    (async () => {
-      if (mapDataUrl.value) {
-        if (mapFeatureValuesAbortController)
-          mapFeatureValuesAbortController.abort("map state changed");
-        mapFeatureValuesAbortController = new AbortController();
-
-        mapFeatureValuesLoading.value = true;
-        let data;
-        try {
-          data = await getNdJson(mapDataUrl.value, {
-            signal: mapFeatureValuesAbortController.signal,
-          });
-        } catch (err) {
-          if (err === "map state changed") return;
-          throw err;
-        }
-
-        if (data.length === 1) {
-          batch(() => {
-            mapFeatureValues.value = data[0];
-            mapFeatureValuesLoading.value = false;
-          });
-        } else {
-          console.error(`Expected 1 row, received ${data.length}`, data);
-        }
-      } else {
-        mapFeatureValues.value = {};
-      }
-    })();
-  });
-
-  // Reload user information when the application loads.
-  // This also allows us to get a fresh ACCESS token, if necessary.
-  effect(() => {
-    if (user.peek())
-      (async () => {
-        const userInfo = await getUserInfo(user);
-        user.value = userInfo.error ? null : { ...user.value, ...userInfo };
-      })();
-  });
-
-  // Save user information to local storage when it changes.
-  effect(() => {
-    saveUser(user.value);
-  });
-
-  // Reset the activity when the user logs out.
-  effect(() => {
-    if (activity.value !== "data" && !user.value) activity.value = "data";
-  });
-
-  // Load a list of portal users when a user logs in.
-  effect(() => {
-    if (user.value?.clickupId && users.value.length === 0) {
-      (async () =>
-        (users.value = (await getManagementJson("/users")).sort((a, b) =>
-          a.fullName < b.fullName ? -1 : 1,
-        )))();
-    }
-  });
-
-  // Load the task list.
-  effect(() => {
-    if (activity.value === "issues" && issueFilterTags.value) reloadTasks();
-  });
-
-  // Load an individual task when an issue is selected.
-  effect(() => {
-    if (activity.value === "issues") reloadTask();
-  });
-
-  // Load possible task statuses when the application loads.
-  effect(() => {
-    if (user.value) (async () => (taskStatuses.value = await getStatuses()))();
-  });
-
-  return {
-    activity,
-    analysis,
-    analysisType,
-    avatarCacheKey,
-    catalogQueries,
-    completeLogin,
-    contextMenu,
-    createComment,
-    createTask,
-    datasets,
-    endDate,
-    filters,
-    getTask,
-    getTasks,
-    issue,
-    issueFilterTags,
-    linkClickup,
-    mapCatalogQuery,
-    mapFeatureValues,
-    mapFeatureValuesLoading,
-    mapPosition,
-    mapTileUrl,
-    mapTilesLoading,
-    projectsModelGroup,
-    projectsYear,
-    reloadTask,
-    reloadTasks,
-    rotateSelectedGeographies,
-    selectedGeographies,
-    setSelectedDatasets,
-    setSelectedFilterChoices,
-    setTimeValues,
-    showGridLabels,
-    showProjects,
-    showWater,
-    startDate,
-    structure,
-    tagOptions,
-    task,
-    tasks,
-    taskStatuses,
-    timeChoices,
-    timeDimension,
-    timeValues,
-    updateComment,
-    updateTask,
-    user,
-    users,
-    visualization,
-    visualizationType,
-    visualizationSpecUrl,
-  };
-}
-
-export const usePortalState = () => useContext(PortalState);
+  },
+);

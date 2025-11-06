@@ -1,5 +1,5 @@
-import { batch } from "@preact/signals-react";
-import { usePortalState } from "@/helpers/state";
+import { useAtomValue, useSetAtom } from "jotai";
+import { analysisAtom, analysisTypeAtom } from "@/helpers/state";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -30,8 +30,10 @@ export function SelectionModeDropdown({
   supportsSubtract,
   supportsConcatenate,
 }) {
-  const { analysis, analysisType } = usePortalState();
-  const { operation, dimension } = analysis.value;
+  const analysis = useAtomValue(analysisAtom);
+  const setAnalysisType = useSetAtom(analysisTypeAtom);
+
+  const { operation, dimension } = analysis;
 
   const options = [
     {
@@ -90,12 +92,12 @@ export function SelectionModeDropdown({
 
   const setSelectedOption = (value) => {
     const newSelectedOption = options.find((option) => option.value === value);
-    batch(() => {
-      setMaxLength(newSelectedOption?.maxLength || 1);
-      analysisType.value = ["single", "compare"].includes(value)
+    setMaxLength(newSelectedOption?.maxLength || 1);
+    setAnalysisType(
+      ["single", "compare"].includes(value)
         ? "single"
-        : `${value}:${dimensionName}`;
-    });
+        : `${value}:${dimensionName}`,
+    );
   };
 
   const SelectedIcon = selectedOption?.icon || CircleQuestionMark;

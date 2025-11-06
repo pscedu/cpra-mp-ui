@@ -1,6 +1,11 @@
 import { ReactNode, useEffect, useRef } from "react";
+import { useAtomValue } from "jotai";
 import { getPermalink } from "@/helpers/hash";
-import { usePortalState } from "@/helpers/state";
+import {
+  mapCatalogQueryAtom,
+  selectedGeographiesAtom,
+  structureAtom,
+} from "@/helpers/state";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,9 +26,12 @@ export default function CommentEdit({
   setValue: (text: string) => void;
   value: string;
 }) {
-  const { mapCatalogQuery, selectedGeographies, structure } = usePortalState();
+  const mapCatalogQuery = useAtomValue(mapCatalogQueryAtom);
+  const selectedGeographies = useAtomValue(selectedGeographiesAtom);
+  const structure = useAtomValue(structureAtom);
+
   const textarea = useRef(null);
-  const label = selectedGeographies.value.length ? "map and chart" : "map";
+  const label = selectedGeographies.length ? "map and chart" : "map";
 
   useEffect(() => {
     if (!cacheKey) return;
@@ -39,11 +47,8 @@ export default function CommentEdit({
 
   const insertLink = () => {
     const icons = ["🌎️"];
-    if (selectedGeographies.value.length > 0) icons.push("📈");
-    const label = structure.value.getDataLabel(
-      mapCatalogQuery.value,
-      selectedGeographies.value,
-    );
+    if (selectedGeographies.length > 0) icons.push("📈");
+    const label = structure.getDataLabel(mapCatalogQuery, selectedGeographies);
     const ta = textarea.current;
     if (ta) {
       const before = value.slice(0, ta.selectionStart);
@@ -70,7 +75,7 @@ export default function CommentEdit({
           variant="ghost"
           size="sm"
           className="cursor-pointer"
-          disabled={!structure.value}
+          disabled={!structure}
           onClick={insertLink}
         >
           <Link /> Insert current {label} link

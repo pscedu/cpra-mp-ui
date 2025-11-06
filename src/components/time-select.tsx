@@ -1,4 +1,10 @@
-import { usePortalState } from "@/helpers/state";
+import { useAtomValue, useSetAtom } from "jotai";
+import {
+  timeChoicesAtom,
+  timeDimensionAtom,
+  timeValuesAtom,
+  setTimeValuesAtom,
+} from "@/helpers/state";
 import { parseDate } from "@/helpers/utils";
 
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -16,17 +22,16 @@ import { SelectionModeDropdown } from "./selection-mode-dropdown";
 import { Slider } from "./ui/slider";
 
 export default function TimeSelect() {
-  const { timeChoices, timeDimension, timeValues, setTimeValues } =
-    usePortalState();
-
-  const choices = timeChoices.value;
-  const selected = timeValues.value;
+  const choices = useAtomValue(timeChoicesAtom);
+  const selected = useAtomValue(timeValuesAtom);
+  const timeDimension = useAtomValue(timeDimensionAtom);
+  const setTimeValues = useSetAtom(setTimeValuesAtom);
 
   if (!choices.length || !selected.length) return;
 
   const isYear = typeof choices[0] === "number";
   const values = selected.map((value) => choices.indexOf(value));
-  const label = timeDimension.value ? timeDimension.value.label : "Value";
+  const label = timeDimension ? timeDimension.label : "Value";
   const editLabel = `Edit ${label.toLowerCase()}`;
 
   return (

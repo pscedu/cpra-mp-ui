@@ -1,7 +1,12 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { toTitleCase } from "@/helpers/utils";
-import { batch, useSignal } from "@preact/signals-react";
-import { usePortalState } from "@/helpers/state";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import {
+  taskAtom,
+  updateCommentAtom,
+  updateTaskAtom,
+  userAtom,
+} from "@/helpers/state";
 
 import AssigneesSelect from "./assignees-select";
 import { Button } from "@/components/ui/button";
@@ -30,96 +35,95 @@ export default function Comment({
   resolved,
   user,
 }) {
-  const { task, updateComment, updateTask, user: authUser } = usePortalState();
+  const [task, setTask] = useAtom(taskAtom);
+  const updateComment = useSetAtom(updateCommentAtom);
+  const updateTask = useSetAtom(updateTaskAtom);
+  const authUser = useAtomValue(userAtom);
+
   const initialMarkdown = useRef("");
-  const markdown = useSignal("");
-  const assignee = useSignal(assigneeUser);
-  const isEditing = useSignal(false);
-  const isProcessing = useSignal(false);
+  const [markdown, setMarkdown] = useState("");
+  const [assignee, setAssignee] = useState(assigneeUser);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const fullName = user.fullName || user.username;
-  const taskId = task.value.id;
+  const taskId = task.id;
   const cacheSuffix = id ? `comment-${id}` : "description";
   const cacheKey = `issue-${taskId}-${cacheSuffix}`;
 
   const startEditing = () => {
-    batch(() => {
-      const md = commentToMarkdown(comment);
-      initialMarkdown.current = md;
-      markdown.value = md;
-      isEditing.value = true;
-    });
+    const md = commentToMarkdown(comment);
+    initialMarkdown.current = md;
+    setMarkdown(md);
+    setIsEditing(true);
   };
 
-  const cancelEditing = () =>
-    batch(() => {
-      markdown.value = "";
-      assignee.value = assigneeUser;
-      initialMarkdown.current = "";
-      isEditing.value = false;
-      localStorage.removeItem(cacheKey);
-    });
+  const cancelEditing = () => {
+    setMarkdown("");
+    setAssignee(assigneeUser);
+    initialMarkdown.current = "";
+    setIsEditing(false);
+    localStorage.removeItem(cacheKey);
+  };
 
   const saveComment = () => {
-    isProcessing.value = true;
+    setIsProcessing(true);
     (async () => {
       let res;
       if (id) {
-        res = await updateComment(id, {
-          assignee: assignee.value ? assignee.value.id : null,
-          comment: markdownToComment(markdown.value),
+        res = await updateComment({
+          commentId: id,
+          commentUpdates: {
+            assignee: assignee ? assignee.id : null,
+            comment: markdownToComment(markdown),
+          },
         });
       } else {
-        res = await updateTask({ markdown_description: markdown.value });
+        res = await updateTask({ markdown_description: markdown });
       }
-      batch(() => {
-        if (res.error) {
-          // TODO: Display an error toast.
-          markdown.value = "";
-          assignee.value = assigneeUser;
-          initialMarkdown.current = "";
-        } else {
-          task.value = {
-            ...task.value,
-            comments: task.value.comments.map((comment) => ({
-              ...comment,
-              comment:
-                id === comment.id
-                  ? markdownToComment(markdown.value)
-                  : comment.comment,
-              assignee: id === comment.id ? assignee.value : comment.assignee,
-            })),
-            markdownDescription: id
-              ? task.value.markdownDescription
-              : markdown.value,
-          };
-        }
-        isEditing.value = false;
-        isProcessing.value = false;
-      });
+      if (res.error) {
+        // TODO: Display an error toast.
+        setMarkdown("");
+        setAssignee(assigneeUser);
+        initialMarkdown.current = "";
+      } else {
+        setTask({
+          ...task,
+          comments: task.comments.map((comment) => ({
+            ...comment,
+            comment:
+              id === comment.id ? markdownToComment(markdown) : comment.comment,
+            assignee: id === comment.id ? assignee : comment.assignee,
+          })),
+          markdownDescription: id ? task.markdownDescription : markdown,
+        });
+      }
+      setIsEditing(false);
+      setIsProcessing(false);
     })();
   };
 
   const saveResolved = (checked) => {
-    isProcessing.value = true;
+    setIsProcessing(true);
     (async () => {
-      const res = await updateComment(id, {
-        resolved: checked,
+      const res = await updateComment({
+        commentId: id,
+        commentUpdates: {
+          resolved: checked,
+        },
       });
-      batch(() => {
-        if (res.error) {
-          // TODO: Display an error toast.
-        } else {
-          task.value = {
-            ...task.value,
-            comments: task.value.comments.map((comment) => ({
-              ...comment,
-              resolved: id === comment.id ? checked : comment.resolved,
-            })),
-          };
-        }
-        isProcessing.value = false;
-      });
+      if (res.error) {
+        // TODO: Display an error toast.
+      } else {
+        setTask({
+          ...task,
+          comments: task.comments.map((comment) => ({
+            ...comment,
+            resolved: id === comment.id ? checked : comment.resolved,
+          })),
+        });
+      }
+      setIsProcessing(false);
     })();
   };
 
@@ -137,7 +141,7 @@ export default function Comment({
             />
           </div>
         </div>
-        {user.id === authUser.value.id && (
+        {user.id === authUser.id && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="cursor-pointer">
@@ -153,7 +157,7 @@ export default function Comment({
               <DropdownMenuGroup>
                 <DropdownMenuItem
                   className="cursor-pointer"
-                  disabled={isEditing.value || isProcessing.value}
+                  disabled={isEditing || isProcessing}
                   onSelect={startEditing}
                 >
                   <Pencil />
@@ -165,32 +169,32 @@ export default function Comment({
         )}
       </div>
       <div className="p-2">
-        {isEditing.value ? (
+        {isEditing ? (
           <>
             <CommentEdit
               cacheKey={cacheKey}
               defaultValue={initialMarkdown.current}
-              value={markdown.value}
-              setValue={(value) => (markdown.value = value)}
+              value={markdown}
+              setValue={(value) => setMarkdown(value)}
             />
             <div className="flex mt-2 gap-2">
               <AssigneesSelect
                 isMulti={false}
                 menuPlacement="top"
-                value={assignee.value === null ? [] : [assignee.value]}
-                onChange={(user) => (assignee.value = user)}
+                value={assignee === null ? [] : [assignee]}
+                onChange={(user) => setAssignee(user)}
               />
               <div className="flex-none">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={saveComment}
-                  disabled={markdown.value.length == 0 || isProcessing.value}
+                  disabled={markdown.length == 0 || isProcessing}
                   className="cursor-pointer"
                   aria-label="Save"
                   title="Save"
                 >
-                  {isProcessing.value ? (
+                  {isProcessing ? (
                     <LoaderCircle className="animate-spin" />
                   ) : (
                     <Check />
@@ -213,11 +217,11 @@ export default function Comment({
           <CommentText comment={comment} />
         )}
       </div>
-      {assignee.value && authUser.value && !isEditing.value && (
+      {assignee && authUser && !isEditing && (
         <div
-          className={`rounded-b-lg p-2 flex items-center gap-3 ${resolved ? " bg-green-200 dark:bg-green-950" : assignee.value.username === authUser.value.username ? " bg-purple-200 dark:bg-purple-950" : "bg-blue-200 dark:bg-blue-950"}`}
+          className={`rounded-b-lg p-2 flex items-center gap-3 ${resolved ? " bg-green-200 dark:bg-green-950" : assignee.username === authUser.username ? " bg-purple-200 dark:bg-purple-950" : "bg-blue-200 dark:bg-blue-950"}`}
         >
-          {isProcessing.value ? (
+          {isProcessing ? (
             <LoaderCircle className="animate-spin" size={16} />
           ) : (
             <>
@@ -231,7 +235,7 @@ export default function Comment({
                 htmlFor={`comment-${id}-resolved`}
                 className={resolved ? "line-through" : ""}
               >
-                Assigned to <strong>{assignee.value.fullName}</strong>
+                Assigned to <strong>{assignee.fullName}</strong>
               </Label>
             </>
           )}

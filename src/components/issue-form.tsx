@@ -1,5 +1,12 @@
-import { usePortalState } from "@/helpers/state";
-import { batch, useSignal } from "@preact/signals-react";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import {
+  issueAtom,
+  reloadTasksAtom,
+  taskAtom,
+  userAtom,
+  createTaskFn,
+} from "@/helpers/state";
+import { useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import TaskAssigneesSelect from "./task-assignees-select";
@@ -9,33 +16,44 @@ import IssueCloseButton from "./issue-close-button";
 import TagsSelect from "./tags-select";
 
 export default function IssueForm() {
-  const { createTask, issue, reloadTasks, task } = usePortalState();
-  const isProcessing = useSignal(false);
+  const [task, setTask] = useAtom(taskAtom);
+  const setIssue = useSetAtom(issueAtom);
+  const reloadTasks = useSetAtom(reloadTasksAtom);
+  const user = useAtomValue(userAtom);
+
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const updateTaskField = (fieldName: string, value: any) =>
-    (task.value = { ...task.value, [fieldName]: value });
+    setTask({ ...task, [fieldName]: value });
 
   const saveTask = () => {
-    isProcessing.value = true;
-    const { name, markdown_description, assignees, tags } = task.value;
+    setIsProcessing(true);
+    const { name, markdown_description, assignees, tags } = task;
     (async () => {
-      const res = await createTask({
-        name,
-        markdown_description,
-        assignees: assignees.map(({ id }) => id),
-        tags: tags.map(({ name }) => name),
-        status: "open",
-      });
-      batch(() => {
-        if (res.error) {
-          // TODO: Show an error toast.
-        } else {
-          issue.value = null;
-          task.value = null;
-        }
-        isProcessing.value = false;
-        reloadTasks();
-      });
+      const getCurrentUser = () => user;
+      const setUserFn = () => {}; // Handled by atom
+      const refreshToken = async () => false; // Handled by atom
+
+      const res = await createTaskFn(
+        {
+          name,
+          markdown_description,
+          assignees: assignees.map(({ id }) => id),
+          tags: tags.map(({ name }) => name),
+          status: "open",
+        },
+        getCurrentUser,
+        setUserFn,
+        refreshToken,
+      );
+      if (res.error) {
+        // TODO: Show an error toast.
+      } else {
+        setIssue(null);
+        setTask(null);
+      }
+      setIsProcessing(false);
+      reloadTasks();
     })();
   };
 
@@ -50,7 +68,7 @@ export default function IssueForm() {
         id="title"
         placeholder="Title"
         className="mb-4"
-        value={task.value.name}
+        value={task.name}
         onChange={(e) => updateTaskField("name", e.target.value)}
       />
       <div className="mb-2">
@@ -58,7 +76,7 @@ export default function IssueForm() {
           cacheKey={null}
           placeholder="Description"
           setValue={(value) => updateTaskField("markdown_description", value)}
-          value={task.value.markdown_description}
+          value={task.markdown_description}
         />
       </div>
       <TagsSelect />
@@ -69,8 +87,8 @@ export default function IssueForm() {
           buttonLabel="Create"
           fieldLabel="task description"
           onClick={saveTask}
-          processing={isProcessing.value}
-          text={task.value.markdown_description}
+          processing={isProcessing}
+          text={task.markdown_description}
         />
       </div>
     </div>

@@ -1,5 +1,6 @@
 import * as React from "react";
-import { usePortalState } from "@/helpers/state";
+import { useAtomValue } from "jotai";
+import { activityAtom, issueAtom } from "@/helpers/state";
 
 import { NavUser } from "@/components/nav-user";
 import { ActivitySwitcher } from "@/components/activity-switcher";
@@ -19,7 +20,8 @@ import Issues from "./issues";
 import VisualizationSidebar from "./visualization-sidebar";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { activity, issue } = usePortalState();
+  const activity = useAtomValue(activityAtom);
+  const issue = useAtomValue(issueAtom);
   const { open } = useSidebar();
 
   return (
@@ -30,16 +32,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         {open && (
           <>
-            {activity.value === "data" && (
+            {activity === "data" && (
               <>
                 <DataSidebar />
                 <VisualizationSidebar />
               </>
             )}
-            {activity.value === "issues" && (
+            {activity === "issues" && (
               <>
-                {issue.value ? (
-                  issue.value === "new" ? (
+                {issue ? (
+                  issue === "new" ? (
                     <IssueForm />
                   ) : (
                     <IssueDetail />

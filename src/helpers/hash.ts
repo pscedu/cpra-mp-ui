@@ -1,10 +1,4 @@
-import {
-  batch,
-  effect,
-  signal,
-  Signal,
-  untracked,
-} from "@preact/signals-react";
+import { atom, Atom } from "jotai";
 import { portalBaseUrl } from "./config";
 
 export const getHashParams = () =>
@@ -46,61 +40,63 @@ export const setHash = (params: URLSearchParams) => {
   }
 };
 
-type HashSignal<T> = {
-  signal: Signal<T>;
-  fromHash: (params: URLSearchParams) => void;
+type HashAtom<T> = {
+  atom: Atom<T>;
+  fromHash: (params: URLSearchParams) => T;
   updateHash: (params: URLSearchParams, value: T) => void;
 };
 
-const hashSignals: HashSignal<any>[] = [];
+const hashAtoms: HashAtom<any>[] = [];
 
-export const initHashSignals = (reconcileState: () => void) => {
-  effect(() => {
+export const initHashAtoms = (reconcileState: () => void) => {
+  // Set up hash change listener
+  if (typeof window !== "undefined") {
     window.addEventListener(
       "hashchange",
       () => {
         const params = getHashParams();
         setHashUpdateMode(null);
-        batch(() => {
-          for (const hs of hashSignals)
-            hs.signal.value = untracked(() => hs.fromHash(params));
-          untracked(reconcileState);
-        });
+        // Trigger updates for all hash atoms
+        // Note: actual synchronization will happen in components via useEffect
+        reconcileState();
         setHashUpdateMode("push");
       },
       false,
     );
-  });
-
-  // When the signal value changes, rebuild the URL hash.
-  effect(() => {
-    const params = getHashParams();
-    for (const hs of hashSignals) {
-      const value = hs.signal.value;
-      untracked(() => hs.updateHash(params, value));
-    }
-
-    setHash(params);
-  });
+  }
 };
 
-export const hashSignalBase = (fromHash, updateHash) => {
-  const sig = signal(fromHash(getHashParams()));
-  hashSignals.push({
-    signal: sig,
+export const hashAtomBase = <T>(
+  fromHash: (params: URLSearchParams) => T,
+  updateHash: (params: URLSearchParams, value: T) => void,
+) => {
+  const baseAtom = atom<T>(fromHash(getHashParams()));
+  const derivedAtom = atom(
+    (get) => get(baseAtom),
+    (get, set, newValue: T) => {
+      set(baseAtom, newValue);
+      const params = getHashParams();
+      updateHash(params, newValue);
+      setHash(params);
+    },
+  );
+
+  hashAtoms.push({
+    atom: baseAtom,
     fromHash,
     updateHash,
   });
-  return sig;
+
+  return derivedAtom;
 };
 
-export const hashSignal = <T>(
+export const hashAtom = <T>(
   hashKey: string,
   defaultValue: T,
-  encoder = (val: T): string => val as string,
-  decoder = (val: string | null): T => val as T,
+  encoder = (val: T): string => val as unknown as string,
+  decoder = (val: string | null): T => val as unknown as T,
   includeDefault = false,
-): Signal<T> => {
+): Atom<T> => {
   const fromHash = (params: URLSearchParams) =>
     params.has(hashKey) ? decoder(params.get(hashKey)) : defaultValue;
   const updateHash = (params: URLSearchParams, value: T) => {
@@ -108,16 +104,16 @@ export const hashSignal = <T>(
       params.delete(hashKey);
     else params.set(hashKey, encoder(value));
   };
-  return hashSignalBase(fromHash, updateHash);
+  return hashAtomBase(fromHash, updateHash);
 };
 
-export const datasetsSignal = (structure) => {
-  const fromHash = (params: URLSearchParams) => {
+export const datasetsAtom = (structure: Atom<any>) => {
+  const fromHash = (params: URLSearchParams, structureValue: any) => {
     const variables = params.getAll("variable") || [];
     const grids = params.getAll("grid") || [];
     const timeUnits = params.getAll("time_unit") || [];
 
-    return (structure.value?.datasets || []).filter((dataset) => {
+    return (structureValue?.datasets || []).filter((dataset: any) => {
       const variableIdx = variables.indexOf(dataset.variable.name);
       if (variableIdx == -1) return false;
       const gridIdx = grids.indexOf(dataset.grid.name);
@@ -126,8 +122,12 @@ export const datasetsSignal = (structure) => {
     });
   };
 
-  const updateHash = (params: URLSearchParams, value) => {
-    if (!structure.value) return;
+  const updateHash = (
+    params: URLSearchParams,
+    value: any,
+    structureValue: any,
+  ) => {
+    if (!structureValue) return;
 
     params.delete("variable");
     params.delete("grid");
@@ -140,19 +140,40 @@ export const datasetsSignal = (structure) => {
     }
   };
 
-  const sig = hashSignalBase(fromHash, updateHash);
+  const baseAtom = atom<any[]>([]);
+  const derivedAtom = atom(
+    (get) => {
+      const structureValue = get(structure);
+      const current = get(baseAtom);
+      if (structureValue && current.length === 0) {
+        // Initialize from hash on first load
+        return fromHash(getHashParams(), structureValue);
+      }
+      return current;
+    },
+    (get, set, newValue: any[]) => {
+      const structureValue = get(structure);
+      set(baseAtom, newValue);
+      const params = getHashParams();
+      updateHash(params, newValue, structureValue);
+      setHash(params);
+    },
+  );
 
-  effect(() => {
-    sig.value = fromHash(getHashParams());
+  hashAtoms.push({
+    atom: baseAtom,
+    fromHash: (params: URLSearchParams) => fromHash(params, null),
+    updateHash: (params: URLSearchParams, value: any) =>
+      updateHash(params, value, null),
   });
 
-  return sig;
+  return derivedAtom;
 };
 
-export const filtersSignal = (structure) => {
-  const fromHash = (params: URLSearchParams) => {
-    const value = {};
-    for (let dimension of structure.value?.dimensions || []) {
+export const filtersAtom = (structure: Atom<any>) => {
+  const fromHash = (params: URLSearchParams, structureValue: any) => {
+    const value: Record<string, any> = {};
+    for (let dimension of structureValue?.dimensions || []) {
       if (["dataset", "metadata"].includes(dimension.type)) continue;
       let dimensionValues = params.getAll(dimension.name);
       if (dimensionValues.length) value[dimension.name] = dimensionValues;
@@ -160,10 +181,14 @@ export const filtersSignal = (structure) => {
     return value;
   };
 
-  const updateHash = (params: URLSearchParams, value) => {
-    if (!structure.value) return;
+  const updateHash = (
+    params: URLSearchParams,
+    value: any,
+    structureValue: any,
+  ) => {
+    if (!structureValue) return;
 
-    for (let dimension of structure.value.dimensions) {
+    for (let dimension of structureValue.dimensions) {
       if (["dataset", "metadata"].includes(dimension.type)) continue;
       params.delete(dimension.name);
       if (dimension.name in value)
@@ -172,13 +197,34 @@ export const filtersSignal = (structure) => {
     }
   };
 
-  const sig = hashSignalBase(fromHash, updateHash);
+  const baseAtom = atom<Record<string, any>>({});
+  const derivedAtom = atom(
+    (get) => {
+      const structureValue = get(structure);
+      const current = get(baseAtom);
+      if (structureValue && Object.keys(current).length === 0) {
+        // Initialize from hash on first load
+        return fromHash(getHashParams(), structureValue);
+      }
+      return current;
+    },
+    (get, set, newValue: Record<string, any>) => {
+      const structureValue = get(structure);
+      set(baseAtom, newValue);
+      const params = getHashParams();
+      updateHash(params, newValue, structureValue);
+      setHash(params);
+    },
+  );
 
-  effect(() => {
-    sig.value = fromHash(getHashParams());
+  hashAtoms.push({
+    atom: baseAtom,
+    fromHash: (params: URLSearchParams) => fromHash(params, null),
+    updateHash: (params: URLSearchParams, value: any) =>
+      updateHash(params, value, null),
   });
 
-  return sig;
+  return derivedAtom;
 };
 
 export const getPermalink = ({

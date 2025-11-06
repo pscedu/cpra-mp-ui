@@ -1,6 +1,7 @@
-import { usePortalState } from "@/helpers/state";
+import { useAtom, useAtomValue } from "jotai";
+import { taskAtom, userAtom, createCommentFn } from "@/helpers/state";
 import { markdownToComment } from "@/helpers/clickup";
-import { batch, useSignal } from "@preact/signals-react";
+import { useState } from "react";
 
 import CommentEdit from "@/components/comment-edit";
 import CommentSaveButton from "./comment-save-button";
@@ -8,30 +9,40 @@ import UserAvatar from "@/components/user-avatar";
 import AssigneesSelect from "./assignees-select";
 
 export default function CommentForm() {
-  const { createComment, task } = usePortalState();
-  const taskId = task.value.id;
+  const [task, setTask] = useAtom(taskAtom);
+  const user = useAtomValue(userAtom);
+
+  const taskId = task.id;
   const cacheKey = `issue-${taskId}-comment-new`;
-  const markdown = useSignal("");
-  const isProcessing = useSignal(false);
-  const assignee = useSignal(null);
+  const [markdown, setMarkdown] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [assignee, setAssignee] = useState(null);
 
   const saveComment = () => {
-    isProcessing.value = true;
+    setIsProcessing(true);
     (async () => {
-      const res = await createComment(taskId, {
-        assignee: assignee.value ? assignee.value.id : null,
-        comment: markdownToComment(markdown.value),
-      });
-      batch(() => {
-        if (res.error) {
-          // TODO: Display an error toast.
-        } else {
-          task.value = { ...task.value, comments: res.comments };
-          markdown.value = "";
-          assignee.value = null;
-        }
-        isProcessing.value = false;
-      });
+      const getCurrentUser = () => user;
+      const setUserFn = () => {}; // Handled by atom
+      const refreshToken = async () => false; // Handled by atom
+
+      const res = await createCommentFn(
+        taskId,
+        {
+          assignee: assignee ? assignee.id : null,
+          comment: markdownToComment(markdown),
+        },
+        getCurrentUser,
+        setUserFn,
+        refreshToken,
+      );
+      if (res.error) {
+        // TODO: Display an error toast.
+      } else {
+        setTask({ ...task, comments: res.comments });
+        setMarkdown("");
+        setAssignee(null);
+      }
+      setIsProcessing(false);
     })();
   };
 
@@ -46,20 +57,20 @@ export default function CommentForm() {
       <div className="p-2">
         <CommentEdit
           cacheKey={cacheKey}
-          value={markdown.value}
-          setValue={(value) => (markdown.value = value)}
+          value={markdown}
+          setValue={(value) => setMarkdown(value)}
         />
         <div className="flex mt-2 gap-2">
           <AssigneesSelect
             isMulti={false}
             menuPlacement="top"
-            value={assignee.value === null ? [] : [assignee.value]}
-            onChange={(user) => (assignee.value = user)}
+            value={assignee === null ? [] : [assignee]}
+            onChange={(user) => setAssignee(user)}
           />
           <CommentSaveButton
             onClick={saveComment}
-            processing={isProcessing.value}
-            text={markdown.value}
+            processing={isProcessing}
+            text={markdown}
           />
         </div>
       </div>

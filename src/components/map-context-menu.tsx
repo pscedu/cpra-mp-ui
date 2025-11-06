@@ -1,6 +1,12 @@
-import { useRef } from "react";
-import { useSignalEffect } from "@preact/signals-react";
-import { usePortalState } from "@/helpers/state";
+import { useEffect, useRef } from "react";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import {
+  contextMenuAtom,
+  mapCatalogQueryAtom,
+  rotateSelectedGeographiesAtom,
+  selectedGeographiesAtom,
+  visualizationAtom,
+} from "@/helpers/state";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -23,26 +29,27 @@ import {
 import ColorChooserMenuItems from "@/components/color-chooser-menu-items";
 
 export default function MapContextMenu({ children }) {
-  const {
-    contextMenu,
-    mapCatalogQuery,
-    rotateSelectedGeographies,
-    selectedGeographies,
-    visualization,
-  } = usePortalState();
+  const [contextMenu, setContextMenu] = useAtom(contextMenuAtom);
+  const mapCatalogQuery = useAtomValue(mapCatalogQueryAtom);
+  const rotateSelectedGeographies = useSetAtom(rotateSelectedGeographiesAtom);
+  const [selectedGeographies, setSelectedGeographies] = useAtom(
+    selectedGeographiesAtom,
+  );
+  const visualization = useAtomValue(visualizationAtom);
+
   const trigger = useRef(null);
 
-  const geography = contextMenu.value?.geography;
-  const selectionCount = selectedGeographies.value.length;
-  const maxGeographies = visualization?.value?.max_geographies || 10;
+  const geography = contextMenu?.geography;
+  const selectionCount = selectedGeographies.length;
+  const maxGeographies = visualization?.max_geographies || 10;
 
-  useSignalEffect(() => {
+  useEffect(() => {
     if (
-      contextMenu.value &&
-      contextMenu.value.type === "geography-select" &&
+      contextMenu &&
+      contextMenu.type === "geography-select" &&
       trigger.current
     ) {
-      const { x, y } = contextMenu.value;
+      const { x, y } = contextMenu;
       trigger.current.dispatchEvent(
         new MouseEvent("contextmenu", {
           bubbles: true,
@@ -51,12 +58,12 @@ export default function MapContextMenu({ children }) {
         }),
       );
     }
-  });
+  }, [contextMenu]);
 
   return (
     <ContextMenu
       onOpenChange={(open) => {
-        if (!open) contextMenu.value = null;
+        if (!open) setContextMenu(null);
       }}
     >
       <ContextMenuTrigger ref={trigger}>{children}</ContextMenuTrigger>
@@ -65,7 +72,7 @@ export default function MapContextMenu({ children }) {
           <>
             <ContextMenuSub>
               <ContextMenuSubTrigger inset>
-                Select {mapCatalogQuery.value.dataset.grid.label.toLowerCase()}
+                Select {mapCatalogQuery.dataset.grid.label.toLowerCase()}
               </ContextMenuSubTrigger>
               <ContextMenuSubContent>
                 <ContextMenuLabel>Choose outline color</ContextMenuLabel>
@@ -77,7 +84,7 @@ export default function MapContextMenu({ children }) {
         )}
         <ContextMenuItem
           disabled={!selectionCount}
-          onSelect={() => (selectedGeographies.value = [])}
+          onSelect={() => setSelectedGeographies([])}
         >
           <X /> Clear selection
           <ContextMenuShortcut>Esc</ContextMenuShortcut>

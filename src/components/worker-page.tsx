@@ -1,6 +1,7 @@
 import { useEffect } from "react";
-import { useSignal } from "@preact/signals-react";
 import { useLocation, useNavigate } from "react-router";
+import { useAtom } from "jotai";
+import { workerPageAtom } from "@/helpers/state";
 
 import { LoaderCircle, TriangleAlert } from "lucide-react";
 
@@ -11,22 +12,26 @@ export default function WorkerPage({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const description = useSignal(initialDescription);
-  const heading = useSignal(initialHeading);
-  const status = useSignal("working");
+  const [{ description, heading, status }, setWorkerPage] =
+    useAtom(workerPageAtom);
 
   useEffect(() => {
-    action(location, navigate, { description, heading, status });
+    setWorkerPage({
+      description: initialDescription,
+      heading: initialHeading,
+      status: "working",
+    });
+    action(location, navigate);
   }, []);
 
   return (
     <div className="flex h-screen">
       <div className="m-auto">
-        {(status.value == "working" && (
+        {(status == "working" && (
           <LoaderCircle size="large" className="animate-spin" />
         )) || <TriangleAlert size="large" />}
-        {heading.value && <h1>{heading.value}</h1>}
-        {description.value && <p>{description.value}</p>}
+        {heading && <h1>{heading}</h1>}
+        {description && <p>{description}</p>}
       </div>
     </div>
   );
