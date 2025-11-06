@@ -23,7 +23,7 @@ import { commentToMarkdown, markdownToComment } from "@/helpers/clickup";
 
 export default function Comment({
   action = "commented",
-  assignee: assigneeUser,
+  assignee: assigneeUser = null,
   comment,
   date,
   id = null,
@@ -33,7 +33,7 @@ export default function Comment({
   const { task, updateComment, updateTask, user: authUser } = usePortalState();
   const initialMarkdown = useRef("");
   const markdown = useSignal("");
-  const assignee = useSignal(assigneeUser);
+  const assignee = useSignal(assigneeUser || null);
   const isEditing = useSignal(false);
   const isProcessing = useSignal(false);
 
