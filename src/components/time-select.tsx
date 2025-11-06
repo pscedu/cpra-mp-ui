@@ -106,7 +106,7 @@ export default function TimeSelect() {
         />
       </div>
       <SelectionModeDropdown
-        dimensionName={"time"}
+        dimensionName={timeDimension.value.name}
         dimensionLabel={label}
         maxLength={values.length}
         optionsLength={choices.length}
