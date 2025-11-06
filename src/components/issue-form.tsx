@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { usePortalState } from "@/helpers/state";
 import { batch, useSignal } from "@preact/signals-react";
 
@@ -9,8 +10,23 @@ import IssueCloseButton from "./issue-close-button";
 import TagsSelect from "./tags-select";
 
 export default function IssueForm() {
-  const { createTask, issue, reloadTasks, task } = usePortalState();
+  const { createTask, issue, mapCatalogQuery, reloadTasks, tagOptions, task } =
+    usePortalState();
   const isProcessing = useSignal(false);
+
+  useEffect(() => {
+    // Update the issue tags to match the current dataset and filters.
+    const query = mapCatalogQuery.value;
+    if (!query || !tagOptions.value) return;
+    const wantedTags = [];
+    for (const dimensionName of Object.keys(query.response.results))
+      for (const dimensionValue of query.response.results[dimensionName])
+        wantedTags.push(`${dimensionName}:${dimensionValue.toString()}`);
+    const tags = tagOptions.value
+      .filter((tag) => wantedTags.includes(tag.value))
+      .map((tag) => ({ name: tag.value }));
+    if (tags.length) task.value = { ...task.value, tags };
+  }, [mapCatalogQuery.value, tagOptions.value]);
 
   const updateTaskField = (fieldName: string, value: any) =>
     (task.value = { ...task.value, [fieldName]: value });
