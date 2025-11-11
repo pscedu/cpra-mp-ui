@@ -206,7 +206,7 @@ export const MultiValueRemove = (props: MultiValueRemoveProps<OptionType>) => {
 export const Option = (props: OptionProps<OptionType>) => {
   return (
     <components.Option {...props}>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" title={props.label}>
         <div>{props.label}</div>
         {props.isSelected && <Check className="h-4 w-4 opacity-50" />}
       </div>

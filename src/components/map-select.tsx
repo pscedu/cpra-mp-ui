@@ -49,8 +49,6 @@ export default function MapSelect() {
     return 0;
   });
 
-  // TODO: Sort the options so the selected value is not always the first,
-  // and implement the change handler.
   return (
     <SidebarSelect
       label="Map"
