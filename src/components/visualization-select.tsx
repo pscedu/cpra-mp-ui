@@ -20,7 +20,7 @@ export default function VisualizationSelect() {
 
   return (
     <SidebarSelect
-      label="visualization"
+      label="Chart"
       options={options}
       signal={visualizationType}
       icon={ChartLine}

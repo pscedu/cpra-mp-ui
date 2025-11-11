@@ -30,7 +30,7 @@ export function SelectionModeDropdown({
   supportsSubtract,
   supportsConcatenate,
 }) {
-  const { analysis, analysisType } = usePortalState();
+  const { analysis, setAnalysis } = usePortalState();
   const { operation, dimension } = analysis.value;
 
   const options = [
@@ -40,12 +40,12 @@ export function SelectionModeDropdown({
       icon: Square,
       maxLength: 1,
     },
-    // {
-    //   value: "compare",
-    //   label: "Compare Multiple",
-    //   icon: SquareStack,
-    //   maxLength: Infinity,
-    // },
+    {
+      value: "compare",
+      label: "Compare Multiple",
+      icon: SquareStack,
+      maxLength: Infinity,
+    },
   ];
 
   if (supportsSubtract)
@@ -65,13 +65,13 @@ export function SelectionModeDropdown({
       },
     );
 
-  // if (supportsConcatenate)
-  //   options.push({
-  //     value: "concatenate",
-  //     label: "Concatenate",
-  //     icon: Ampersand,
-  //     maxLength: 2,
-  //   });
+  if (supportsConcatenate)
+    options.push({
+      value: "concatenate",
+      label: "Concatenate",
+      icon: Ampersand,
+      maxLength: 2,
+    });
 
   const selectedOption = options.find(
     (option) =>
@@ -92,9 +92,8 @@ export function SelectionModeDropdown({
     const newSelectedOption = options.find((option) => option.value === value);
     batch(() => {
       setMaxLength(newSelectedOption?.maxLength || 1);
-      analysisType.value = ["single", "compare"].includes(value)
-        ? "single"
-        : `${value}:${dimensionName}`;
+      if (["single", "compare"].includes(value)) setAnalysis("single");
+      else setAnalysis(value, dimensionName);
     });
   };
 

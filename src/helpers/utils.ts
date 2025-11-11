@@ -117,11 +117,20 @@ export function mergeOr(objects: any[], keys: string[] = null) {
   return result;
 }
 
-export function getFilterParams(requiredDimensions, filters) {
+export function getFilterParams(
+  requiredDimensions,
+  filters,
+  maxValues: number | null = null,
+) {
   const params = [];
-  for (let dimension of requiredDimensions)
-    for (let value of filters[dimension.name] || [])
+  for (let dimension of requiredDimensions) {
+    let dimensionParamsCount = 0;
+    for (let value of filters[dimension.name] || []) {
       params.push([dimension.name, value]);
+      dimensionParamsCount++;
+      if (maxValues && dimensionParamsCount === maxValues) break;
+    }
+  }
   return params;
 }
 
@@ -174,4 +183,36 @@ export function toTitleCase(text: string) {
     /\w\S*/g,
     (word) => word.charAt(0).toUpperCase() + word.substring(1).toLowerCase(),
   );
+}
+
+/**
+ * Gets all possible combinations from an object with array properties using reduce
+ * (Cartesian product for objects)
+ *
+ * @param {Object} obj - Object with array properties
+ * @returns {Array<Object>} All possible combinations as objects
+ */
+export function getCartesianProductObject(obj) {
+  const keys = Object.keys(obj);
+  const values = keys.map((key) => obj[key]);
+
+  return values.reduce(
+    (acc, curr, index) =>
+      acc.flatMap((a) => curr.map((b) => ({ ...a, [keys[index]]: b }))),
+    [{}],
+  );
+}
+
+export function sortConsistent(newValues, oldValues) {
+  const getIdx = (value) => {
+    const idx = (oldValues || []).indexOf(value);
+    return idx === -1 ? 9999 : idx;
+  };
+  newValues.sort((a, b) => {
+    return getIdx(a) - getIdx(b);
+  });
+}
+
+export function moveToFirstPosition(newFirstItem, allItems) {
+  return [newFirstItem, ...allItems.filter((item) => item !== newFirstItem)];
 }

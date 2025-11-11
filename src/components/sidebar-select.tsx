@@ -16,7 +16,7 @@ export default function SidebarSelect({
   value: explicitValue = null,
   ...rest
 }) {
-  const valueOrValues = explicitValue || signal.value;
+  const valueOrValues = explicitValue !== null ? explicitValue : signal.value;
   const supportsMulti = Array.isArray(valueOrValues);
   const values = supportsMulti ? valueOrValues : [valueOrValues];
   const maxLength = useSignal(values.length === 1 ? 1 : Infinity);

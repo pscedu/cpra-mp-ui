@@ -7,6 +7,7 @@ import {
   getFilterParams,
   makeQueryString,
   mergeOr,
+  sortConsistent,
 } from "./utils";
 
 export class CatalogQuery {
@@ -33,13 +34,17 @@ export class CatalogQuery {
     );
     const requestPath = `${dataBaseUrl}/datasets/${variable.name}/${grid.name}/${time_unit}/catalog.json${qs}`;
     this.response = await getJson(requestPath);
+    // Sort the filters so that the order of the requested filters is preserved if possible.
+    for (const key of Object.keys(this.response.results))
+      sortConsistent(this.response.results[key], this.filters[key]);
   }
 
   getQueryParams(
-    { analysis, geographies, maxGeographies }: QueryOptions = {
+    { analysis, geographies, maxGeographies, maxValues }: QueryOptions = {
       analysis: null,
       geographies: null,
       maxGeographies: null,
+      maxValues: null,
     },
   ): [string, any][] {
     const requiredDimensions = this.structure.getRequiredDimensions([
@@ -53,13 +58,18 @@ export class CatalogQuery {
       if (!geographies || dimension.filterType !== "time")
         selectedFilters[dimension.name] = this.response.results[dimension.name];
 
-    const params = getFilterParams(requiredDimensions, selectedFilters);
+    const params = getFilterParams(
+      requiredDimensions,
+      selectedFilters,
+      maxValues,
+    );
 
     if (analysis) {
       const { operation, dimension } = analysis;
       if (operation.startsWith("subtract-")) {
-        const values = this.response.results[dimension];
+        const values = [...this.response.results[dimension]];
         if (values && values.length === 2) {
+          values.sort((a, b) => (a < b ? -1 : 1));
           const negateValue = values[operation.endsWith("asc") ? 1 : 0];
           const groupByNames = requiredDimensions
             .map(({ name }) => name)
@@ -118,6 +128,10 @@ export class CatalogQueries {
       ),
       filterDimensionNames,
     );
+
+    // Sort the combined filters so that the order of the requested filters is preserved if possible.
+    for (let key of Object.keys(this.combinedFilters))
+      sortConsistent(this.combinedFilters[key], this.filters[key]);
 
     this.combinedChoices = mergeOr(
       this.queries.map(({ dataset, response }) =>

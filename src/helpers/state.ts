@@ -18,8 +18,8 @@ import {
   initHashSignals,
   setHashUpdateMode,
 } from "./hash";
-import { getStructure, Structure } from "./structure";
-import { getJson, getNdJson } from "./utils";
+import { Dataset, getStructure, Structure } from "./structure";
+import { getJson, getNdJson, sortConsistent } from "./utils";
 import { NavigateFunction } from "react-router";
 import { CatalogQueries } from "./catalog";
 
@@ -92,7 +92,7 @@ export function createPortalState() {
   );
   const startDate = hashSignal("start_date", null);
   const endDate = hashSignal("end_date", null);
-  const reconcileDatasets = (
+  const reconcileState = (
     { updateGeographies }: { updateGeographies: boolean } = {
       updateGeographies: false,
     },
@@ -140,7 +140,7 @@ export function createPortalState() {
     }
   };
 
-  initHashSignals(reconcileDatasets);
+  initHashSignals(reconcileState);
 
   // Other signals
   const tasks = signal(null);
@@ -219,7 +219,10 @@ export function createPortalState() {
     )
       return null;
     return mapCatalogQuery.value.dataset.getDataUrl(
-      mapCatalogQuery.value.getQueryParams({ analysis: analysis.value }),
+      mapCatalogQuery.value.getQueryParams({
+        analysis: analysis.value,
+        maxValues: 1,
+      }),
       "ndjson",
     );
   });
@@ -229,6 +232,7 @@ export function createPortalState() {
       ? mapCatalogQuery.value.dataset.getTileUrl(
           mapCatalogQuery.value.getQueryParams({
             analysis: analysis.value,
+            maxValues: 1,
           }),
         )
       : null,
@@ -329,15 +333,26 @@ export function createPortalState() {
   const setSelectedDatasets = (selected: Dataset[]) => {
     batch(() => {
       datasets.value = selected;
-      reconcileDatasets({ updateGeographies: true });
+      reconcileState({ updateGeographies: true });
     });
   };
 
-  const setSelectedFilterChoices = (dimensionName: string, values: []) => {
+  const setSelectedFilterChoices = (
+    dimensionName: string,
+    values: [],
+    sort = true,
+  ) => {
+    if (sort) sortConsistent(values, filters.value[dimensionName]);
     filters.value = {
       ...filters.value,
       [dimensionName]: values,
     };
+  };
+
+  const setAnalysis = (operation: string, dimension: string) => {
+    batch(() => {
+      analysisType.value = dimension ? `${operation}:${dimension}` : operation;
+    });
   };
 
   const getManagementJson = async (
@@ -601,7 +616,6 @@ export function createPortalState() {
   return {
     activity,
     analysis,
-    analysisType,
     avatarCacheKey,
     catalogQueries,
     completeLogin,
@@ -628,6 +642,7 @@ export function createPortalState() {
     reloadTasks,
     rotateSelectedGeographies,
     selectedGeographies,
+    setAnalysis,
     setSelectedDatasets,
     setSelectedFilterChoices,
     setTimeValues,
