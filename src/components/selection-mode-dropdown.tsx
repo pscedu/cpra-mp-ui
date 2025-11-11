@@ -30,7 +30,8 @@ export function SelectionModeDropdown({
   supportsSubtract,
   supportsConcatenate,
 }) {
-  const { analysis, setAnalysis } = usePortalState();
+  const { analysis, catalogQueries, setAnalysis, setSelectedFilterChoices } =
+    usePortalState();
   const { operation, dimension } = analysis.value;
 
   const options = [
@@ -92,8 +93,18 @@ export function SelectionModeDropdown({
     const newSelectedOption = options.find((option) => option.value === value);
     batch(() => {
       setMaxLength(newSelectedOption?.maxLength || 1);
-      if (["single", "compare"].includes(value)) setAnalysis("single");
-      else setAnalysis(value, dimensionName);
+      if (["single", "compare"].includes(value)) {
+        if (analysis.value?.dimension === dimensionName) setAnalysis("single");
+      } else {
+        setAnalysis(value, dimensionName);
+        // Make sure the filter values are sorted in ascending order so that subtraction
+        // works as expected.
+        const dimensionValues = [
+          ...catalogQueries.value.combinedFilters[dimensionName],
+        ];
+        dimensionValues.sort((a, b) => (a < b ? -1 : 1));
+        setSelectedFilterChoices(dimensionName, dimensionValues, false);
+      }
     });
   };
 

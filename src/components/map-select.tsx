@@ -10,6 +10,7 @@ import { Map } from "lucide-react";
 
 export default function MapSelect() {
   const {
+    analysis,
     catalogQueries,
     datasets,
     setSelectedDatasets,
@@ -21,6 +22,7 @@ export default function MapSelect() {
     dataset: catalogQueries.value.datasets,
     ...catalogQueries.value.combinedFilters,
   };
+  if (analysis.value?.dimension) delete allValues[analysis.value?.dimension];
   const combos = getCartesianProductObject(allValues);
   const nameKeys = Object.keys(allValues).filter(
     (key) => allValues[key].length > 1,

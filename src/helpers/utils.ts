@@ -121,6 +121,7 @@ export function getFilterParams(
   requiredDimensions,
   filters,
   maxValues: number | null = null,
+  maxValueExceptions: string[] = [],
 ) {
   const params = [];
   for (let dimension of requiredDimensions) {
@@ -128,7 +129,12 @@ export function getFilterParams(
     for (let value of filters[dimension.name] || []) {
       params.push([dimension.name, value]);
       dimensionParamsCount++;
-      if (maxValues && dimensionParamsCount === maxValues) break;
+      if (
+        maxValues &&
+        !maxValueExceptions.includes(dimension.name) &&
+        dimensionParamsCount === maxValues
+      )
+        break;
     }
   }
   return params;

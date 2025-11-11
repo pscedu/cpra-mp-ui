@@ -62,6 +62,7 @@ export class CatalogQuery {
       requiredDimensions,
       selectedFilters,
       maxValues,
+      analysis?.dimension ? [analysis.dimension] : [],
     );
 
     if (analysis) {
