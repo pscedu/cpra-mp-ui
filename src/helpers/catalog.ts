@@ -8,6 +8,7 @@ import {
   makeQueryString,
   mergeOr,
   sortConsistent,
+  sqlValue,
 } from "./utils";
 
 export class CatalogQuery {
@@ -58,27 +59,59 @@ export class CatalogQuery {
       if (!geographies || dimension.filterType !== "time")
         selectedFilters[dimension.name] = this.response.results[dimension.name];
 
+    const modelGroupValues = selectedFilters.model_group_id || [];
+    const analysisDimensions = [];
+    if (analysis?.dimension) analysisDimensions.push(analysis.dimension);
+    if (analysis?.operation === "concatenate" && modelGroupValues.length === 2)
+      analysisDimensions.push("model_group_id");
+
     const params = getFilterParams(
       requiredDimensions,
       selectedFilters,
       maxValues,
-      analysis?.dimension ? [analysis.dimension] : [],
+      analysisDimensions,
     );
 
     if (analysis) {
       const { operation, dimension } = analysis;
-      if (operation.startsWith("subtract-")) {
+      if (dimension) {
+        let groupByNames = requiredDimensions
+          .map(({ name }) => name)
+          .filter((name) => name !== dimension);
         const values = [...this.response.results[dimension]];
-        if (values && values.length === 2) {
-          values.sort((a, b) => (a < b ? -1 : 1));
-          const negateValue = values[operation.endsWith("asc") ? 1 : 0];
-          const groupByNames = requiredDimensions
-            .map(({ name }) => name)
-            .filter((name) => name !== dimension);
+        values.sort((a, b) => (a < b ? -1 : 1));
+        if (operation.startsWith("subtract-")) {
+          if (values && values.length === 2) {
+            const negateValue = values[operation.endsWith("asc") ? 1 : 0];
+            params.push([
+              "negate",
+              `${dimension}=${sqlValue(negateValue, dimension)}`,
+            ]);
+            params.push(["group_by", groupByNames]);
+            params.push(["group_aggregate", "sum"]);
+          }
+        } else if (operation === "concatenate") {
+          const timeValues = values;
+
+          modelGroupValues.sort();
+          const threeImage = modelGroupValues.length === 2;
           params.push([
-            "negate",
-            `${dimension}=${dimension === "calendar_day" ? `'${negateValue}'::date` : typeof negateValue === "number" ? negateValue : `'${negateValue}'`}`,
+            threeImage ? "multiply100" : "multiply10",
+            `${dimension}=${sqlValue(timeValues[0], dimension)}`,
           ]);
+          if (threeImage) {
+            params.push([
+              "multiply10",
+              `model_group_id=${sqlValue(modelGroupValues[0])} and ${dimension}=${sqlValue(timeValues[1], dimension)}`,
+            ]);
+            params.push([
+              "where",
+              `not (model_group_id=${sqlValue(modelGroupValues[1])} and ${dimension}=${sqlValue(timeValues[0], dimension)})`,
+            ]);
+            groupByNames = groupByNames.filter(
+              (name) => name !== "model_group_id",
+            );
+          }
           params.push(["group_by", groupByNames]);
           params.push(["group_aggregate", "sum"]);
         }

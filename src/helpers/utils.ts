@@ -222,3 +222,11 @@ export function sortConsistent(newValues, oldValues) {
 export function moveToFirstPosition(newFirstItem, allItems) {
   return [newFirstItem, ...allItems.filter((item) => item !== newFirstItem)];
 }
+
+export function sqlValue(value: string | number | Date, dimension = "") {
+  return dimension === "calendar_day"
+    ? `'${value}'::date`
+    : typeof value === "number"
+      ? value
+      : `'${value}'`;
+}

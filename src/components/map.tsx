@@ -42,7 +42,7 @@ export default function Map() {
   const map = useRef(null);
   const prevTileUrl = useRef(null);
   const prevDataset = useRef(null);
-  const prevDifference = useRef(null);
+  const prevAnalysisOperation = useRef(null);
   const dataSourceIdx = useRef(0);
   const dataLayerIdx = useRef(0);
   const markers: Ref<Marker[]> = useRef([]);
@@ -52,10 +52,11 @@ export default function Map() {
   };
 
   const { operation, dimension } = analysis.value;
-  const difference =
-    operation.startsWith("subtract-") &&
+  const analysisOperation =
     mapCatalogQuery.value &&
-    mapCatalogQuery.value.response.results[dimension]?.length > 1;
+    mapCatalogQuery.value.response.results[dimension]?.length > 1
+      ? operation
+      : "single";
 
   const getSourceId = () => `data-source-${dataSourceIdx.current}`;
   const getLayerId = () => `data-layer-${dataLayerIdx.current}`;
@@ -135,13 +136,14 @@ export default function Map() {
     dataSourceIdx.current++;
     const source = dataset.grid.isVector()
       ? vectorSource({ gridName: dataset.grid.name })
-      : difference
+      : analysisOperation.startsWith("subtract-")
         ? differenceRasterSource({
             tileUrls: [tileUrl],
             variable: dataset.variable,
           })
         : rasterSource({
             tileUrls: [tileUrl],
+            colorMap: analysisOperation === "concatenate" ? "lnd_chng" : "",
           });
     map.current.addSource(getSourceId(), source);
   };
@@ -155,7 +157,7 @@ export default function Map() {
     const layers = dataset.grid.isVector()
       ? vectorLayers({
           ...ids,
-          difference,
+          difference: analysisOperation.startsWith("subract-"),
           showLabels: showGridLabels.value,
           showLines: showGridLines.value,
           variable: dataset.variable,
@@ -192,20 +194,27 @@ export default function Map() {
     const legendChanged =
       !prevDataset.current ||
       dataset.variable.legend !== prevDataset.current.variable.legend;
-    const differenceChanged = difference !== prevDifference.current;
+    const analysisOperationChanged =
+      analysisOperation !== prevAnalysisOperation.current;
 
     // We update the source when the dataset changes (even though the tile URL might
     // be the same) to make sure the feature state gets cleared.
-    if (tilesChanged || legendChanged || datasetChanged || differenceChanged) {
+    if (
+      tilesChanged ||
+      legendChanged ||
+      datasetChanged ||
+      analysisOperationChanged
+    ) {
       addSource(tileUrl, dataset);
       addLayers(dataset);
-      if (datasetChanged || legendChanged || differenceChanged) cleanup();
+      if (datasetChanged || legendChanged || analysisOperationChanged)
+        cleanup();
       else scheduleCleanup(dataset);
     }
 
     prevTileUrl.current = tileUrl;
     prevDataset.current = mapCatalogQuery.value.dataset;
-    prevDifference.current = difference;
+    prevAnalysisOperation.current = analysisOperation;
   };
 
   const updateProjectLayers = () => {
@@ -306,7 +315,7 @@ export default function Map() {
       await ensureStyleLoaded();
       updateStyle();
     })();
-  }, [mapCatalogQuery.value, mapTileUrl.value, difference]);
+  }, [mapCatalogQuery.value, mapTileUrl.value, analysisOperation]);
 
   // Update grid label visibility.
   useEffect(() => {
