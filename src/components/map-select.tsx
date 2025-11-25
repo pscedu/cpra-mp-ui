@@ -22,7 +22,15 @@ export default function MapSelect() {
     dataset: catalogQueries.value.datasets,
     ...catalogQueries.value.combinedFilters,
   };
+  // Remove the analysis dimnension, if applicable.
   if (analysis.value?.dimension) delete allValues[analysis.value?.dimension];
+  // Also remove the model group dimnesion if we are doing a three-image
+  // concatenate for land type.
+  if (
+    analysis.value?.operation === "concatenate" &&
+    catalogQueries.value.combinedFilters.model_group_id?.length == 2
+  )
+    delete allValues["model_group_id"];
   const combos = getCartesianProductObject(allValues);
   const nameKeys = Object.keys(allValues).filter(
     (key) => allValues[key].length > 1,

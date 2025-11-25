@@ -92,7 +92,6 @@ export class CatalogQuery {
           }
         } else if (operation === "concatenate") {
           const timeValues = values;
-
           modelGroupValues.sort();
           const threeImage = modelGroupValues.length === 2;
           params.push([

@@ -16,8 +16,13 @@ import { SelectionModeDropdown } from "./selection-mode-dropdown";
 import { Slider } from "./ui/slider";
 
 export default function TimeSelect() {
-  const { timeChoices, timeDimension, timeValues, setTimeValues } =
-    usePortalState();
+  const {
+    mapCatalogQuery,
+    timeChoices,
+    timeDimension,
+    timeValues,
+    setTimeValues,
+  } = usePortalState();
 
   const choices = timeChoices.value;
   const selected = timeValues.value;
@@ -114,14 +119,19 @@ export default function TimeSelect() {
           const newLength = Math.min(ml, 2);
           if (newLength > values.length) {
             let newValues = values.slice();
-            if (values[0] === values.length - 1) newValues.splice(0, 0, 0);
-            else newValues.push(0);
-            setTimeValues(newValues.map((idx) => choices[idx]));
+            if (values[0] === choices.length - 1) newValues.splice(0, 0, 0);
+            else newValues.push(choices.length - 1);
+            setTimeValues(
+              newValues.map((idx) => choices[idx]),
+              false,
+            );
           } else if (newLength < values.length) {
-            setTimeValues([choices[values[0]]]);
+            setTimeValues([choices[values[0]]], false);
           }
         }}
-        supportsConcatenate={true}
+        supportsConcatenate={
+          mapCatalogQuery.value?.dataset?.variable?.name === "lnd_type"
+        }
         supportsSubtract={true}
       />
     </>

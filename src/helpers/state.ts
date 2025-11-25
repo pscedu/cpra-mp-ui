@@ -109,6 +109,13 @@ export function createPortalState() {
     )
       selectedGeographies.value = [];
 
+    // Reset analysis when the variable changes.
+    if (
+      analysis.value.operation === "concatenate" &&
+      mapDataset?.variable?.name !== "lnd_type"
+    )
+      analysisType.value = "single";
+
     // Handle changing from daily/monthly datasets to annual/decadal datasets
     // and vice-versa.
     const timeColumn = mapDataset.getTimeColumn();
@@ -321,13 +328,18 @@ export function createPortalState() {
       ];
   };
 
-  const setTimeValues = (values) => {
-    timeValues.value = values;
-    if (timeValuesTimeout) clearTimeout(timeValuesTimeout);
-    timeValuesTimeout = setTimeout(
-      () => setSelectedFilterChoices(timeDimension.value.name, values),
-      250,
-    );
+  const setTimeValues = (values, useTimeout = true) => {
+    batch(() => {
+      timeValues.value = values;
+      if (timeValuesTimeout) clearTimeout(timeValuesTimeout);
+      const updateFilters = () =>
+        setSelectedFilterChoices(timeDimension.value.name, values);
+      if (useTimeout) {
+        timeValuesTimeout = setTimeout(updateFilters, 250);
+      } else {
+        updateFilters();
+      }
+    });
   };
 
   const setSelectedDatasets = (selected: Dataset[]) => {
