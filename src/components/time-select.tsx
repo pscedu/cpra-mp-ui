@@ -1,4 +1,5 @@
-import { usePortalState } from "@/helpers/state";
+import { useAtomValue, useSetAtom, useAtom } from "jotai";
+import * as atoms from "@/helpers/state";
 import { parseDate } from "@/helpers/utils";
 
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -16,22 +17,16 @@ import { SelectionModeDropdown } from "./selection-mode-dropdown";
 import { Slider } from "./ui/slider";
 
 export default function TimeSelect() {
-  const {
-    mapCatalogQuery,
-    timeChoices,
-    timeDimension,
-    timeValues,
-    setTimeValues,
-  } = usePortalState();
+  // Atoms imported at top
 
-  const choices = timeChoices.value;
-  const selected = timeValues.value;
+  const choices = timeChoices;
+  const selected = timeValues;
 
   if (!choices.length || !selected.length) return;
 
   const isYear = typeof choices[0] === "number";
   const values = selected.map((value) => choices.indexOf(value));
-  const label = timeDimension.value ? timeDimension.value.label : "Value";
+  const label = timeDimension ? timeDimension?.label : "Value";
   const editLabel = `Edit ${label.toLowerCase()}`;
 
   return (
@@ -60,7 +55,7 @@ export default function TimeSelect() {
                     min={choices[0]}
                     max={choices[choices.length - 1]}
                     onChange={(e) => {
-                      const newValue = parseInt(e.target.value);
+                      const newValue = parseInt(e.target);
                       if (choices.includes(newValue)) {
                         const newSelected = [...selected];
                         newSelected[idx] = newValue;
@@ -111,7 +106,7 @@ export default function TimeSelect() {
         />
       </div>
       <SelectionModeDropdown
-        dimensionName={timeDimension.value.name}
+        dimensionName={timeDimension?.name}
         dimensionLabel={label}
         maxLength={values.length}
         optionsLength={choices.length}
@@ -130,7 +125,7 @@ export default function TimeSelect() {
           }
         }}
         supportsConcatenate={
-          mapCatalogQuery.value?.dataset?.variable?.name === "lnd_type"
+          mapCatalogQuery?.dataset?.variable?.name === "lnd_type"
         }
         supportsSubtract={true}
       />

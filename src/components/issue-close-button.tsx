@@ -1,5 +1,9 @@
-import { batch } from "@preact/signals-react";
-import { usePortalState } from "@/helpers/state";
+import { useAtomValue, useSetAtom, useAtom } from "jotai";
+import * as atoms from "@/helpers/state";
+
+// State atoms
+const issue = useAtomValue(atoms.issueAtom);
+const task = useAtomValue(atoms.taskAtom);
 
 import { Button } from "./ui/button";
 import { ReactNode } from "react";
@@ -12,15 +16,15 @@ export default function IssueCloseButton({
   children: ReactNode;
   variant: "ghost" | "outline";
 }) {
-  const { issue, task } = usePortalState();
+  
   return (
     <Button
       className="cursor-pointer"
       variant={variant}
       onClick={() =>
         batch(() => {
-          issue.value = null;
-          task.value = null;
+          issue = null;
+          task = null;
         })
       }
     >

@@ -1,4 +1,5 @@
-import { usePortalState } from "../helpers/state";
+import { useAtomValue, useSetAtom, useAtom } from "jotai";
+import * as atoms from "@/helpers/state";
 
 import {
   SidebarGroup,
@@ -10,9 +11,9 @@ import DatasetSelect from "@/components/dataset-select";
 import DimensionsSelect from "@/components/dimensions-select";
 
 export default function DataSidebar() {
-  const { catalogQueries, datasets, structure } = usePortalState();
+  // Atoms imported at top
 
-  if (!structure.value || !datasets.value?.length || !catalogQueries.value)
+  if (!structure || !datasets?.length || !catalogQueries)
     return;
 
   return (

@@ -1,15 +1,21 @@
-import { usePortalState } from "@/helpers/state";
+import { useAtomValue, useSetAtom, useAtom } from "jotai";
+import * as atoms from "@/helpers/state";
+
+// State atoms
+const issue = useAtomValue(atoms.issueAtom);
+const issueFilterTags = useAtomValue(atoms.issueFilterTagsAtom);
+const tagOptions = useAtomValue(atoms.tagOptionsAtom);
 import RelativeTime from "./relative-time";
 import StatusIcon from "./status-icon";
 import TagToken from "./tag-token";
 import UserAvatars from "./user-avatars";
 
 export default function Issue({ task }: { task: any }) {
-  const { issue, issueFilterTags, tagOptions } = usePortalState();
+  
   const { creator } = task;
   const selectTag = (tagName) => {
-    const option = tagOptions.value.find((opt) => opt.value === tagName);
-    if (option) issueFilterTags.value = [...issueFilterTags.value, option];
+    const option = tagOptions?.find((opt) => opt === tagName);
+    if (option) issueFilterTags = [...issueFilterTags, option];
   };
   return (
     <li className="p-4 flex">
@@ -26,7 +32,7 @@ export default function Issue({ task }: { task: any }) {
               href={`#activity=issues&issue=${task.id}`}
               onClick={(e) => {
                 e.preventDefault();
-                issue.value = task.id;
+                issue = task.id;
               }}
             >
               {task.name}

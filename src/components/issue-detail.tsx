@@ -1,5 +1,10 @@
 import { calculateDiff } from "@/helpers/management";
-import { usePortalState } from "@/helpers/state";
+import { useAtomValue, useSetAtom, useAtom } from "jotai";
+import * as atoms from "@/helpers/state";
+
+// State atoms
+const task = useAtomValue(atoms.taskAtom);
+const updateTask = useAtomValue(atoms.updateTaskAtom);
 import { cn } from "@/lib/utils";
 import { useRef } from "react";
 import { buttonVariants } from "./ui/button";
@@ -15,17 +20,16 @@ import TagToken from "./tag-token";
 import TagsSelect from "./tags-select";
 import UserToken from "./user-token";
 import { Input } from "./ui/input";
-import { useSignal } from "@preact/signals-react";
 import { markdownToComment } from "@/helpers/clickup";
 
 export default function IssueDetail() {
-  const { task, updateTask } = usePortalState();
+  
   const isEditingName = useSignal(false);
   const currentAssignees = useRef([]);
   const currentName = useRef("");
   const currentTags = useRef([]);
 
-  if (!task.value)
+  if (!task)
     return (
       <li className="p-4 flex">
         <LoaderCircle className="animate-spin" />
@@ -33,8 +37,8 @@ export default function IssueDetail() {
     );
 
   const reset = (attr, ref) =>
-    (task.value = {
-      ...task.value,
+    (task = {
+      ...task,
       [attr]: ref.current,
     });
 
@@ -52,7 +56,7 @@ export default function IssueDetail() {
     status,
     tags,
     url,
-  } = task.value;
+  } = task;
 
   return (
     <div className="p-4">
@@ -67,26 +71,26 @@ export default function IssueDetail() {
               className="md:text-xl mb-2"
               value={name}
               onChange={(e) =>
-                (task.value = { ...task.value, name: e.target.value })
+                (task = { ...task, name: e.target })
               }
             />
           )}
           onCancel={() => {
             resetName();
-            isEditingName.value = false;
+            isEditingName = false;
           }}
           onEdit={() => {
             currentName.current = name;
-            isEditingName.value = true;
+            isEditingName = true;
           }}
           onSave={async () => {
             const res = await updateTask({ name });
             if (res.error) resetName();
-            isEditingName.value = false;
+            isEditingName = false;
           }}
         />
 
-        {isEditingName.value ? null : <IssueCloseButton />}
+        {isEditingName ? null : <IssueCloseButton />}
       </div>
       <div className="flex">
         <StatusSelect status={status} />
@@ -116,10 +120,10 @@ export default function IssueDetail() {
           }
           edit={() => <TagsSelect />}
           onCancel={resetTags}
-          onEdit={() => (currentTags.current = task.value.tags)}
+          onEdit={() => (currentTags.current = task?.tags)}
           onSave={async () => {
             const res = await updateTask({
-              tags: calculateDiff(currentTags.current, task.value.tags, "name"),
+              tags: calculateDiff(currentTags.current, task?.tags, "name"),
             });
             if (res.error) resetTags();
           }}
@@ -140,12 +144,12 @@ export default function IssueDetail() {
           }
           edit={() => <TaskAssigneesSelect />}
           onCancel={resetAssignees}
-          onEdit={() => (currentAssignees.current = task.value.assignees)}
+          onEdit={() => (currentAssignees.current = task?.assignees)}
           onSave={async () => {
             const res = await updateTask({
               assignees: calculateDiff(
                 currentAssignees.current,
-                task.value.assignees,
+                task?.assignees,
                 "id",
               ),
             });

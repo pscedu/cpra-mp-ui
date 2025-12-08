@@ -1,4 +1,5 @@
-import { usePortalState } from "@/helpers/state";
+import { useAtomValue, useSetAtom, useAtom } from "jotai";
+import * as atoms from "@/helpers/state";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import MapDataLoading from "@/components/map-data-loading";
@@ -20,7 +21,7 @@ import Visualization from "./visualization";
 import MapContextMenu from "./map-context-menu";
 
 export default function MapPage() {
-  const { visualizationSpecUrl } = usePortalState();
+  // Atoms imported at top
 
   return (
     <SidebarProvider>
@@ -43,11 +44,11 @@ export default function MapPage() {
                 <Map />
               </MapContextMenu>
             </ResizablePanel>
-            {visualizationSpecUrl.value ? (
+            {visualizationSpecUrl ? (
               <>
                 <ResizableHandle className="h-16" />
                 <ResizablePanel>
-                  <Visualization spec={visualizationSpecUrl.value} />
+                  <Visualization spec={visualizationSpecUrl} />
                 </ResizablePanel>
               </>
             ) : null}

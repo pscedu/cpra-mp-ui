@@ -1,6 +1,6 @@
 import { useRef } from "react";
-import { useSignalEffect } from "@preact/signals-react";
-import { usePortalState } from "@/helpers/state";
+import { useAtomValue, useSetAtom, useAtom } from "jotai";
+import * as atoms from "@/helpers/state";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -23,26 +23,20 @@ import {
 import ColorChooserMenuItems from "@/components/color-chooser-menu-items";
 
 export default function MapContextMenu({ children }) {
-  const {
-    contextMenu,
-    mapCatalogQuery,
-    rotateSelectedGeographies,
-    selectedGeographies,
-    visualization,
-  } = usePortalState();
+  // Atoms imported at top
   const trigger = useRef(null);
 
-  const geography = contextMenu.value?.geography;
-  const selectionCount = selectedGeographies.value.length;
-  const maxGeographies = visualization?.value?.max_geographies || 10;
+  const geography = contextMenu?.geography;
+  const selectionCount = selectedGeographies?.length;
+  const maxGeographies = visualization.max_geographies || 10;
 
   useSignalEffect(() => {
     if (
-      contextMenu.value &&
-      contextMenu.value.type === "geography-select" &&
+      contextMenu &&
+      contextMenu?.type === "geography-select" &&
       trigger.current
     ) {
-      const { x, y } = contextMenu.value;
+      const { x, y } = contextMenu;
       trigger.current.dispatchEvent(
         new MouseEvent("contextmenu", {
           bubbles: true,
@@ -56,7 +50,7 @@ export default function MapContextMenu({ children }) {
   return (
     <ContextMenu
       onOpenChange={(open) => {
-        if (!open) contextMenu.value = null;
+        if (!open) contextMenu = null;
       }}
     >
       <ContextMenuTrigger ref={trigger}>{children}</ContextMenuTrigger>
@@ -65,7 +59,7 @@ export default function MapContextMenu({ children }) {
           <>
             <ContextMenuSub>
               <ContextMenuSubTrigger inset>
-                Select {mapCatalogQuery.value.dataset.grid.label.toLowerCase()}
+                Select {mapCatalogQuery?.dataset.grid.label.toLowerCase()}
               </ContextMenuSubTrigger>
               <ContextMenuSubContent>
                 <ContextMenuLabel>Choose outline color</ContextMenuLabel>
@@ -77,7 +71,7 @@ export default function MapContextMenu({ children }) {
         )}
         <ContextMenuItem
           disabled={!selectionCount}
-          onSelect={() => (selectedGeographies.value = [])}
+          onSelect={() => (selectedGeographies = [])}
         >
           <X /> Clear selection
           <ContextMenuShortcut>Esc</ContextMenuShortcut>

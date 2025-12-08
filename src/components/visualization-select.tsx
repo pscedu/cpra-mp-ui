@@ -1,19 +1,20 @@
-import { usePortalState } from "@/helpers/state";
+import { useAtomValue, useSetAtom, useAtom } from "jotai";
+import * as atoms from "@/helpers/state";
 
 import SidebarSelect from "@/components/sidebar-select";
 import { ChartLine } from "lucide-react";
 
 export default function VisualizationSelect() {
-  const { mapCatalogQuery, structure, visualizationType } = usePortalState();
+  // Atoms imported at top
 
-  if (!structure.value || !mapCatalogQuery.value) return;
+  if (!structure || !mapCatalogQuery) return;
 
-  const options = structure.value
-    ? structure.value.visualizations
+  const options = structure
+    ? structure?.visualizations
         .filter(
           (viz) =>
             viz.variables === null ||
-            viz.variables.includes(mapCatalogQuery.value.dataset.variable.name),
+            viz.variables.includes(mapCatalogQuery?.dataset.variable.name),
         )
         .map((viz) => ({ label: viz.label, value: viz.name }))
     : [];

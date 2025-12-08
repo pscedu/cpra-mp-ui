@@ -2,10 +2,10 @@ import useMeasure from "react-use-measure";
 import { useTheme } from "@/components/theme-provider";
 import { VegaLite } from "react-vega";
 import { dark, excel } from "vega-themes";
-import { batch, useSignal } from "@preact/signals-react";
 import { Ref, useEffect, useRef } from "react";
 import { getJson } from "@/helpers/utils";
-import { usePortalState } from "@/helpers/state";
+import { useAtomValue, useSetAtom, useAtom } from "jotai";
+import * as atoms from "@/helpers/state";
 
 const darkTheme = { ...dark, background: "#161b22" };
 const lightTheme = excel;
@@ -13,7 +13,7 @@ const lightTheme = excel;
 import { LoaderCircle } from "lucide-react";
 
 export default function Visualization({ actions = false, spec, padding = 16 }) {
-  const { endDate, startDate } = usePortalState();
+  // Atoms imported at top
   const [ref, { height, width }] = useMeasure();
   const resizeTimeout: Ref<null | ReturnType<typeof setTimeout>> = useRef(null);
   const specJson = useSignal(typeof spec === "string" ? null : spec);
@@ -25,13 +25,13 @@ export default function Visualization({ actions = false, spec, padding = 16 }) {
         const loadSpecJson = () => {
           (async () => {
             let specUrl = `${spec}${spec.includes("?") ? "" : "?"}&height=${Math.floor(height)}&width=${Math.floor(width)}`;
-            if (startDate.value) specUrl += `&start_date=${startDate.value}`;
-            if (endDate.value) specUrl += `&end_date=${endDate.value}`;
-            specJson.value = await getJson(specUrl);
+            if (startDate) specUrl += `&start_date=${startDate}`;
+            if (endDate) specUrl += `&end_date=${endDate}`;
+            specJson = await getJson(specUrl);
           })();
         };
         if (specJson.peek() || resizeTimeout.current) {
-          specJson.value = null;
+          specJson = null;
           if (resizeTimeout.current) clearTimeout(resizeTimeout.current);
           resizeTimeout.current = setTimeout(loadSpecJson, 250);
         } else {
@@ -39,7 +39,7 @@ export default function Visualization({ actions = false, spec, padding = 16 }) {
         }
       }
     } else {
-      specJson.value = spec;
+      specJson = spec;
     }
   }, [specJson, spec, height, width]);
 
@@ -51,22 +51,22 @@ export default function Visualization({ actions = false, spec, padding = 16 }) {
         (timestamp) => new Date(timestamp).toISOString().split("T")[0],
       );
       batch(() => {
-        startDate.value = start;
-        endDate.value = end;
+        startDate = start;
+        endDate = end;
       });
     },
   };
   const signalCleanup = {
     date_range: () =>
       batch(() => {
-        startDate.value = null;
-        endDate.value = null;
+        startDate = null;
+        endDate = null;
       }),
   };
   for (const signal of Object.keys(signalListeners))
     if (
-      specJson.value &&
-      !specJson.value?.params.find(({ name }) => signal === name)
+      specJson &&
+      !specJson?.params.find(({ name }) => signal === name)
     ) {
       delete signalListeners[signal];
       if (signal in signalCleanup) signalCleanup[signal]();
@@ -75,11 +75,11 @@ export default function Visualization({ actions = false, spec, padding = 16 }) {
   return (
     <div className="h-full w-full relative" ref={ref}>
       <LoaderCircle className="animate-spin absolute" />
-      {specJson.value ? (
+      {specJson ? (
         <VegaLite
           actions={actions}
           className="absolute rounded-xl overflow-hidden"
-          spec={specJson.value}
+          spec={specJson}
           style={{
             height: `${height}px`,
             width: `${width}px`,

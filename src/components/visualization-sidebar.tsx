@@ -1,4 +1,5 @@
-import { usePortalState } from "@/helpers/state";
+import { useAtomValue, useSetAtom, useAtom } from "jotai";
+import * as atoms from "@/helpers/state";
 
 import {
   SidebarGroup,
@@ -10,9 +11,9 @@ import VisualizationSelect from "./visualization-select";
 import MapSelect from "./map-select";
 
 export default function VisualizationSidebar() {
-  const { mapCatalogQuery, structure } = usePortalState();
+  // Atoms imported at top
 
-  if (!structure.value || !mapCatalogQuery.value) return;
+  if (!structure || !mapCatalogQuery) return;
 
   return (
     <>

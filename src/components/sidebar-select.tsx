@@ -1,5 +1,4 @@
-import { useEffect } from "react";
-import { useSignal } from "@preact/signals-react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 import RSelect from "@/components/ui/rselect";
@@ -16,19 +15,26 @@ export default function SidebarSelect({
   value: explicitValue = null,
   ...rest
 }) {
-  const valueOrValues = explicitValue !== null ? explicitValue : signal.value;
+  const valueOrValues = explicitValue !== null ? explicitValue : signal;
   const supportsMulti = Array.isArray(valueOrValues);
   const values = supportsMulti ? valueOrValues : [valueOrValues];
-  const maxLength = useSignal(values.length === 1 ? 1 : Infinity);
-  const isMulti = maxLength.value > 1;
-  const changeHandler = onChange || ((value) => (signal.value = value));
+  const [maxLength, setMaxLength] = useState(
+    values.length === 1 ? 1 : Infinity,
+  );
+  const isMulti = maxLength > 1;
+  const changeHandler =
+    onChange ||
+    ((value) => {
+      // If no onChange and no signal, do nothing
+      // The parent component should provide either onChange or signal
+    });
 
   useEffect(() => {
-    if (values.length > maxLength.value) {
-      const newValues = values.slice(0, maxLength.value);
+    if (values.length > maxLength) {
+      const newValues = values.slice(0, maxLength);
       changeHandler(supportsMulti ? newValues : newValues[0]);
     }
-  }, [maxLength.value]);
+  }, [maxLength]);
 
   return (
     <div className="flex" title={label}>
@@ -38,7 +44,7 @@ export default function SidebarSelect({
         inputId={id}
         isClearable={false}
         isMulti={isMulti}
-        isOptionDisabled={() => isMulti && values.length >= maxLength.value}
+        isOptionDisabled={() => isMulti && values.length >= maxLength}
         menuPlacement="auto"
         onChange={(selectedOptions) => {
           const selectedValues = Array.isArray(selectedOptions)
@@ -46,7 +52,7 @@ export default function SidebarSelect({
             : [selectedOptions.value];
           changeHandler(
             supportsMulti
-              ? selectedValues.slice(0, maxLength.value)
+              ? selectedValues.slice(0, maxLength)
               : selectedValues[0],
           );
         }}
@@ -64,9 +70,9 @@ export default function SidebarSelect({
           className="ml-2"
           dimensionLabel={label}
           dimensionName={id}
-          maxLength={maxLength.value}
+          maxLength={maxLength}
           optionsLength={options.length}
-          setMaxLength={(value) => (maxLength.value = value)}
+          setMaxLength={setMaxLength}
           supportsSubtract={supportsSubtract}
           supportsConcatenate={false}
         />
