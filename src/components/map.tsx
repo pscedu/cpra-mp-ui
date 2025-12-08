@@ -159,7 +159,7 @@ export default function Map() {
     const layers = dataset.grid.isVector()
       ? vectorLayers({
           ...ids,
-          difference: analysisOperation.startsWith("subract-"),
+          difference: analysisOperation.startsWith("subtract-"),
           showLabels: showGridLabels.value,
           showLines: showGridLines.value,
           variable: dataset.variable,
