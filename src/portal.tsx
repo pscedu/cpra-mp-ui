@@ -1,4 +1,6 @@
-import { createPortalState, PortalState } from "./helpers/state";
+import { Provider as JotaiProvider } from "jotai";
+import { useAtom } from "jotai";
+import { initEffectsAtom } from "./helpers/state";
 
 import { BrowserRouter, Routes, Route } from "react-router";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -6,23 +8,25 @@ import { ThemeProvider } from "@/components/theme-provider";
 import MapPage from "@/components/map-page";
 import WorkerPage from "@/components/worker-page";
 
+function EffectsInitializer() {
+  // Initialize all effect atoms
+  useAtom(initEffectsAtom);
+  return null;
+}
+
 export default function Portal() {
-  const state = createPortalState();
-  const loginWorker = (
-    <WorkerPage action={state.completeLogin} heading="Completing login..." />
-  );
-  const clickupWorker = <WorkerPage action={state.linkClickup} />;
   return (
-    <PortalState.Provider value={state}>
+    <JotaiProvider>
+      <EffectsInitializer />
       <ThemeProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<MapPage />} />
-            <Route path="/callback/login" element={loginWorker} />
-            <Route path="/callback/clickup" element={clickupWorker} />
+            <Route path="/callback/login" element={<WorkerPage />} />
+            <Route path="/callback/clickup" element={<WorkerPage />} />
           </Routes>
         </BrowserRouter>
       </ThemeProvider>
-    </PortalState.Provider>
+    </JotaiProvider>
   );
 }
