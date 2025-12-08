@@ -76,21 +76,25 @@ export class Variable {
   required_dimensions: Dimension<any>[];
   number_format: string | null;
   difference_legend_limit: string | null;
+  structure: Structure;
 
-  constructor({
-    name,
-    label,
-    dtype,
-    model,
-    subroutine,
-    unit,
-    legend,
-    geographic_units,
-    time_units,
-    required_dimensions,
-    number_format,
-    difference_legend_limit,
-  }) {
+  constructor(
+    {
+      name,
+      label,
+      dtype,
+      model,
+      subroutine,
+      unit,
+      legend,
+      geographic_units,
+      time_units,
+      required_dimensions,
+      number_format,
+      difference_legend_limit,
+    },
+    structure: Structure,
+  ) {
     this.name = name;
     this.label = label;
     this.dtype = dtype;
@@ -103,6 +107,57 @@ export class Variable {
     this.required_dimensions = required_dimensions;
     this.number_format = number_format;
     this.difference_legend_limit = difference_legend_limit;
+    this.structure = structure;
+  }
+
+  getMapLegend(analysis) {
+    if (analysis.operation.startsWith("subtract-"))
+      return {
+        entries: [
+          {
+            title: `${this.label} Difference`,
+            subtitle: this.unit,
+            type: "continuous",
+            steps: [
+              {
+                color: "#d53e4f",
+                value: -1 * this.difference_legend_limit,
+              },
+              { color: "#ffffff", value: 0 },
+              {
+                color: "#3288bd",
+                value: this.difference_legend_limit,
+              },
+            ].sort((a, b) => (a.value < b.value ? -1 : 1)),
+          },
+        ],
+      };
+
+    if (analysis.operation === "concatenate") {
+      const lndChngLegend = this.structure.legendsMap.lnd_chng;
+      if (lndChngLegend)
+        return {
+          entries: [
+            {
+              title: "Land Change",
+              ...lndChngLegend.toMapLegend(),
+            },
+          ],
+        };
+    }
+
+    if (this.legend)
+      return {
+        entries: [
+          {
+            title: this.label,
+            subtitle: this.unit,
+            ...this.legend.toMapLegend(),
+          },
+        ],
+      };
+
+    return null;
   }
 }
 
@@ -159,6 +214,10 @@ export class LegendBreakPoint {
     this.color = color;
     this.upper_bound = upper_bound;
   }
+
+  toMapLegend() {
+    return { color: this.color, label: this.label };
+  }
 }
 
 export class Legend {
@@ -168,6 +227,13 @@ export class Legend {
   constructor({ name, break_points }) {
     this.name = name;
     this.break_points = break_points.map((bp) => new LegendBreakPoint(bp));
+  }
+
+  toMapLegend() {
+    return {
+      type: "discrete",
+      steps: this.break_points.map((bp) => bp.toMapLegend()),
+    };
   }
 }
 
@@ -282,17 +348,20 @@ export class Structure {
 
     this.variables = variables.map(
       (variable) =>
-        new Variable({
-          ...variable,
-          legend: variable.legend
-            ? this.legendsMap[variable.legend]
-            : this.legendsMap.default,
-          required_dimensions: variable.required_dimensions
-            ? variable.required_dimensions.map(
-                (dimensionName) => this.dimensionsMap[dimensionName],
-              )
-            : [],
-        }),
+        new Variable(
+          {
+            ...variable,
+            legend: variable.legend
+              ? this.legendsMap[variable.legend]
+              : this.legendsMap.default,
+            required_dimensions: variable.required_dimensions
+              ? variable.required_dimensions.map(
+                  (dimensionName) => this.dimensionsMap[dimensionName],
+                )
+              : [],
+          },
+          this,
+        ),
     );
     this.variablesMap = makeMap(this.variables);
     this.datasets = datasets

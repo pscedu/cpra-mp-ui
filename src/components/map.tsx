@@ -15,6 +15,8 @@ import { Dataset } from "@/helpers/structure";
 import { getSelectionColor, sleep } from "../helpers/utils";
 
 import "maplibre-gl/dist/maplibre-gl.css";
+import "@/plugins/map-legend.css";
+import { CPRAMapLegendControl } from "@/plugins/map-legend";
 
 // Map using MapLibre GL.
 export default function Map() {
@@ -296,6 +298,13 @@ export default function Map() {
     };
   }, [container.current]);
 
+  // Add the map legend control.
+  useEffect(() => {
+    if (map.current && structure.value) {
+      map.current.addControl(new CPRAMapLegendControl(structure.value));
+    }
+  }, [map.current, structure.value]);
+
   // Update the map position when the signal changes.
   useEffect(() => {
     if (map.current) {
@@ -331,7 +340,7 @@ export default function Map() {
     })();
   }, [showGridLabels.value]);
 
-  // Update grid ;ome visibility.
+  // Update grid line visibility.
   useEffect(() => {
     (async () => {
       await ensureStyleLoaded();
@@ -414,6 +423,21 @@ export default function Map() {
       updateMarkers();
     })();
   }, [mapFeatureValues.value, selectedGeographies.value, visualization.value]);
+
+  // Update the map legend when the map catalog query or analysis changes.
+  useEffect(() => {
+    (async () => {
+      await ensureStyleLoaded();
+      if (mapCatalogQuery.value && analysis.value) {
+        const mapLegend = mapCatalogQuery.value.dataset.variable.getMapLegend(
+          analysis.value,
+        );
+        map.current.setGlobalStateProperty("legend", mapLegend);
+      } else {
+        map.current.setGlobalStateProperty("legend", null);
+      }
+    })();
+  }, [mapCatalogQuery.value, analysis.value]);
 
   // Clean up the map before the component unloads.
   useEffect(() => {
