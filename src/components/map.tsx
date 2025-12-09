@@ -112,6 +112,8 @@ export default function Map() {
       zoom: z,
     });
 
+    map.current.addControl(new CPRAMapLegendControl());
+
     map.current.on("click", (e) => {
       const geo = getGeography(e);
       if (geo) toggleGeographySelected(geo);
@@ -297,13 +299,6 @@ export default function Map() {
       }
     };
   }, [container.current]);
-
-  // Add the map legend control.
-  useEffect(() => {
-    if (map.current && structure.value) {
-      map.current.addControl(new CPRAMapLegendControl(structure.value));
-    }
-  }, [map.current, structure.value]);
 
   // Update the map position when the signal changes.
   useEffect(() => {
