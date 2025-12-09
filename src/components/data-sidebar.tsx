@@ -1,5 +1,9 @@
 import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import * as atoms from "@/helpers/state";
+import {
+  catalogQueriesAtom,
+  datasetsAtom,
+  structureAtom,
+} from "@/helpers/state";
 
 import {
   SidebarGroup,
@@ -11,10 +15,11 @@ import DatasetSelect from "@/components/dataset-select";
 import DimensionsSelect from "@/components/dimensions-select";
 
 export default function DataSidebar() {
-  // Atoms imported at top
+  const structure = useAtomValue(structureAtom);
+  const datasets = useAtomValue(datasetsAtom);
+  const catalogQueries = useAtomValue(catalogQueriesAtom);
 
-  if (!structure || !datasets?.length || !catalogQueries)
-    return;
+  if (!structure || !datasets?.length || !catalogQueries) return;
 
   return (
     <SidebarGroup>

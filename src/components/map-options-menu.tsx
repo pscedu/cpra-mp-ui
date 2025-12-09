@@ -1,5 +1,10 @@
 import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import * as atoms from "@/helpers/state";
+import {
+  showGridLabelsAtom,
+  showGridLinesAtom,
+  showProjectsAtom,
+  showWaterAtom,
+} from "@/helpers/state";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,11 +18,16 @@ import {
 import { EllipsisVertical } from "lucide-react";
 
 export default function MapOptionsMenu() {
-  const showGridLabels = useAtomValue(atoms.showGridLabelsAtom);
-  const showGridLines = useAtomValue(atoms.showGridLinesAtom);
-  const showProjects = useAtomValue(atoms.showProjectsAtom);
-  const showWater = useAtomValue(atoms.showWaterAtom);
-    return (
+  const showGridLabels = useAtomValue(showGridLabelsAtom);
+  const setShowGridLabels = useSetAtom(showGridLabelsAtom);
+  const showGridLines = useAtomValue(showGridLinesAtom);
+  const setShowGridLines = useSetAtom(showGridLinesAtom);
+  const showProjects = useAtomValue(showProjectsAtom);
+  const setShowProjects = useSetAtom(showProjectsAtom);
+  const showWater = useAtomValue(showWaterAtom);
+  const setShowWater = useSetAtom(showWaterAtom);
+
+  return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost">
@@ -29,25 +39,25 @@ export default function MapOptionsMenu() {
         <DropdownMenuSeparator />
         <DropdownMenuCheckboxItem
           checked={showGridLabels}
-          onCheckedChange={(checked) => (showGridLabels = checked)}
+          onCheckedChange={(checked) => setShowGridLabels(checked)}
         >
           Show Grid Labels
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
           checked={showGridLines}
-          onCheckedChange={(checked) => (showGridLines = checked)}
+          onCheckedChange={(checked) => setShowGridLines(checked)}
         >
           Show Grid Lines
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
           checked={showProjects}
-          onCheckedChange={(checked) => (showProjects = checked)}
+          onCheckedChange={(checked) => setShowProjects(checked)}
         >
           Show Projects
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
           checked={showWater}
-          onCheckedChange={(checked) => (showWater = checked)}
+          onCheckedChange={(checked) => setShowWater(checked)}
         >
           Show Water
         </DropdownMenuCheckboxItem>

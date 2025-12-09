@@ -1,5 +1,11 @@
-import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import * as atoms from "@/helpers/state";
+import { useAtomValue, useSetAtom } from "jotai";
+import {
+  mapCatalogQueryAtom,
+  setTimeValuesAtom,
+  timeChoicesAtom,
+  timeDimensionAtom,
+  timeValuesAtom,
+} from "@/helpers/state";
 import { parseDate } from "@/helpers/utils";
 
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -17,7 +23,11 @@ import { SelectionModeDropdown } from "./selection-mode-dropdown";
 import { Slider } from "./ui/slider";
 
 export default function TimeSelect() {
-  // Atoms imported at top
+  const timeChoices = useAtomValue(timeChoicesAtom);
+  const timeValues = useAtomValue(timeValuesAtom);
+  const timeDimension = useAtomValue(timeDimensionAtom);
+  const setTimeValues = useSetAtom(setTimeValuesAtom);
+  const mapCatalogQuery = useAtomValue(mapCatalogQueryAtom);
 
   const choices = timeChoices;
   const selected = timeValues;

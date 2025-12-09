@@ -1,17 +1,17 @@
-import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import * as atoms from "@/helpers/state";
-
-// State atoms
-const tagOptions = useAtomValue(atoms.tagOptionsAtom);
-const task = useAtomValue(atoms.taskAtom);
+import { useAtomValue, useAtom } from "jotai";
+import {
+  tagOptionsAtom,
+  taskAtom,
+} from "@/helpers/state";
 
 import RSelect from "@/components/ui/rselect";
 
 export default function TagsSelect() {
-  
+  const tagOptions = useAtomValue(tagOptionsAtom);
+  const [task, setTask] = useAtom(taskAtom);
 
-  const optionsMap = {};
-  for (let option of tagOptions) optionsMap[option] = option;
+  const optionsMap: Record<string, string> = {};
+  for (let option of tagOptions || []) optionsMap[option] = option;
 
   return (
     tagOptions?.length > 0 && (
@@ -22,11 +22,11 @@ export default function TagsSelect() {
         isClearable={true}
         className="mb-4 w-full"
         placeholder="Tags..."
-        value={task?.tags.map((tag) => optionsMap[tag.name])}
-        onChange={(selected) =>
-          (task = {
+        value={task?.tags.map((tag: any) => optionsMap[tag.name])}
+        onChange={(selected: any) =>
+          setTask({
             ...task,
-            tags: selected.map((option) => ({ name: option })),
+            tags: selected.map((option: string) => ({ name: option })),
           })
         }
       />

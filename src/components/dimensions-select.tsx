@@ -1,5 +1,9 @@
 import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import * as atoms from "@/helpers/state";
+import {
+  catalogQueriesAtom,
+  setSelectedFilterChoicesAtom,
+  structureAtom,
+} from "@/helpers/state";
 
 import SidebarSelect from "@/components/sidebar-select";
 import {
@@ -51,9 +55,9 @@ const dimensionIcons = {
 };
 
 export default function DimensionsSelect() {
-  const catalogQueries = useAtomValue(atoms.catalogQueriesAtom);
-  const setSelectedFilterChoices = useSetAtom(atoms.setSelectedFilterChoicesAtom);
-  const structure = useAtomValue(atoms.structureAtom);
+  const catalogQueries = useAtomValue(catalogQueriesAtom);
+  const setSelectedFilterChoices = useSetAtom(setSelectedFilterChoicesAtom);
+  const structure = useAtomValue(structureAtom);
     if (!structure || !catalogQueries) return;
   const cqs = catalogQueries;
 

@@ -1,5 +1,11 @@
 import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import * as atoms from "@/helpers/state";
+import {
+  analysisAtom,
+  catalogQueriesAtom,
+  datasetsAtom,
+  setSelectedFilterChoicesAtom,
+  structureAtom,
+} from "@/helpers/state";
 import {
   getCartesianProductObject,
   moveToFirstPosition,
@@ -9,7 +15,13 @@ import SidebarSelect from "@/components/sidebar-select";
 import { Map } from "lucide-react";
 
 export default function MapSelect() {
-  // Atoms imported at top
+  const structure = useAtomValue(structureAtom);
+  const catalogQueries = useAtomValue(catalogQueriesAtom);
+  const datasets = useAtomValue(datasetsAtom);
+  const analysis = useAtomValue(analysisAtom);
+  const setSelectedDatasets = useSetAtom(datasetsAtom);
+  const setSelectedFilterChoices = useSetAtom(setSelectedFilterChoicesAtom);
+
   if (!structure || !catalogQueries || !datasets) return;
   const allValues = {
     dataset: catalogQueries?.datasets,
@@ -33,10 +45,7 @@ export default function MapSelect() {
     return {
       label:
         nameKeys
-          .map(
-            (key) =>
-              `${structure?.dimensionsMap[key].label}: ${combo[key]}`,
-          )
+          .map((key) => `${structure?.dimensionsMap[key].label}: ${combo[key]}`)
           .join(", ") || "Default",
       value: combo,
     };
@@ -56,26 +65,22 @@ export default function MapSelect() {
     <SidebarSelect
       label="Map"
       options={options}
-      onChange={(combo) => {
-        batch(() => {
-          for (const key of nameKeys) {
-            if (key === "dataset") {
-              if (combo.dataset !== datasets[0])
-                setSelectedDatasets(
-                  moveToFirstPosition(combo.dataset, datasets),
-                );
-            } else {
-              setSelectedFilterChoices(
-                key,
-                moveToFirstPosition(
-                  combo[key],
-                  catalogQueries?.combinedFilters[key],
-                ),
-                false,
-              );
-            }
+      onChange={(combo: any) => {
+        for (const key of nameKeys) {
+          if (key === "dataset") {
+            if (combo.dataset !== datasets[0])
+              setSelectedDatasets(moveToFirstPosition(combo.dataset, datasets));
+          } else {
+            setSelectedFilterChoices({
+              dimensionName: key,
+              choices: moveToFirstPosition(
+                combo[key],
+                catalogQueries?.combinedFilters[key],
+              ),
+              reload: false,
+            });
           }
-        });
+        }
       }}
       value={selectedOption}
       icon={Map}

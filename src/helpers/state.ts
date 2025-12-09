@@ -1,4 +1,4 @@
-import { atom, WritableAtom } from "jotai";
+import { atom, createStore, WritableAtom } from "jotai";
 import { atomEffect } from "jotai-effect";
 import { jwtDecode } from "jwt-decode";
 import { loadUser, saveUser } from "./auth";
@@ -16,6 +16,8 @@ import { Dataset, getStructure } from "./structure";
 import { getJson, getNdJson, sortConsistent } from "./utils";
 import { NavigateFunction } from "react-router";
 import { CatalogQueries } from "./catalog";
+
+export const store = createStore();
 
 // ============================================================================
 // Data Loading Atoms
@@ -637,7 +639,7 @@ export const linkClickupAtom = atom(
 // ============================================================================
 
 // Ensure there is always at least one dataset selected
-export const ensureDatasetEffectAtom = atomEffect((get, set) => {
+export const ensureDatasetEffect = (get, set) => {
   const datasets = get(datasetsAtom);
 
   (async () => {
@@ -646,10 +648,10 @@ export const ensureDatasetEffectAtom = atomEffect((get, set) => {
       set(datasetsAtom, [structure.datasets[0]]);
     }
   })();
-});
+};
 
 // Query the catalog when datasets or filters change
-export const catalogQueryEffectAtom = atomEffect((get, set) => {
+export const catalogQueryEffect = (get, set) => {
   const datasets = get(datasetsAtom);
   const filters = get(filtersAtom);
   const catalogQueries = get(catalogQueriesAtom);
@@ -671,22 +673,22 @@ export const catalogQueryEffectAtom = atomEffect((get, set) => {
       setHashUpdateMode("push");
     }
   })();
-});
+};
 
 // Update time values when catalog queries change
-export const timeValuesEffectAtom = atomEffect((get, set) => {
+export const timeValuesEffect = (get, set) => {
   const catalogQueries = get(catalogQueriesAtom);
   const timeDimension = get(timeDimensionAtom);
 
   if (catalogQueries && timeDimension) {
     set(timeValuesAtom, catalogQueries.combinedFilters[timeDimension.name]);
   }
-});
+};
 
 // Update map feature state when the dataset or filters change
 let mapFeatureValuesAbortController: AbortController | null = null;
 
-export const mapFeatureValuesEffectAtom = atomEffect((get, set) => {
+export const mapFeatureValuesEffect = (get, set) => {
   const mapDataUrl = get(mapDataUrlAtom);
 
   (async () => {
@@ -716,10 +718,10 @@ export const mapFeatureValuesEffectAtom = atomEffect((get, set) => {
       set(mapFeatureValuesAtom, {});
     }
   })();
-});
+};
 
 // Reload user information when the application loads
-export const userInfoEffectAtom = atomEffect((get, set) => {
+export const userInfoEffect = (get, set) => {
   const user = get(userAtom);
 
   if (user) {
@@ -728,26 +730,26 @@ export const userInfoEffectAtom = atomEffect((get, set) => {
       set(userAtom, userInfo?.error ? null : { ...user, ...(userInfo as any) });
     })();
   }
-});
+};
 
 // Save user information to local storage when it changes
-export const userPersistenceEffectAtom = atomEffect((get, set) => {
+export const userPersistenceEffect = (get, set) => {
   const user = get(userAtom);
   saveUser(user);
-});
+};
 
 // Reset the activity when the user logs out
-export const activityResetEffectAtom = atomEffect((get, set) => {
+export const activityResetEffect = (get, set) => {
   const activity = get(activityAtom);
   const user = get(userAtom);
 
   if (activity !== "data" && !user) {
     set(activityAtom, "data");
   }
-});
+};
 
 // Load a list of portal users when a user logs in
-export const usersEffectAtom = atomEffect((get, set) => {
+export const usersEffect = (get, set) => {
   const user = get(userAtom);
   const users = get(usersAtom);
 
@@ -760,30 +762,30 @@ export const usersEffectAtom = atomEffect((get, set) => {
       );
     })();
   }
-});
+};
 
 // Load the task list
-export const tasksEffectAtom = atomEffect((get, set) => {
+export const tasksEffect = (get, set) => {
   const activity = get(activityAtom);
   const issueFilterTags = get(issueFilterTagsAtom);
 
   if (activity === "issues" && issueFilterTags) {
     set(reloadTasksAtom);
   }
-});
+};
 
 // Load an individual task when an issue is selected
-export const taskEffectAtom = atomEffect((get, set) => {
+export const taskEffect = (get, set) => {
   const activity = get(activityAtom);
   const issue = get(issueAtom);
 
   if (activity === "issues") {
     set(reloadTaskAtom);
   }
-});
+};
 
 // Load possible task statuses when the application loads
-export const taskStatusesEffectAtom = atomEffect((get, set) => {
+export const taskStatusesEffect = (get, set) => {
   const user = get(userAtom);
 
   if (user) {
@@ -792,21 +794,21 @@ export const taskStatusesEffectAtom = atomEffect((get, set) => {
       set(taskStatusesAtom, statuses);
     })();
   }
-});
+};
 
 // Initialize all effect atoms
 export const initEffectsAtom = atomEffect((get, set) => {
-  get(hashSyncEffectAtom);
-  get(hashWriteEffectAtom);
-  get(ensureDatasetEffectAtom);
-  get(catalogQueryEffectAtom);
-  get(timeValuesEffectAtom);
-  get(mapFeatureValuesEffectAtom);
-  get(userInfoEffectAtom);
-  get(userPersistenceEffectAtom);
-  get(activityResetEffectAtom);
-  get(usersEffectAtom);
-  get(tasksEffectAtom);
-  get(taskEffectAtom);
-  get(taskStatusesEffectAtom);
+  // hashSyncEffect(get, set);
+  // hashWriteEffect(get, set);
+  ensureDatasetEffect(get, set);
+  catalogQueryEffect(get, set);
+  timeValuesEffect(get, set);
+  mapFeatureValuesEffect(get, set);
+  userInfoEffect(get, set);
+  userPersistenceEffect(get, set);
+  activityResetEffect(get, set);
+  usersEffect(get, set);
+  tasksEffect(get, set);
+  taskEffect(get, set);
+  taskStatusesEffect(get, set);
 });

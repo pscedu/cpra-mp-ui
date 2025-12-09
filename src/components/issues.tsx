@@ -1,11 +1,10 @@
-import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import * as atoms from "@/helpers/state";
-
-// State atoms
-const issue = useAtomValue(atoms.issueAtom);
-const issueFilterTags = useAtomValue(atoms.issueFilterTagsAtom);
-const tagOptions = useAtomValue(atoms.tagOptionsAtom);
-const tasks = useAtomValue(atoms.tasksAtom);
+import { useAtomValue, useSetAtom } from "jotai";
+import {
+  issueAtom,
+  issueFilterTagsAtom,
+  tagOptionsAtom,
+  tasksAtom,
+} from "@/helpers/state";
 
 import { LoaderCircle } from "lucide-react";
 import Issue from "@/components/issue";
@@ -13,7 +12,11 @@ import RSelect from "@/components/ui/rselect";
 import { Button } from "@/components/ui/button";
 
 export default function Issues() {
-  
+  const setIssue = useSetAtom(issueAtom);
+  const issueFilterTags = useAtomValue(issueFilterTagsAtom);
+  const setIssueFilterTags = useSetAtom(issueFilterTagsAtom);
+  const tagOptions = useAtomValue(tagOptionsAtom);
+  const tasks = useAtomValue(tasksAtom);
 
   if (tasks === null)
     return (
@@ -33,11 +36,11 @@ export default function Issues() {
           className="w-full"
           placeholder="Filter by tag..."
           value={issueFilterTags}
-          onChange={(selected) => (issueFilterTags = selected)}
+          onChange={(selected) => setIssueFilterTags(selected)}
         />
         <Button
           className="cursor-pointer bg-green-700 hover:bg-green-600 text-white font-bold"
-          onClick={() => (issue = "new")}
+          onClick={() => setIssue("new")}
         >
           New Observation
         </Button>

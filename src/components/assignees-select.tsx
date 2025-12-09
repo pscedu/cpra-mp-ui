@@ -1,8 +1,7 @@
-import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import * as atoms from "@/helpers/state";
+import { useAtomValue } from "jotai";
+import { usersAtom } from "@/helpers/state";
 
 // State atoms
-const users = useAtomValue(atoms.usersAtom);
 import { cn } from "@/lib/utils";
 
 import RSelect from "@/components/ui/rselect";
@@ -20,7 +19,7 @@ export default function AssigneesSelect({
   onChange: (selected: any | any[]) => void;
   value: any | any[];
 }) {
-  
+  const users = useAtomValue(usersAtom);
 
   const optionsMap: { [username: string]: { value: any; label: string } } = {};
   for (let user of users)

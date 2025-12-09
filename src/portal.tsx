@@ -1,12 +1,13 @@
 import { Provider as JotaiProvider } from "jotai";
 import { useAtom } from "jotai";
-import { initEffectsAtom } from "./helpers/state";
+import { initEffectsAtom, store } from "./helpers/state";
 
 import { BrowserRouter, Routes, Route } from "react-router";
 import { ThemeProvider } from "@/components/theme-provider";
 
 import MapPage from "@/components/map-page";
 import WorkerPage from "@/components/worker-page";
+import { Suspense } from "react";
 
 function EffectsInitializer() {
   // Initialize all effect atoms
@@ -16,12 +17,19 @@ function EffectsInitializer() {
 
 export default function Portal() {
   return (
-    <JotaiProvider>
+    <JotaiProvider store={store}>
       <EffectsInitializer />
       <ThemeProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<MapPage />} />
+            <Route
+              path="/"
+              element={
+                <Suspense>
+                  <MapPage />
+                </Suspense>
+              }
+            />
             <Route path="/callback/login" element={<WorkerPage />} />
             <Route path="/callback/clickup" element={<WorkerPage />} />
           </Routes>

@@ -1,6 +1,12 @@
-import { useRef } from "react";
-import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import * as atoms from "@/helpers/state";
+import { useRef, useEffect } from "react";
+import { useAtomValue, useSetAtom } from "jotai";
+import {
+  contextMenuAtom,
+  mapCatalogQueryAtom,
+  rotateSelectedGeographiesAtom,
+  selectedGeographiesAtom,
+  visualizationAtom,
+} from "@/helpers/state";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -22,15 +28,25 @@ import {
 } from "lucide-react";
 import ColorChooserMenuItems from "@/components/color-chooser-menu-items";
 
-export default function MapContextMenu({ children }) {
-  // Atoms imported at top
-  const trigger = useRef(null);
+export default function MapContextMenu({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const contextMenu = useAtomValue(contextMenuAtom);
+  const selectedGeographies = useAtomValue(selectedGeographiesAtom);
+  const visualization = useAtomValue(visualizationAtom);
+  const mapCatalogQuery = useAtomValue(mapCatalogQueryAtom);
+  const rotateSelectedGeographies = useSetAtom(
+    rotateSelectedGeographiesAtom,
+  );
+  const trigger = useRef<HTMLDivElement>(null);
 
   const geography = contextMenu?.geography;
   const selectionCount = selectedGeographies?.length;
   const maxGeographies = visualization.max_geographies || 10;
 
-  useSignalEffect(() => {
+  useEffect(() => {
     if (
       contextMenu &&
       contextMenu?.type === "geography-select" &&
@@ -45,12 +61,15 @@ export default function MapContextMenu({ children }) {
         }),
       );
     }
-  });
+  }, [contextMenu]);
+
+  const setContextMenu = useSetAtom(contextMenuAtom);
+  const setSelectedGeographies = useSetAtom(selectedGeographiesAtom);
 
   return (
     <ContextMenu
       onOpenChange={(open) => {
-        if (!open) contextMenu = null;
+        if (!open) setContextMenu(null);
       }}
     >
       <ContextMenuTrigger ref={trigger}>{children}</ContextMenuTrigger>
@@ -71,7 +90,7 @@ export default function MapContextMenu({ children }) {
         )}
         <ContextMenuItem
           disabled={!selectionCount}
-          onSelect={() => (selectedGeographies = [])}
+          onSelect={() => setSelectedGeographies([])}
         >
           <X /> Clear selection
           <ContextMenuShortcut>Esc</ContextMenuShortcut>

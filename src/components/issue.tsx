@@ -1,21 +1,25 @@
-import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import * as atoms from "@/helpers/state";
+import { useAtomValue, useSetAtom } from "jotai";
+import {
+  issueAtom,
+  issueFilterTagsAtom,
+  tagOptionsAtom,
+} from "@/helpers/state";
 
-// State atoms
-const issue = useAtomValue(atoms.issueAtom);
-const issueFilterTags = useAtomValue(atoms.issueFilterTagsAtom);
-const tagOptions = useAtomValue(atoms.tagOptionsAtom);
 import RelativeTime from "./relative-time";
 import StatusIcon from "./status-icon";
 import TagToken from "./tag-token";
 import UserAvatars from "./user-avatars";
 
 export default function Issue({ task }: { task: any }) {
-  
+  const setIssue = useSetAtom(issueAtom);
+  const issueFilterTags = useAtomValue(issueFilterTagsAtom);
+  const setIssueFilterTags = useSetAtom(issueFilterTagsAtom);
+  const tagOptions = useAtomValue(tagOptionsAtom);
+
   const { creator } = task;
-  const selectTag = (tagName) => {
-    const option = tagOptions?.find((opt) => opt === tagName);
-    if (option) issueFilterTags = [...issueFilterTags, option];
+  const selectTag = (tagName: string) => {
+    const option = tagOptions?.find((opt: string) => opt === tagName);
+    if (option) setIssueFilterTags([...issueFilterTags, option]);
   };
   return (
     <li className="p-4 flex">
@@ -32,7 +36,7 @@ export default function Issue({ task }: { task: any }) {
               href={`#activity=issues&issue=${task.id}`}
               onClick={(e) => {
                 e.preventDefault();
-                issue = task.id;
+                setIssue(task.id);
               }}
             >
               {task.name}

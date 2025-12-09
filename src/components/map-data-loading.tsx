@@ -1,10 +1,16 @@
-import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import * as atoms from "@/helpers/state";
+import { useAtomValue } from "jotai";
+import {
+  mapFeatureValuesLoadingAtom,
+  mapTilesLoadingAtom,
+} from "@/helpers/state";
 
 import { CircleCheck, LoaderCircle } from "lucide-react";
 
 export default function MapDataLoading() {
-  // Atoms imported at top
+  const mapFeatureValuesLoading = useAtomValue(
+    mapFeatureValuesLoadingAtom,
+  );
+  const mapTilesLoading = useAtomValue(mapTilesLoadingAtom);
   const dataLoading = mapFeatureValuesLoading || mapTilesLoading;
 
   return dataLoading ? (

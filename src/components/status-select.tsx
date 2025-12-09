@@ -1,10 +1,10 @@
-import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import * as atoms from "@/helpers/state";
-
-// State atoms
-const task = useAtomValue(atoms.taskAtom);
-const updateTask = useAtomValue(atoms.updateTaskAtom);
-const taskStatuses = useAtomValue(atoms.taskStatusesAtom);
+import { useState } from "react";
+import { useAtomValue, useSetAtom } from "jotai";
+import {
+  taskAtom,
+  taskStatusesAtom,
+  updateTaskAtom,
+} from "@/helpers/state";
 import { toTitleCase } from "@/helpers/utils";
 
 import { Check, LoaderCircle } from "lucide-react";
@@ -19,9 +19,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import StatusToken from "@/components/status-token";
 
-export default function StatusSelect({ status }) {
-  
-  const saving = useSignal(false);
+export default function StatusSelect({ status }: { status: any }) {
+  const task = useAtomValue(taskAtom);
+  const updateTask = useSetAtom(updateTaskAtom);
+  const taskStatuses = useAtomValue(taskStatusesAtom);
+
+  const [saving, setSaving] = useState(false);
 
   const statusChoices = taskStatuses?.tasks || [];
 
@@ -49,18 +52,12 @@ export default function StatusSelect({ status }) {
               <DropdownMenuItem
                 key={choice}
                 className="flex justify-between cursor-pointer"
-                onSelect={() => {
-                  if (!isCurrent) saving = true;
-                  (async () => {
-                    const res = await updateTask({
-                      status: choice,
-                    });
-                    batch(() => {
-                      if (res.error) return console.error(res.error);
-                      else task = { ...task, status: res.status };
-                      saving = false;
-                    });
-                  })();
+                onSelect={async () => {
+                  if (!isCurrent) setSaving(true);
+                  await updateTask({
+                    status: choice,
+                  });
+                  setSaving(false);
                 }}
               >
                 <span className={isCurrent ? "font-bold" : ""}>

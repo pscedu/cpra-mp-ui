@@ -1,11 +1,17 @@
-import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import * as atoms from "@/helpers/state";
+import { useAtomValue } from "jotai";
+import {
+  mapCatalogQueryAtom,
+  structureAtom,
+  visualizationTypeAtom,
+} from "@/helpers/state";
 
 import SidebarSelect from "@/components/sidebar-select";
 import { ChartLine } from "lucide-react";
 
 export default function VisualizationSelect() {
-  // Atoms imported at top
+  const structure = useAtomValue(structureAtom);
+  const mapCatalogQuery = useAtomValue(mapCatalogQueryAtom);
+  const visualizationType = useAtomValue(visualizationTypeAtom);
 
   if (!structure || !mapCatalogQuery) return;
 

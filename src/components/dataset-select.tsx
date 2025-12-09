@@ -1,12 +1,14 @@
-import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import * as atoms from "@/helpers/state";
+import { useAtomValue, useSetAtom } from "jotai";
+import { datasetsAtom, structureAtom } from "@/helpers/state";
 import { toTitleCase } from "@/helpers/utils";
 
 import SidebarSelect from "@/components/sidebar-select";
 import { Calendar, Ruler } from "lucide-react";
 
 export default function DatasetSelect() {
-  // Atoms imported at top
+  const structure = useAtomValue(structureAtom);
+  const datasets = useAtomValue(datasetsAtom);
+  const setSelectedDatasets = useSetAtom(datasetsAtom);
 
   if (!structure) return;
 
@@ -14,8 +16,7 @@ export default function DatasetSelect() {
     ...new Set(structure?.datasets.map((dataset) => dataset.time_unit)),
   ].sort();
 
-  const timeUnit =
-    (datasets?.length && datasets[0].time_unit) || "annual";
+  const timeUnit = (datasets?.length && datasets[0].time_unit) || "annual";
 
   const timeOptions = timeUnits.map((value) => ({
     label: toTitleCase(value),

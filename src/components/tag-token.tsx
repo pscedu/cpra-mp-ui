@@ -1,9 +1,9 @@
 import DimensionIcon from "./dimension-icon";
-import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import * as atoms from "@/helpers/state";
+import { useAtomValue } from "jotai";
+import { structureAtom } from "@/helpers/state";
 
 // State atoms
-const structure = useAtomValue(atoms.structureAtom);
+
 import { toTitleCase } from "@/helpers/utils";
 
 const categoryColor = {
@@ -20,8 +20,7 @@ export default function TagToken({
   name: string;
   onClick?: Function;
 }) {
-  
-
+  const structure = useAtomValue(structureAtom);
   const [category, value] = name.split(":");
   const valueLabel = structure?.dimensionsMap[category]?.values?.find(
     (dv) => dv?.toString() === value,

@@ -1,7 +1,24 @@
 import { Ref, useEffect, useRef } from "react";
 import { LngLatBounds, Map as GLMap, Marker } from "maplibre-gl";
-import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import * as atoms from "@/helpers/state";
+import { useAtomValue, useSetAtom } from "jotai";
+import {
+  analysisAtom,
+  contextMenuAtom,
+  mapCatalogQueryAtom,
+  mapFeatureValuesAtom,
+  mapPositionAtom,
+  mapTileUrlAtom,
+  mapTilesLoadingAtom,
+  projectsModelGroupAtom,
+  projectsYearAtom,
+  selectedGeographiesAtom,
+  showGridLabelsAtom,
+  showGridLinesAtom,
+  showProjectsAtom,
+  showWaterAtom,
+  structureAtom,
+  visualizationAtom,
+} from "@/helpers/state";
 import {
   differenceRasterSource,
   getBaseStyle,
@@ -21,7 +38,26 @@ import { CPRAMapLegendControl } from "@/plugins/map-legend";
 
 // Map using MapLibre GL.
 export default function Map() {
-  // Atoms imported at top
+  const structure = useAtomValue(structureAtom);
+  const visualization = useAtomValue(visualizationAtom);
+  const analysis = useAtomValue(analysisAtom);
+  const mapCatalogQuery = useAtomValue(mapCatalogQueryAtom);
+  const selectedGeographies = useAtomValue(selectedGeographiesAtom);
+  const setSelectedGeographies = useSetAtom(selectedGeographiesAtom);
+  const contextMenu = useAtomValue(contextMenuAtom);
+  const setContextMenu = useSetAtom(contextMenuAtom);
+  const mapFeatureValues = useAtomValue(mapFeatureValuesAtom);
+  const mapPosition = useAtomValue(mapPositionAtom);
+  const setMapPosition = useSetAtom(mapPositionAtom);
+  const mapTilesLoading = useAtomValue(mapTilesLoadingAtom);
+  const projectsModelGroup = useAtomValue(projectsModelGroupAtom);
+  const projectsYear = useAtomValue(projectsYearAtom);
+  const setMapTilesLoading = useSetAtom(mapTilesLoadingAtom);
+  const showGridLabels = useAtomValue(showGridLabelsAtom);
+  const showGridLines = useAtomValue(showGridLinesAtom);
+  const showProjects = useAtomValue(showProjectsAtom);
+  const showWater = useAtomValue(showWaterAtom);
+  const mapTileUrl = useAtomValue(mapTileUrlAtom);
 
   const container = useRef(null);
   const map = useRef(null);
@@ -38,8 +74,7 @@ export default function Map() {
 
   const { operation, dimension } = analysis;
   const analysisOperation =
-    mapCatalogQuery &&
-    mapCatalogQuery?.response.results[dimension]?.length > 1
+    mapCatalogQuery && mapCatalogQuery?.response.results[dimension]?.length > 1
       ? operation
       : "single";
 
@@ -65,25 +100,25 @@ export default function Map() {
       if (features.length) return features[0].id;
     }
   };
-  const updateGeography = (i, newGeo) => {
+  const updateGeography = (i: number, newGeo: any) => {
     const geos = selectedGeographies?.slice();
     geos[i] = newGeo;
-    selectedGeographies = geos;
+    setSelectedGeographies(geos);
   };
-  const toggleGeographySelected = (geo) => {
+  const toggleGeographySelected = (geo: any) => {
     const geos = selectedGeographies?.slice();
     let idx = geos.indexOf(geo);
     if (idx === -1) geos.push(geo);
     else geos.splice(idx, 1);
-    selectedGeographies = geos;
+    setSelectedGeographies(geos);
   };
-  const openContextMenu = (geo, e) => {
-    contextMenu = {
+  const openContextMenu = (geo: any, e: any) => {
+    setContextMenu({
       type: "geography-select",
       geography: geo,
       x: (e.originalEvent || e).clientX,
       y: (e.originalEvent || e).clientY,
-    };
+    });
   };
 
   const initMap = () => {
@@ -107,17 +142,17 @@ export default function Map() {
       const geo = getGeography(e);
       map.current.getCanvas().style.cursor = geo ? "pointer" : "";
     });
-    map.current.on("data", () => (mapTilesLoading = true));
-    map.current.on("idle", () => (mapTilesLoading = false));
+    map.current.on("data", () => setMapTilesLoading(true));
+    map.current.on("idle", () => setMapTilesLoading(false));
     map.current.on("moveend", () => {
       const { lat, lng } = map.current.getCenter();
-      mapPosition = [map.current.getZoom(), lat, lng];
+      setMapPosition([map.current.getZoom(), lat, lng]);
     });
     map.current.dragRotate.disable();
   };
 
   const addSource = (tileUrl: string, dataset: Dataset) => {
-    mapTilesLoading = true;
+    setMapTilesLoading(true);
     dataSourceIdx.current++;
     const source = dataset.grid.isVector()
       ? vectorSource({ gridName: dataset.grid.name })
@@ -390,12 +425,7 @@ export default function Map() {
           }))
             map.current.addLayer(layer, "road-secondary");
       })();
-  }, [
-    structure,
-    projectsYear,
-    mapCatalogQuery,
-    showWater,
-  ]);
+  }, [structure, projectsYear, mapCatalogQuery, showWater]);
 
   // Update the map feature state when new data are loaded or the selection changes.
   useEffect(() => {
@@ -412,9 +442,8 @@ export default function Map() {
     (async () => {
       await ensureStyleLoaded();
       if (mapCatalogQuery && analysis) {
-        const mapLegend = mapCatalogQuery?.dataset.variable.getMapLegend(
-          analysis,
-        );
+        const mapLegend =
+          mapCatalogQuery?.dataset.variable.getMapLegend(analysis);
         map.current.setGlobalStateProperty("legend", mapLegend);
       } else {
         map.current.setGlobalStateProperty("legend", null);
@@ -446,7 +475,7 @@ export default function Map() {
             rotateSelectedGeographies(maxGeographies);
         }
       } else if (e.key === "Escape") {
-        selectedGeographies = [];
+        setSelectedGeographies([]);
       }
     };
     document.addEventListener("keydown", handleKeyDown);

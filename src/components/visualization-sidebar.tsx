@@ -1,5 +1,5 @@
-import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import * as atoms from "@/helpers/state";
+import { useAtomValue } from "jotai";
+import { mapCatalogQueryAtom, structureAtom } from "@/helpers/state";
 
 import {
   SidebarGroup,
@@ -11,7 +11,8 @@ import VisualizationSelect from "./visualization-select";
 import MapSelect from "./map-select";
 
 export default function VisualizationSidebar() {
-  // Atoms imported at top
+  const structure = useAtomValue(structureAtom);
+  const mapCatalogQuery = useAtomValue(mapCatalogQueryAtom);
 
   if (!structure || !mapCatalogQuery) return;
 

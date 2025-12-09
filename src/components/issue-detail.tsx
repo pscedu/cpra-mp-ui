@@ -1,12 +1,11 @@
 import { calculateDiff } from "@/helpers/management";
 import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import * as atoms from "@/helpers/state";
-
-// State atoms
-const task = useAtomValue(atoms.taskAtom);
-const updateTask = useAtomValue(atoms.updateTaskAtom);
+import {
+  taskAtom,
+  updateTaskAtom,
+} from "@/helpers/state";
 import { cn } from "@/lib/utils";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { buttonVariants } from "./ui/button";
 
 import { ExternalLink, LoaderCircle } from "lucide-react";
@@ -23,8 +22,10 @@ import { Input } from "./ui/input";
 import { markdownToComment } from "@/helpers/clickup";
 
 export default function IssueDetail() {
-  
-  const isEditingName = useSignal(false);
+  const [task, setTask] = useAtom(taskAtom);
+  const updateTask = useSetAtom(updateTaskAtom);
+
+  const [isEditingName, setIsEditingName] = useState(false);
   const currentAssignees = useRef([]);
   const currentName = useRef("");
   const currentTags = useRef([]);
@@ -36,8 +37,8 @@ export default function IssueDetail() {
       </li>
     );
 
-  const reset = (attr, ref) =>
-    (task = {
+  const reset = (attr: string, ref: React.RefObject<any>) =>
+    setTask({
       ...task,
       [attr]: ref.current,
     });
@@ -70,23 +71,20 @@ export default function IssueDetail() {
               type="text"
               className="md:text-xl mb-2"
               value={name}
-              onChange={(e) =>
-                (task = { ...task, name: e.target })
-              }
+              onChange={(e) => setTask({ ...task, name: e.target.value })}
             />
           )}
           onCancel={() => {
             resetName();
-            isEditingName = false;
+            setIsEditingName(false);
           }}
           onEdit={() => {
             currentName.current = name;
-            isEditingName = true;
+            setIsEditingName(true);
           }}
           onSave={async () => {
-            const res = await updateTask({ name });
-            if (res.error) resetName();
-            isEditingName = false;
+            await updateTask({ name });
+            setIsEditingName(false);
           }}
         />
 
@@ -122,10 +120,9 @@ export default function IssueDetail() {
           onCancel={resetTags}
           onEdit={() => (currentTags.current = task?.tags)}
           onSave={async () => {
-            const res = await updateTask({
+            await updateTask({
               tags: calculateDiff(currentTags.current, task?.tags, "name"),
             });
-            if (res.error) resetTags();
           }}
         />
       </div>
@@ -146,14 +143,13 @@ export default function IssueDetail() {
           onCancel={resetAssignees}
           onEdit={() => (currentAssignees.current = task?.assignees)}
           onSave={async () => {
-            const res = await updateTask({
+            await updateTask({
               assignees: calculateDiff(
                 currentAssignees.current,
                 task?.assignees,
                 "id",
               ),
             });
-            if (res.error) resetAssignees();
           }}
         />
       </div>

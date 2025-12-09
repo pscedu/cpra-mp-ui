@@ -1,9 +1,8 @@
-import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import * as atoms from "@/helpers/state";
-
-// State atoms
-const issue = useAtomValue(atoms.issueAtom);
-const task = useAtomValue(atoms.taskAtom);
+import { useSetAtom } from "jotai";
+import {
+  issueAtom,
+  taskAtom,
+} from "@/helpers/state";
 
 import { Button } from "./ui/button";
 import { ReactNode } from "react";
@@ -13,20 +12,20 @@ export default function IssueCloseButton({
   children,
   variant = "ghost",
 }: {
-  children: ReactNode;
-  variant: "ghost" | "outline";
+  children?: ReactNode;
+  variant?: "ghost" | "outline";
 }) {
-  
+  const setIssue = useSetAtom(issueAtom);
+  const setTask = useSetAtom(taskAtom);
+
   return (
     <Button
       className="cursor-pointer"
       variant={variant}
-      onClick={() =>
-        batch(() => {
-          issue = null;
-          task = null;
-        })
-      }
+      onClick={() => {
+        setIssue(null);
+        setTask(null);
+      }}
     >
       {children ? children : <X />}
     </Button>
