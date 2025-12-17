@@ -9,7 +9,7 @@ import { Dataset, getStructure } from "./structure";
 import { getJson, getNdJson, sortConsistent } from "./utils";
 import { NavigateFunction } from "react-router";
 import { CatalogQueries } from "./catalog";
-import { DatasetRequest } from "./types";
+import { Analysis, DatasetRequest } from "./types";
 
 export const store = createStore();
 
@@ -25,37 +25,15 @@ export const requestedDatasetsAtom = atom<DatasetRequest[]>([
   },
 ]);
 export const requestedFiltersAtom = atom({});
+export const requestedTimeValuesAtom = atom([]);
 export const catalogQueriesAtom = atom<
   CatalogQueries | Promise<CatalogQueries>
 >(new Promise<CatalogQueries>(() => {}));
 
-observe((get, set) => {
-  const requestedDatasets = get(requestedDatasetsAtom);
-  const requestedFilters = get(requestedFiltersAtom);
-  (async () => {
-    const structure = await get(structureAtom);
-
-    const dsrSet = new Set(
-      requestedDatasets.map(
-        (dsr) => `${dsr.variable}|${dsr.grid}|${dsr.time_unit}`,
-      ),
-    );
-    const cqs = new CatalogQueries(
-      structure.datasets.filter((ds) =>
-        dsrSet.has(`${ds.variable.name}|${ds.grid.name}|${ds.time_unit}`),
-      ),
-      requestedFilters,
-      structure,
-    );
-    const prevCqs = get(catalogQueriesAtom);
-    if ("equals" in prevCqs && prevCqs.equals(cqs)) return;
-    await cqs.executeAll();
-    set(catalogQueriesAtom, cqs);
-    // set(requestedFiltersAtom, cqs.combinedFilters);
-  })();
-}, store);
-
-export const analysisAtom = atom({ operation: "single", dimension: null });
+export const analysisAtom = atom<Analysis>({
+  operation: "single",
+  dimension: null,
+});
 
 const mapDataUrlAtom = atom((get) => {
   const cqs = get(catalogQueriesAtom);
@@ -64,56 +42,35 @@ const mapDataUrlAtom = atom((get) => {
   return null;
 });
 
-// Update map feature state when the dataset or filters change
-let mapFeatureValuesAbortController: AbortController | null = null;
-
-observe((get, set) => {
-  const mapDataUrl = get(mapDataUrlAtom);
-
-  (async () => {
-    if (mapDataUrl) {
-      if (mapFeatureValuesAbortController)
-        mapFeatureValuesAbortController.abort("map state changed");
-      mapFeatureValuesAbortController = new AbortController();
-
-      set(mapFeatureValuesLoadingAtom, true);
-      let data;
-      try {
-        data = await getNdJson(mapDataUrl, {
-          signal: mapFeatureValuesAbortController.signal,
-        });
-      } catch (err) {
-        if (err === "map state changed") return;
-        throw err;
-      }
-
-      if (data.length === 1) {
-        set(mapFeatureValuesAtom, data[0]);
-        set(mapFeatureValuesLoadingAtom, false);
-      } else {
-        console.error(`Expected 1 row, received ${data.length}`, data);
-      }
-    } else {
-      set(mapFeatureValuesAtom, {});
-    }
-  })();
-}, store);
-
-observe((get) => {
-  console.log("filters", get(requestedFiltersAtom));
-}, store);
-
 export const setRequestedDatasetsAtom = atom(
   null,
-  (_get, set, datasets: Dataset[]) => {
-    set(
-      requestedDatasetsAtom,
-      datasets.map((ds) => ({
-        variable: ds.variable.name,
-        grid: ds.grid.name,
-        time_unit: ds.time_unit,
-      })),
-    );
+  (
+    get,
+    set,
+    datasets: Dataset[],
+    { updateGeographies } = { updateGeographies: true },
+  ) => {
+    const prevRequests = get(requestedDatasetsAtom);
+    const newRequests = datasets.map((ds) => ({
+      variable: ds.variable.name,
+      grid: ds.grid.name,
+      time_unit: ds.time_unit,
+    }));
+    const analysis = get(analysisAtom);
+
+    // Update dataset requests.
+    set(requestedDatasetsAtom, newRequests);
+
+    // Reset selected geographies when the grid changes.
+    if (updateGeographies && prevRequests[0].grid !== newRequests[0].grid)
+      set(selectedGeographiesAtom, []);
+
+    // Reset analysis when the variable changes.
+    if (
+      analysis.operation === "concatenate" &&
+      newRequests[0].variable !== "lnd_type"
+    )
+      set(analysisAtom, { operation: "single", dimension: null });
   },
 );
 
@@ -155,28 +112,17 @@ export const visualizationTypeAtom = hashAtom(
   "visualization",
   "time-series-line",
 );
-export const analysisTypeAtom = hashAtom("analysis", "single");
-
-// ============================================================================
-// Other State Atoms
-// ============================================================================
-
 export const tasksAtom = atom(null as any);
 export const taskAtom = atom(null as any);
 export const userAtom = atom(loadUser() as any);
 export const usersAtom = atom([] as any[]);
 export const avatarCacheKeyAtom = atom(new Date().getTime());
-export const timeValuesAtom = atom([] as any[]);
 export const mapFeatureValuesAtom = atom({} as any);
 export const mapFeatureValuesLoadingAtom = atom(false);
 export const mapTilesLoadingAtom = atom(false);
 export const issueFilterTagsAtom = atom([] as any[]);
 export const taskStatusesAtom = atom(null as any);
 export const contextMenuAtom = atom(null as any);
-
-// ============================================================================
-// Reconcile State Atom
-// ============================================================================
 
 export const reconcileStateAtom = atom(
   null,
@@ -185,52 +131,17 @@ export const reconcileStateAtom = atom(
     set,
     { updateGeographies = false }: { updateGeographies?: boolean } = {},
   ) => {
-    //   const datasets = get(datasetsAtom);
-    //   if (!datasets.length) return;
-    //   // TODO: Allow the user to select the map dataset.
-    //   const mapDataset = datasets[0];
-    //   const mapCatalogQuery = get(mapCatalogQueryAtom);
-    //   const analysis = get(analysisAtom);
-    //   // Reset selected geographies when the grid changes.
-    //   if (
-    //     updateGeographies &&
-    //     mapCatalogQuery &&
-    //     mapCatalogQuery.dataset.grid !== mapDataset.grid
-    //   )
-    //     set(selectedGeographiesAtom, []);
-    //   // Reset analysis when the variable changes.
-    //   if (
-    //     analysis.operation === "concatenate" &&
-    //     mapDataset?.variable?.name !== "lnd_type"
-    //   )
-    //     set(analysisTypeAtom, "single");
-    //   // Handle changing from daily/monthly datasets to annual/decadal datasets
-    //   // and vice-versa.
-    //   const filters = get(filtersAtom);
-    //   const timeColumn = mapDataset.getTimeColumn();
-    //   const newFilters = { ...filters };
-    //   if ("calendar_day" in filters && timeColumn === "calendar_year") {
-    //     newFilters["calendar_year"] = filters["calendar_day"].map(
-    //       (dateStr: string) => {
-    //         let year = parseInt(dateStr.substr(0, 4));
-    //         if (mapDataset.time_unit === "decadal")
-    //           year = Math.round(year / 10) * 10;
-    //         return year;
-    //       },
-    //     );
-    //     delete newFilters["calendar_day"];
-    //     set(filtersAtom, newFilters);
-    //     if (analysis.dimension === "calendar_day")
-    //       set(analysisTypeAtom, `${analysis.operation}:calendar_year`);
-    //   } else if ("calendar_year" in filters && timeColumn === "calendar_day") {
-    //     newFilters["calendar_day"] = filters["calendar_year"].map(
-    //       (year: number) => `${year}-01-01`,
-    //     );
-    //     delete newFilters["calendar_year"];
-    //     set(filtersAtom, newFilters);
-    //     if (analysis.dimension === "calendar_year")
-    //       set(analysisTypeAtom, `${analysis.operation}:calendar_day`);
-    //   }
+    const datasets = get(datasetsAtom);
+    if (!datasets.length) return;
+    // TODO: Allow the user to select the map dataset.
+    const mapDataset = datasets[0];
+    const mapCatalogQuery = get(mapCatalogQueryAtom);
+    const analysis = get(analysisAtom);
+
+    if (analysis.dimension === "calendar_day")
+      set(analysisTypeAtom, `${analysis.operation}:calendar_year`);
+    if (analysis.dimension === "calendar_year")
+      set(analysisTypeAtom, `${analysis.operation}:calendar_day`);
   },
 );
 
@@ -600,3 +511,75 @@ export const taskStatusesEffect = (get, set) => {
     })();
   }
 };
+
+/* Effects */
+
+// Query the catalog when datasets or filters change.
+observe((get, set) => {
+  const requestedDatasets = get(requestedDatasetsAtom);
+  const requestedFilters = get(requestedFiltersAtom);
+  (async () => {
+    const structure = await get(structureAtom);
+
+    const dsrSet = new Set(
+      requestedDatasets.map(
+        (dsr) => `${dsr.variable}|${dsr.grid}|${dsr.time_unit}`,
+      ),
+    );
+    const cqs = new CatalogQueries(
+      structure.datasets.filter((ds) =>
+        dsrSet.has(`${ds.variable.name}|${ds.grid.name}|${ds.time_unit}`),
+      ),
+      requestedFilters,
+      structure,
+    );
+    const prevCqs = get(catalogQueriesAtom);
+    if ("equals" in prevCqs && prevCqs.equals(cqs)) return;
+    await cqs.executeAll();
+    set(catalogQueriesAtom, cqs);
+    set(
+      requestedTimeValuesAtom,
+      cqs.queries[0].response.results[cqs.getTimeDimension().name],
+    );
+    // set(requestedFiltersAtom, cqs.combinedFilters);
+  })();
+}, store);
+
+// Update map feature state when the dataset or filters change
+let mapFeatureValuesAbortController: AbortController | null = null;
+observe((get, set) => {
+  const mapDataUrl = get(mapDataUrlAtom);
+
+  (async () => {
+    if (mapDataUrl) {
+      if (mapFeatureValuesAbortController)
+        mapFeatureValuesAbortController.abort("map state changed");
+      mapFeatureValuesAbortController = new AbortController();
+
+      set(mapFeatureValuesLoadingAtom, true);
+      let data;
+      try {
+        data = await getNdJson(mapDataUrl, {
+          signal: mapFeatureValuesAbortController.signal,
+        });
+      } catch (err) {
+        if (err === "map state changed") return;
+        throw err;
+      }
+
+      if (data.length === 1) {
+        set(mapFeatureValuesAtom, data[0]);
+        set(mapFeatureValuesLoadingAtom, false);
+      } else {
+        console.error(`Expected 1 row, received ${data.length}`, data);
+      }
+    } else {
+      set(mapFeatureValuesAtom, {});
+    }
+  })();
+}, store);
+
+// Log filters for debugging
+observe((get) => {
+  console.log("filters", get(requestedFiltersAtom));
+}, store);

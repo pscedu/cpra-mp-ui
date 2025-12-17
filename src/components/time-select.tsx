@@ -1,6 +1,7 @@
-import { atom, useAtomValue, useAtom, useSetAtom } from "jotai";
+import { useAtomValue, useAtom, useSetAtom } from "jotai";
 import {
   catalogQueriesAtom,
+  requestedTimeValuesAtom,
   setSelectedFilterChoicesAtom,
 } from "@/helpers/state";
 import { parseDate } from "@/helpers/utils";
@@ -20,18 +21,13 @@ let selectedTimeout: ReturnType<typeof setTimeout> | null = null;
 
 import { SelectionModeDropdown } from "./selection-mode-dropdown";
 import { Slider } from "./ui/slider";
-import { useMemo } from "react";
 
 export default function TimeSelect() {
   const setSelectedFilterChoices = useSetAtom(setSelectedFilterChoicesAtom);
   const catalogQueries = useAtomValue(catalogQueriesAtom);
   const mapCatalogQuery = catalogQueries.getMapCatalogQuery();
   const timeDimension = catalogQueries.getTimeDimension();
-  const selectedAtom = useMemo(
-    () => atom(catalogQueries.combinedFilters[timeDimension.name]),
-    [],
-  );
-  const [selected, setSelected] = useAtom(selectedAtom);
+  const [selected, setSelected] = useAtom(requestedTimeValuesAtom);
   const choices = catalogQueries.getTimeChoices();
 
   if (!choices.length || !selected.length) return;

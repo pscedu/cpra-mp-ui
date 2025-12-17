@@ -1,6 +1,6 @@
 export type Analysis = {
   operation: string;
-  dimension: string;
+  dimension: string | null;
 };
 
 export type DatasetRequest = {

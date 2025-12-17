@@ -24,7 +24,6 @@ export default function VisualizationPanel() {
       {visualizationSpecUrl ? (
         <>
           <ResizableHandle className="h-16" />
-          useAtom
           <ResizablePanel>
             <Visualization spec={visualizationSpecUrl} />
           </ResizablePanel>
