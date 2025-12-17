@@ -60,8 +60,6 @@ export default function MapSelect() {
     return 0;
   });
 
-  console.log({ options, selectedOption });
-
   return (
     <SidebarSelect
       label="Map"
