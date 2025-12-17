@@ -1,5 +1,9 @@
 import { useAtomValue, useSetAtom } from "jotai";
-import { datasetsAtom, structureAtom } from "@/helpers/state";
+import {
+  catalogQueriesAtom,
+  setRequestedDatasetsAtom,
+  structureAtom,
+} from "@/helpers/state";
 import { toTitleCase } from "@/helpers/utils";
 
 import SidebarSelect from "@/components/sidebar-select";
@@ -7,10 +11,8 @@ import { Calendar, Ruler } from "lucide-react";
 
 export default function DatasetSelect() {
   const structure = useAtomValue(structureAtom);
-  const datasets = useAtomValue(datasetsAtom);
-  const setSelectedDatasets = useSetAtom(datasetsAtom);
-
-  if (!structure) return;
+  const datasets = useAtomValue(catalogQueriesAtom).datasets;
+  const setRequestedDatasets = useSetAtom(setRequestedDatasetsAtom);
 
   const timeUnits = [
     ...new Set(structure?.datasets.map((dataset) => dataset.time_unit)),
@@ -42,7 +44,7 @@ export default function DatasetSelect() {
       ),
     );
     if (newDatasets.length === 0) newDatasets = [canidateDatasets[0]];
-    setSelectedDatasets(newDatasets);
+    setRequestedDatasets(newDatasets);
   };
 
   return (
@@ -57,7 +59,7 @@ export default function DatasetSelect() {
       <SidebarSelect
         icon={Ruler}
         label="Variable"
-        onChange={setSelectedDatasets}
+        onChange={setRequestedDatasets}
         options={variableOptions}
         value={datasets}
       />

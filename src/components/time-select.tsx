@@ -1,9 +1,7 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import {
-  mapCatalogQueryAtom,
+  catalogQueriesAtom,
   setTimeValuesAtom,
-  timeChoicesAtom,
-  timeDimensionAtom,
   timeValuesAtom,
 } from "@/helpers/state";
 import { parseDate } from "@/helpers/utils";
@@ -23,11 +21,12 @@ import { SelectionModeDropdown } from "./selection-mode-dropdown";
 import { Slider } from "./ui/slider";
 
 export default function TimeSelect() {
-  const timeChoices = useAtomValue(timeChoicesAtom);
   const timeValues = useAtomValue(timeValuesAtom);
-  const timeDimension = useAtomValue(timeDimensionAtom);
   const setTimeValues = useSetAtom(setTimeValuesAtom);
-  const mapCatalogQuery = useAtomValue(mapCatalogQueryAtom);
+  const catalogQueries = useAtomValue(catalogQueriesAtom);
+  const mapCatalogQuery = catalogQueries.getMapCatalogQuery();
+  const timeDimension = catalogQueries.getTimeDimension();
+  const timeChoices = catalogQueries.getTimeChoices();
 
   const choices = timeChoices;
   const selected = timeValues;

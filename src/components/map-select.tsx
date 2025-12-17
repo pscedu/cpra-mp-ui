@@ -1,8 +1,8 @@
-import { useAtomValue, useSetAtom, useAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
   analysisAtom,
   catalogQueriesAtom,
-  datasetsAtom,
+  setRequestedDatasetsAtom,
   setSelectedFilterChoicesAtom,
   structureAtom,
 } from "@/helpers/state";
@@ -17,12 +17,11 @@ import { Map } from "lucide-react";
 export default function MapSelect() {
   const structure = useAtomValue(structureAtom);
   const catalogQueries = useAtomValue(catalogQueriesAtom);
-  const datasets = useAtomValue(datasetsAtom);
+  const datasets = catalogQueries.datasets;
+  const setRequestedDatasets = useSetAtom(setRequestedDatasetsAtom);
   const analysis = useAtomValue(analysisAtom);
-  const setSelectedDatasets = useSetAtom(datasetsAtom);
   const setSelectedFilterChoices = useSetAtom(setSelectedFilterChoicesAtom);
 
-  if (!structure || !catalogQueries || !datasets) return;
   const allValues = {
     dataset: catalogQueries?.datasets,
     ...catalogQueries?.combinedFilters,
@@ -69,7 +68,9 @@ export default function MapSelect() {
         for (const key of nameKeys) {
           if (key === "dataset") {
             if (combo.dataset !== datasets[0])
-              setSelectedDatasets(moveToFirstPosition(combo.dataset, datasets));
+              setRequestedDatasets(
+                moveToFirstPosition(combo.dataset, datasets),
+              );
           } else {
             setSelectedFilterChoices({
               dimensionName: key,

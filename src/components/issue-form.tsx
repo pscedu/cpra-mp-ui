@@ -3,7 +3,7 @@ import { useAtomValue, useSetAtom, useAtom } from "jotai";
 import {
   createTaskAtom,
   issueAtom,
-  mapCatalogQueryAtom,
+  catalogQueriesAtom,
   reloadTasksAtom,
   tagOptionsAtom,
   taskAtom,
@@ -19,7 +19,7 @@ import TagsSelect from "./tags-select";
 export default function IssueForm() {
   const createTask = useSetAtom(createTaskAtom);
   const setIssue = useSetAtom(issueAtom);
-  const mapCatalogQuery = useAtomValue(mapCatalogQueryAtom);
+  const mapCatalogQuery = useAtomValue(catalogQueriesAtom).getMapCatalogQuery();
   const reloadTasks = useSetAtom(reloadTasksAtom);
   const tagOptions = useAtomValue(tagOptionsAtom);
   const [task, setTask] = useAtom(taskAtom);

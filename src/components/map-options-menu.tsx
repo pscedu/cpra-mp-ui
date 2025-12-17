@@ -1,10 +1,5 @@
-import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import {
-  showGridLabelsAtom,
-  showGridLinesAtom,
-  showProjectsAtom,
-  showWaterAtom,
-} from "@/helpers/state";
+import { useAtom } from "jotai";
+import { mapOptionsAtom } from "@/helpers/state";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,14 +13,9 @@ import {
 import { EllipsisVertical } from "lucide-react";
 
 export default function MapOptionsMenu() {
-  const showGridLabels = useAtomValue(showGridLabelsAtom);
-  const setShowGridLabels = useSetAtom(showGridLabelsAtom);
-  const showGridLines = useAtomValue(showGridLinesAtom);
-  const setShowGridLines = useSetAtom(showGridLinesAtom);
-  const showProjects = useAtomValue(showProjectsAtom);
-  const setShowProjects = useSetAtom(showProjectsAtom);
-  const showWater = useAtomValue(showWaterAtom);
-  const setShowWater = useSetAtom(showWaterAtom);
+  const [mapOptions, setMapOptions] = useAtom(mapOptionsAtom);
+  const setOption = (key: string, value: boolean) =>
+    setMapOptions({ ...mapOptions, [key]: value });
 
   return (
     <DropdownMenu>
@@ -38,26 +28,26 @@ export default function MapOptionsMenu() {
         <DropdownMenuLabel>Map Options</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuCheckboxItem
-          checked={showGridLabels}
-          onCheckedChange={(checked) => setShowGridLabels(checked)}
+          checked={mapOptions.showGridLabels}
+          onCheckedChange={(checked) => setOption("showGridLabels", checked)}
         >
           Show Grid Labels
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
-          checked={showGridLines}
-          onCheckedChange={(checked) => setShowGridLines(checked)}
+          checked={mapOptions.showGridLines}
+          onCheckedChange={(checked) => setOption("showGridLines", checked)}
         >
           Show Grid Lines
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
-          checked={showProjects}
-          onCheckedChange={(checked) => setShowProjects(checked)}
+          checked={mapOptions.showProjects}
+          onCheckedChange={(checked) => setOption("showProjects", checked)}
         >
           Show Projects
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
-          checked={showWater}
-          onCheckedChange={(checked) => setShowWater(checked)}
+          checked={mapOptions.showWater}
+          onCheckedChange={(checked) => setOption("showWater", checked)}
         >
           Show Water
         </DropdownMenuCheckboxItem>

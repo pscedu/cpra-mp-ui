@@ -1,6 +1,6 @@
 import { useAtomValue } from "jotai";
 import {
-  mapCatalogQueryAtom,
+  catalogQueriesAtom,
   structureAtom,
   visualizationTypeAtom,
 } from "@/helpers/state";
@@ -10,7 +10,7 @@ import { ChartLine } from "lucide-react";
 
 export default function VisualizationSelect() {
   const structure = useAtomValue(structureAtom);
-  const mapCatalogQuery = useAtomValue(mapCatalogQueryAtom);
+  const mapCatalogQuery = useAtomValue(catalogQueriesAtom).getMapCatalogQuery();
   const visualizationType = useAtomValue(visualizationTypeAtom);
 
   if (!structure || !mapCatalogQuery) return;

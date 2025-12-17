@@ -2,7 +2,7 @@ import { useRef, useEffect } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
 import {
   contextMenuAtom,
-  mapCatalogQueryAtom,
+  catalogQueriesAtom,
   rotateSelectedGeographiesAtom,
   selectedGeographiesAtom,
   visualizationAtom,
@@ -36,10 +36,8 @@ export default function MapContextMenu({
   const contextMenu = useAtomValue(contextMenuAtom);
   const selectedGeographies = useAtomValue(selectedGeographiesAtom);
   const visualization = useAtomValue(visualizationAtom);
-  const mapCatalogQuery = useAtomValue(mapCatalogQueryAtom);
-  const rotateSelectedGeographies = useSetAtom(
-    rotateSelectedGeographiesAtom,
-  );
+  const mapCatalogQuery = useAtomValue(catalogQueriesAtom).getMapCatalogQuery();
+  const rotateSelectedGeographies = useSetAtom(rotateSelectedGeographiesAtom);
   const trigger = useRef<HTMLDivElement>(null);
 
   const geography = contextMenu?.geography;

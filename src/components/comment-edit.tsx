@@ -2,9 +2,9 @@ import { ReactNode, useEffect, useRef } from "react";
 import { getPermalink } from "@/helpers/hash";
 import { useAtomValue } from "jotai";
 import {
+  catalogQueriesAtom,
   selectedGeographiesAtom,
   structureAtom,
-  mapCatalogQueryAtom,
 } from "@/helpers/state";
 
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ export default function CommentEdit({
 }) {
   const selectedGeographies = useAtomValue(selectedGeographiesAtom);
   const structure = useAtomValue(structureAtom);
-  const mapCatalogQuery = useAtomValue(mapCatalogQueryAtom);
+  const mapCatalogQuery = useAtomValue(catalogQueriesAtom).getMapCatalogQuery();
 
   const textarea = useRef<HTMLTextAreaElement>(null);
   const label = selectedGeographies?.length ? "map and chart" : "map";

@@ -1,8 +1,7 @@
-import { useAtomValue, useSetAtom, useAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
   catalogQueriesAtom,
   setSelectedFilterChoicesAtom,
-  structureAtom,
 } from "@/helpers/state";
 
 import SidebarSelect from "@/components/sidebar-select";
@@ -57,8 +56,6 @@ const dimensionIcons = {
 export default function DimensionsSelect() {
   const catalogQueries = useAtomValue(catalogQueriesAtom);
   const setSelectedFilterChoices = useSetAtom(setSelectedFilterChoicesAtom);
-  const structure = useAtomValue(structureAtom);
-    if (!structure || !catalogQueries) return;
   const cqs = catalogQueries;
 
   return cqs.activeDimensions
@@ -68,11 +65,11 @@ export default function DimensionsSelect() {
       if (dimension.values) {
         options = dimension.values
           .filter((dv) =>
-            cqs.combinedChoices[dimension.name].includes(dv),
+            cqs.combinedChoices[dimension.name].includes(dv.value),
           )
           .map((dv) => ({
             label: dv.label || dv?.toString(),
-            value: dv,
+            value: dv.value,
           }));
       } else {
         options = cqs.combinedChoices[dimension.name].map((value) => ({

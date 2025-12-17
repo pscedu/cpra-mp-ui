@@ -8,31 +8,24 @@ export default function SidebarSelect({
   className = "",
   id,
   label,
-  onChange = null,
+  onChange,
   options,
-  signal = null,
   supportsSubtract = false,
-  value: explicitValue = null,
+  value: explicitValue,
   ...rest
 }) {
-  const valueOrValues = explicitValue !== null ? explicitValue : signal;
+  const valueOrValues = explicitValue;
   const supportsMulti = Array.isArray(valueOrValues);
   const values = supportsMulti ? valueOrValues : [valueOrValues];
   const [maxLength, setMaxLength] = useState(
     values.length === 1 ? 1 : Infinity,
   );
   const isMulti = maxLength > 1;
-  const changeHandler =
-    onChange ||
-    ((value) => {
-      // If no onChange and no signal, do nothing
-      // The parent component should provide either onChange or signal
-    });
 
   useEffect(() => {
     if (values.length > maxLength) {
       const newValues = values.slice(0, maxLength);
-      changeHandler(supportsMulti ? newValues : newValues[0]);
+      onChange(supportsMulti ? newValues : newValues[0]);
     }
   }, [maxLength]);
 
@@ -50,7 +43,7 @@ export default function SidebarSelect({
           const selectedValues = Array.isArray(selectedOptions)
             ? selectedOptions.map((option) => option.value)
             : [selectedOptions.value];
-          changeHandler(
+          onChange(
             supportsMulti
               ? selectedValues.slice(0, maxLength)
               : selectedValues[0],

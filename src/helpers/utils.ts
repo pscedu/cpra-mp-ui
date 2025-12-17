@@ -210,6 +210,7 @@ export function getCartesianProductObject(obj) {
 }
 
 export function sortConsistent(newValues, oldValues) {
+  if (!oldValues) return newValues;
   const getIdx = (value) => {
     const idx = (oldValues || []).indexOf(value);
     return idx === -1 ? 9999 : idx;

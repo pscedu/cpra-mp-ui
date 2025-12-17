@@ -4,18 +4,12 @@ import { useAtomValue, useSetAtom } from "jotai";
 import {
   analysisAtom,
   contextMenuAtom,
-  mapCatalogQueryAtom,
+  catalogQueriesAtom,
   mapFeatureValuesAtom,
   mapPositionAtom,
-  mapTileUrlAtom,
   mapTilesLoadingAtom,
-  projectsModelGroupAtom,
-  projectsYearAtom,
   selectedGeographiesAtom,
-  showGridLabelsAtom,
-  showGridLinesAtom,
-  showProjectsAtom,
-  showWaterAtom,
+  mapOptionsAtom,
   structureAtom,
   visualizationAtom,
 } from "@/helpers/state";
@@ -41,23 +35,19 @@ export default function Map() {
   const structure = useAtomValue(structureAtom);
   const visualization = useAtomValue(visualizationAtom);
   const analysis = useAtomValue(analysisAtom);
-  const mapCatalogQuery = useAtomValue(mapCatalogQueryAtom);
+  const mapCatalogQuery = useAtomValue(catalogQueriesAtom).getMapCatalogQuery();
   const selectedGeographies = useAtomValue(selectedGeographiesAtom);
   const setSelectedGeographies = useSetAtom(selectedGeographiesAtom);
-  const contextMenu = useAtomValue(contextMenuAtom);
   const setContextMenu = useSetAtom(contextMenuAtom);
   const mapFeatureValues = useAtomValue(mapFeatureValuesAtom);
   const mapPosition = useAtomValue(mapPositionAtom);
   const setMapPosition = useSetAtom(mapPositionAtom);
-  const mapTilesLoading = useAtomValue(mapTilesLoadingAtom);
-  const projectsModelGroup = useAtomValue(projectsModelGroupAtom);
-  const projectsYear = useAtomValue(projectsYearAtom);
+  const projectsModelGroup = mapCatalogQuery.getModelGroup();
+  const projectsYear = mapCatalogQuery.getYear();
   const setMapTilesLoading = useSetAtom(mapTilesLoadingAtom);
-  const showGridLabels = useAtomValue(showGridLabelsAtom);
-  const showGridLines = useAtomValue(showGridLinesAtom);
-  const showProjects = useAtomValue(showProjectsAtom);
-  const showWater = useAtomValue(showWaterAtom);
-  const mapTileUrl = useAtomValue(mapTileUrlAtom);
+  const { showGridLabels, showGridLines, showProjects, showWater } =
+    useAtomValue(mapOptionsAtom);
+  const mapTileUrl = mapCatalogQuery.getMapTileUrl(analysis);
 
   const container = useRef(null);
   const map = useRef(null);
