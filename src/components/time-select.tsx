@@ -1,8 +1,7 @@
-import { useAtomValue, useSetAtom } from "jotai";
+import { atom, useAtomValue, useAtom, useSetAtom } from "jotai";
 import {
   catalogQueriesAtom,
-  setTimeValuesAtom,
-  timeValuesAtom,
+  setSelectedFilterChoicesAtom,
 } from "@/helpers/state";
 import { parseDate } from "@/helpers/utils";
 
@@ -17,21 +16,40 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
+let selectedTimeout: ReturnType<typeof setTimeout> | null = null;
+
 import { SelectionModeDropdown } from "./selection-mode-dropdown";
 import { Slider } from "./ui/slider";
+import { useMemo } from "react";
 
 export default function TimeSelect() {
-  const timeValues = useAtomValue(timeValuesAtom);
-  const setTimeValues = useSetAtom(setTimeValuesAtom);
+  const setSelectedFilterChoices = useSetAtom(setSelectedFilterChoicesAtom);
   const catalogQueries = useAtomValue(catalogQueriesAtom);
   const mapCatalogQuery = catalogQueries.getMapCatalogQuery();
   const timeDimension = catalogQueries.getTimeDimension();
-  const timeChoices = catalogQueries.getTimeChoices();
-
-  const choices = timeChoices;
-  const selected = timeValues;
+  const selectedAtom = useMemo(
+    () => atom(catalogQueries.combinedFilters[timeDimension.name]),
+    [],
+  );
+  const [selected, setSelected] = useAtom(selectedAtom);
+  const choices = catalogQueries.getTimeChoices();
 
   if (!choices.length || !selected.length) return;
+
+  const setSelectedWithDebounce = (values, useTimeout = true) => {
+    setSelected(values);
+
+    if (selectedTimeout) clearTimeout(selectedTimeout);
+
+    const updateFilters = () =>
+      setSelectedFilterChoices(timeDimension.name, values, true);
+
+    if (useTimeout) {
+      selectedTimeout = setTimeout(updateFilters, 250);
+    } else {
+      updateFilters();
+    }
+  };
 
   const isYear = typeof choices[0] === "number";
   const values = selected.map((value) => choices.indexOf(value));
@@ -68,7 +86,7 @@ export default function TimeSelect() {
                       if (choices.includes(newValue)) {
                         const newSelected = [...selected];
                         newSelected[idx] = newValue;
-                        setTimeValues(newSelected);
+                        setSelected(newSelected);
                       }
                     }}
                   />
@@ -89,7 +107,7 @@ export default function TimeSelect() {
                     newSelected[i] = (newDate || date)
                       .toISOString()
                       .split("T")[0];
-                    setTimeValues(newSelected);
+                    setSelectedWithDebounce(newSelected);
                   }}
                   disabled={(date) =>
                     !choices.includes(date.toISOString().split("T")[0])
@@ -110,7 +128,7 @@ export default function TimeSelect() {
           max={choices.length > 1 ? choices.length - 1 : 1}
           value={values}
           onValueChange={(idxs) =>
-            setTimeValues(idxs.map((idx) => choices[idx]))
+            setSelectedWithDebounce(idxs.map((idx) => choices[idx]))
           }
         />
       </div>
@@ -122,15 +140,15 @@ export default function TimeSelect() {
         setMaxLength={(ml) => {
           const newLength = Math.min(ml, 2);
           if (newLength > values.length) {
-            let newValues = values.slice();
+            const newValues = values.slice();
             if (values[0] === choices.length - 1) newValues.splice(0, 0, 0);
             else newValues.push(choices.length - 1);
-            setTimeValues(
+            setSelectedWithDebounce(
               newValues.map((idx) => choices[idx]),
               false,
             );
           } else if (newLength < values.length) {
-            setTimeValues([choices[values[0]]], false);
+            setSelectedWithDebounce([choices[values[0]]], false);
           }
         }}
         supportsConcatenate={

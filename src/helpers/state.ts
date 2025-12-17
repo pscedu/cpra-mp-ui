@@ -239,36 +239,6 @@ export const rotateSelectedGeographiesAtom = atom(
   },
 );
 
-let timeValuesTimeout: ReturnType<typeof setTimeout> | null = null;
-
-export const setTimeValuesAtom = atom(
-  null,
-  (
-    get,
-    set,
-    { values, useTimeout = true }: { values: any[]; useTimeout?: boolean },
-  ) => {
-    const timeDimension = get(timeDimensionAtom);
-    set(timeValuesAtom, values);
-
-    if (timeValuesTimeout) clearTimeout(timeValuesTimeout);
-
-    const updateFilters = () => {
-      set(setSelectedFilterChoicesAtom, {
-        dimensionName: timeDimension.name,
-        values,
-        sort: true,
-      });
-    };
-
-    if (useTimeout) {
-      timeValuesTimeout = setTimeout(updateFilters, 250);
-    } else {
-      updateFilters();
-    }
-  },
-);
-
 export const setSelectedFilterChoicesAtom = atom(
   null,
   (get, set, dimensionName: string, values: any[], sort = true) => {
