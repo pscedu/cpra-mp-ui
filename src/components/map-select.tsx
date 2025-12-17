@@ -60,6 +60,8 @@ export default function MapSelect() {
     return 0;
   });
 
+  console.log({ options, selectedOption });
+
   return (
     <SidebarSelect
       label="Map"
@@ -72,18 +74,18 @@ export default function MapSelect() {
                 moveToFirstPosition(combo.dataset, datasets),
               );
           } else {
-            setSelectedFilterChoices({
-              dimensionName: key,
-              choices: moveToFirstPosition(
+            setSelectedFilterChoices(
+              key,
+              moveToFirstPosition(
                 combo[key],
                 catalogQueries?.combinedFilters[key],
               ),
-              reload: false,
-            });
+              false,
+            );
           }
         }
       }}
-      value={selectedOption}
+      value={selectedOption.value}
       icon={Map}
     />
   );
