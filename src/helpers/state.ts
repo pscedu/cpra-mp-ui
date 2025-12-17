@@ -17,16 +17,13 @@ export const structureAtom = atom(async () => await getStructure());
 export const activityAtom = hashAtom("activity", "data");
 export const issueAtom = hashAtom("issue", null);
 
-const initialDatasetRequest = [
+export const requestedDatasetsAtom = atom<DatasetRequest[]>([
   {
     variable: "sal",
     grid: "hydro_compartment_v001",
     time_unit: "annual",
   },
-];
-export const requestedDatasetsAtom = atom<DatasetRequest[]>(
-  initialDatasetRequest,
-);
+]);
 export const requestedFiltersAtom = atom({});
 export const catalogQueriesAtom = atom<
   CatalogQueries | Promise<CatalogQueries>
@@ -55,6 +52,50 @@ observe((get, set) => {
     await cqs.executeAll();
     set(catalogQueriesAtom, cqs);
     // set(requestedFiltersAtom, cqs.combinedFilters);
+  })();
+}, store);
+
+export const analysisAtom = atom({ operation: "single", dimension: null });
+
+const mapDataUrlAtom = atom((get) => {
+  const cqs = get(catalogQueriesAtom);
+  const analysis = get(analysisAtom);
+  if ("queries" in cqs) return cqs.queries[0].getMapDataUrl(analysis);
+  return null;
+});
+
+// Update map feature state when the dataset or filters change
+let mapFeatureValuesAbortController: AbortController | null = null;
+
+observe((get, set) => {
+  const mapDataUrl = get(mapDataUrlAtom);
+
+  (async () => {
+    if (mapDataUrl) {
+      if (mapFeatureValuesAbortController)
+        mapFeatureValuesAbortController.abort("map state changed");
+      mapFeatureValuesAbortController = new AbortController();
+
+      set(mapFeatureValuesLoadingAtom, true);
+      let data;
+      try {
+        data = await getNdJson(mapDataUrl, {
+          signal: mapFeatureValuesAbortController.signal,
+        });
+      } catch (err) {
+        if (err === "map state changed") return;
+        throw err;
+      }
+
+      if (data.length === 1) {
+        set(mapFeatureValuesAtom, data[0]);
+        set(mapFeatureValuesLoadingAtom, false);
+      } else {
+        console.error(`Expected 1 row, received ${data.length}`, data);
+      }
+    } else {
+      set(mapFeatureValuesAtom, {});
+    }
   })();
 }, store);
 
@@ -193,12 +234,6 @@ export const reconcileStateAtom = atom(
   },
 );
 
-export const analysisAtom = atom((get) => {
-  const analysisType = get(analysisTypeAtom);
-  const [operation, dimension] = analysisType.split(":");
-  return { operation, dimension };
-});
-
 export const tagOptionsAtom = atom(async (get) => {
   const structure = await get(structureAtom);
   const options = [];
@@ -248,17 +283,6 @@ export const setSelectedFilterChoicesAtom = atom(
       ...filters,
       [dimensionName]: values,
     });
-  },
-);
-
-export const setAnalysisAtom = atom(
-  null,
-  (
-    get,
-    set,
-    { operation, dimension }: { operation: string; dimension: string },
-  ) => {
-    set(analysisTypeAtom, dimension ? `${operation}:${dimension}` : operation);
   },
 );
 
@@ -500,41 +524,6 @@ export const linkClickupAtom = atom(
     navigate("/");
   },
 );
-
-// Update map feature state when the dataset or filters change
-let mapFeatureValuesAbortController: AbortController | null = null;
-
-export const mapFeatureValuesEffect = (get, set) => {
-  const mapDataUrl = get(mapDataUrlAtom);
-
-  (async () => {
-    if (mapDataUrl) {
-      if (mapFeatureValuesAbortController)
-        mapFeatureValuesAbortController.abort("map state changed");
-      mapFeatureValuesAbortController = new AbortController();
-
-      set(mapFeatureValuesLoadingAtom, true);
-      let data;
-      try {
-        data = await getNdJson(mapDataUrl, {
-          signal: mapFeatureValuesAbortController.signal,
-        });
-      } catch (err) {
-        if (err === "map state changed") return;
-        throw err;
-      }
-
-      if (data.length === 1) {
-        set(mapFeatureValuesAtom, data[0]);
-        set(mapFeatureValuesLoadingAtom, false);
-      } else {
-        console.error(`Expected 1 row, received ${data.length}`, data);
-      }
-    } else {
-      set(mapFeatureValuesAtom, {});
-    }
-  })();
-};
 
 // Reload user information when the application loads
 export const userInfoEffect = (get, set) => {

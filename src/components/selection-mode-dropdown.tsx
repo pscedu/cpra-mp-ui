@@ -1,5 +1,5 @@
-import { useAtomValue, useSetAtom } from "jotai";
-import { analysisAtom, setAnalysisAtom } from "@/helpers/state";
+import { useAtom } from "jotai";
+import { analysisAtom } from "@/helpers/state";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -30,8 +30,7 @@ export function SelectionModeDropdown({
   supportsSubtract,
   supportsConcatenate,
 }) {
-  const analysis = useAtomValue(analysisAtom);
-  const setAnalysis = useSetAtom(setAnalysisAtom);
+  const [analysis, setAnalysis] = useAtom(analysisAtom);
   const { operation, dimension } = analysis;
 
   const options = [
