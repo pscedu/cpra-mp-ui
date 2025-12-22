@@ -1,5 +1,10 @@
 import { atom, WritableAtom, createStore } from "jotai";
-import { atomWithRefresh, atomWithReset, atomWithStorage } from "jotai/utils";
+import {
+  atomWithRefresh,
+  atomWithReset,
+  atomWithStorage,
+  RESET,
+} from "jotai/utils";
 import { observe } from "jotai-effect";
 import { jwtDecode } from "jwt-decode";
 import { CommentNode, exportTask, importTask } from "./clickup";
@@ -248,7 +253,9 @@ export const tasksAtom = atomWithRefresh(async (get) => {
   return tasksData.map(importTask);
 });
 
-export const taskAtom = atom<any | Promise<any>>(new Promise<any>(() => {}));
+export const taskAtom = atomWithReset<any | Promise<any>>(
+  new Promise<any>(() => {}),
+);
 
 export const createTaskAtom = atom(null, async (get, set, task: any) => {
   return await getManagementJson(get, "/tasks/", {
@@ -521,7 +528,7 @@ observe((get, set) => {
       name: "",
     });
   else if (issue) {
-    set(taskAtom, new Promise(() => {}));
+    set(taskAtom, RESET);
     (async () => {
       const taskData = await getManagementJson(
         get,

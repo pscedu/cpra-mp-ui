@@ -1,10 +1,6 @@
 import { useState } from "react";
-import { useAtomValue, useSetAtom } from "jotai";
-import {
-  taskAtom,
-  taskStatusesAtom,
-  updateTaskAtom,
-} from "@/helpers/state";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { taskAtom, taskStatusesAtom, updateTaskAtom } from "@/helpers/state";
 import { toTitleCase } from "@/helpers/utils";
 
 import { Check, LoaderCircle } from "lucide-react";
@@ -20,7 +16,7 @@ import {
 import StatusToken from "@/components/status-token";
 
 export default function StatusSelect({ status }: { status: any }) {
-  const task = useAtomValue(taskAtom);
+  const [task, setTask] = useAtom(taskAtom);
   const updateTask = useSetAtom(updateTaskAtom);
   const taskStatuses = useAtomValue(taskStatusesAtom);
 
@@ -54,9 +50,11 @@ export default function StatusSelect({ status }: { status: any }) {
                 className="flex justify-between cursor-pointer"
                 onSelect={async () => {
                   if (!isCurrent) setSaving(true);
-                  await updateTask({
+                  const res = await updateTask({
                     status: choice,
                   });
+                  if (res.error) console.error(res.error);
+                  else setTask({ ...task, status: res.status });
                   setSaving(false);
                 }}
               >
