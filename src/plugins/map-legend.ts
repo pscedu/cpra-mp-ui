@@ -24,10 +24,11 @@ export class CPRAMapLegendControl implements IControl {
   }
 
   addEventHandlers() {
-    if (this._map)
-      this._map.on("styledata", () => {
-        this.updateLegend();
-      });
+    if (this._map) {
+      const update = () => this.updateLegend();
+      this._map.on("load", update);
+      this._map.on("styledata", update);
+    }
   }
 
   updateLegend() {

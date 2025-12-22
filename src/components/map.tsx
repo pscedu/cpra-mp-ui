@@ -103,7 +103,6 @@ export default function Map() {
   };
 
   const initMap = () => {
-    console.log("initMap");
     const [z, y, x] = mapPosition;
     const glMap = new GLMap({
       container: container.current,
@@ -111,6 +110,7 @@ export default function Map() {
       style: getBaseStyle(),
       zoom: z,
     });
+    glMap.addControl(new CPRAMapLegendControl());
 
     glMap.on("click", (e) => {
       const geo = getGeography(e);
@@ -298,13 +298,6 @@ export default function Map() {
       }
     };
   }, [container.current]);
-
-  // Add the map legend control.
-  useEffect(() => {
-    if (map.current && structure) {
-      map.current.addControl(new CPRAMapLegendControl(structure));
-    }
-  }, [map.current, structure]);
 
   // Update the map position when the signal changes.
   useEffect(() => {
