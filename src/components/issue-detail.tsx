@@ -1,14 +1,11 @@
 import { calculateDiff } from "@/helpers/management";
-import { useAtomValue, useSetAtom, useAtom } from "jotai";
-import {
-  taskAtom,
-  updateTaskAtom,
-} from "@/helpers/state";
+import { useSetAtom, useAtom } from "jotai";
+import { taskAtom, updateTaskAtom } from "@/helpers/state";
 import { cn } from "@/lib/utils";
 import { useRef, useState } from "react";
 import { buttonVariants } from "./ui/button";
 
-import { ExternalLink, LoaderCircle } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import TaskAssigneesSelect from "./task-assignees-select";
 import Comment from "./comment";
 import CommentForm from "./comment-form";
@@ -29,13 +26,6 @@ export default function IssueDetail() {
   const currentAssignees = useRef([]);
   const currentName = useRef("");
   const currentTags = useRef([]);
-
-  if (!task)
-    return (
-      <li className="p-4 flex">
-        <LoaderCircle className="animate-spin" />
-      </li>
-    );
 
   const reset = (attr: string, ref: React.RefObject<any>) =>
     setTask({

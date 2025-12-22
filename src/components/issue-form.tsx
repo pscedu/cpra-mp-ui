@@ -4,9 +4,9 @@ import {
   createTaskAtom,
   issueAtom,
   catalogQueriesAtom,
-  reloadTasksAtom,
   tagOptionsAtom,
   taskAtom,
+  tasksAtom,
 } from "@/helpers/state";
 
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ export default function IssueForm() {
   const createTask = useSetAtom(createTaskAtom);
   const setIssue = useSetAtom(issueAtom);
   const mapCatalogQuery = useAtomValue(catalogQueriesAtom).getMapCatalogQuery();
-  const reloadTasks = useSetAtom(reloadTasksAtom);
+  const reloadTasks = useSetAtom(tasksAtom);
   const tagOptions = useAtomValue(tagOptionsAtom);
   const [task, setTask] = useAtom(taskAtom);
   const [isProcessing, setIsProcessing] = useState(false);

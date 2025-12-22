@@ -1,8 +1,5 @@
 import { useSetAtom } from "jotai";
-import {
-  issueAtom,
-  taskAtom,
-} from "@/helpers/state";
+import { issueAtom } from "@/helpers/state";
 
 import { Button } from "./ui/button";
 import { ReactNode } from "react";
@@ -16,16 +13,12 @@ export default function IssueCloseButton({
   variant?: "ghost" | "outline";
 }) {
   const setIssue = useSetAtom(issueAtom);
-  const setTask = useSetAtom(taskAtom);
 
   return (
     <Button
       className="cursor-pointer"
       variant={variant}
-      onClick={() => {
-        setIssue(null);
-        setTask(null);
-      }}
+      onClick={() => setIssue(null)}
     >
       {children ? children : <X />}
     </Button>

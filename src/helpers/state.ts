@@ -1,7 +1,7 @@
 import { atom, WritableAtom, createStore } from "jotai";
+import { atomWithRefresh, atomWithStorage } from "jotai/utils";
 import { observe } from "jotai-effect";
 import { jwtDecode } from "jwt-decode";
-import { loadUser, saveUser } from "./auth";
 import { CommentNode, exportTask, importTask } from "./clickup";
 import { managementBaseUrl } from "./config";
 import { hashAtom } from "./hash";
@@ -12,6 +12,11 @@ import { CatalogQueries } from "./catalog";
 import { Analysis, DatasetRequest } from "./types";
 
 export const store = createStore();
+
+const tokenAtom = (key: string) =>
+  atomWithStorage<string | null>(key, null, undefined, { getOnInit: true });
+export const accessTokenAtom = tokenAtom("access_token");
+export const refreshTokenAtom = tokenAtom("refresh_token");
 
 export const structureAtom = atom(async () => await getStructure());
 export const activityAtom = hashAtom("activity", "data");
@@ -114,16 +119,12 @@ export const visualizationTypeAtom = hashAtom(
   "visualization",
   "time-series-line",
 );
-export const tasksAtom = atom(null as any);
-export const taskAtom = atom(null as any);
-export const userAtom = atom(loadUser() as any);
-export const usersAtom = atom([] as any[]);
+
 export const avatarCacheKeyAtom = atom(new Date().getTime());
 export const mapFeatureValuesAtom = atom({} as any);
 export const mapFeatureValuesLoadingAtom = atom(false);
 export const mapTilesLoadingAtom = atom(false);
 export const issueFilterTagsAtom = atom([] as any[]);
-export const taskStatusesAtom = atom(null as any);
 export const contextMenuAtom = atom(null as any);
 
 export const reconcileStateAtom = atom(
@@ -184,84 +185,89 @@ export const setSelectedFilterChoicesAtom = atom(
 );
 
 const getManagementJson = async (
-  get: any,
+  get,
   relativeUrl: string,
-  {
-    accessToken = null,
-    body = null,
-    method = "GET",
-    tryRefresh = true,
-  }: any = {},
+  { accessToken = null, body = null, method = "GET" } = {},
 ) => {
-  const user = get(userAtom);
   const res = await getJson(`${managementBaseUrl}${relativeUrl}`, {
     body,
     headers: {
-      authorization: `Bearer ${accessToken ? accessToken : user?.accessToken}`,
+      authorization: `Bearer ${accessToken ?? get(accessTokenAtom)}`,
       "content-type": "application/json",
     },
     method,
   });
+  if (res.error && res.error.status === 401) {
+    // Try to obtain a new access token using the refresh token.
+    if (!accessToken && (await refreshAccessToken(get)))
+      return await getManagementJson(get, relativeUrl, {
+        accessToken,
+        body,
+        method,
+      });
+    store.set(accessTokenAtom, null);
+    store.set(refreshTokenAtom, null);
+  }
   return res;
 };
 
-export const refreshAccessTokenAtom = atom(null, async (get, set) => {
-  const user = get(userAtom);
-  const refreshToken = user?.refreshToken;
+const refreshAccessToken = async (get) => {
+  const refreshToken = store.get(refreshTokenAtom);
   if (!refreshToken) return false;
-
   const data = await getManagementJson(get, "/login/refresh", {
     accessToken: refreshToken,
-    tryRefresh: false,
   });
   if (data.error) return false;
-  set(userAtom, { ...user, accessToken: data.accessToken });
+  store.set(accessTokenAtom, data.accessToken);
   return true;
+};
+
+export const userAtom = atom(async (get) => {
+  const result = await getManagementJson(get, "/users/current_user");
+  return result.error ? null : result;
 });
 
-export const getUserInfoAtom = atom(
-  null,
-  async (get, set, settings: any = {}) => {
-    const result = await getManagementJson(
-      get,
-      "/users/current_user",
-      settings,
-    );
-    if (result.error && result.error.status === 401) {
-      // Try to obtain a new access token using the refresh token.
-      if (settings.tryRefresh !== false && (await set(refreshAccessTokenAtom)))
-        return await set(getUserInfoAtom, settings);
-      set(userAtom, null);
-    }
-    return result;
-  },
-);
+export const usersAtom = atom(async (get) => {
+  const user = await get(userAtom);
+  if (!user?.clickupId) return [];
+  const usersData = await getManagementJson(get, "/users/");
+  return usersData.sort((a: any, b: any) => (a.fullName < b.fullName ? -1 : 1));
+});
 
-export const getTasksAtom = atom(
-  null,
-  async (get, set, { tags }: { tags?: any[] } = {}) => {
-    const params = new URLSearchParams();
-    if (tags) for (const tag of tags) params.append("tags", tag.value);
-    return await getManagementJson(get, `/tasks?${params}`);
-  },
-);
+export const taskStatusesAtom = atom(async (get) => {
+  const statuses = await getManagementJson(get, "/statuses/");
+  return statuses.error ? [] : statuses;
+});
 
-export const getTaskAtom = atom(
-  null,
-  async (
-    get,
-    set,
-    { taskId, getComments = false }: { taskId: string; getComments?: boolean },
-  ) => {
-    return await getManagementJson(
+export const tasksAtom = atomWithRefresh(async (get) => {
+  const issueFilterTags = get(issueFilterTagsAtom);
+  const params = new URLSearchParams();
+  if (issueFilterTags)
+    for (const tag of issueFilterTags) params.append("tags", tag.value);
+  const tasksData = await getManagementJson(get, `/tasks/?${params}`);
+  return tasksData.map(importTask);
+});
+
+export const taskAtom = atom(async (get) => {
+  const issue = get(issueAtom);
+  if (issue === "new")
+    return {
+      assignees: [],
+      tags: [],
+      markdown_description: "",
+      name: "",
+    };
+  else if (issue) {
+    const taskData = await await getManagementJson(
       get,
-      `/tasks/${taskId}?getComments=${getComments.toString()}`,
+      `/tasks/${issue}?getComments=true`,
     );
-  },
-);
+    return importTask(taskData);
+  }
+});
 
 export const createTaskAtom = atom(null, async (get, set, task: any) => {
-  return await getManagementJson(get, "/tasks", {
+  return await getManagementJson(get, "/tasks/", {
     body: exportTask(task),
     method: "POST",
   });
@@ -286,39 +292,6 @@ export const createCommentAtom = atom(
     });
   },
 );
-
-export const getStatusesAtom = atom(
-  null,
-  async (get, set) => await getManagementJson(get, "/statuses"),
-);
-
-export const reloadTaskAtom = atom(null, async (get, set) => {
-  const issue = get(issueAtom);
-  set(taskAtom, null);
-
-  if (issue === "new")
-    set(taskAtom, {
-      assignees: [],
-      tags: [],
-      markdown_description: "",
-      name: "",
-    });
-  else if (issue) {
-    const taskData = await set(getTaskAtom, {
-      taskId: issue,
-      getComments: true,
-    });
-    set(taskAtom, importTask(taskData));
-  }
-});
-
-export const reloadTasksAtom = atom(null, async (get, set) => {
-  const issueFilterTags = get(issueFilterTagsAtom);
-  set(tasksAtom, null);
-
-  const tasksData = await set(getTasksAtom, { tags: issueFilterTags });
-  set(tasksAtom, tasksData.map(importTask));
-});
 
 export const updateCommentAtom = atom(
   null,
@@ -380,17 +353,8 @@ export const completeLoginAtom = atom(
       return loginError(err as string);
     }
 
-    const currentUser: any = await set(getUserInfoAtom, {
-      accessToken: accessToken,
-    });
-
-    if (currentUser?.error) return loginError("Failed to get user information");
-
-    set(userAtom, {
-      ...(currentUser as any),
-      accessToken: accessToken,
-      refreshToken: refreshToken,
-    });
+    set(accessTokenAtom, accessToken);
+    set(refreshTokenAtom, refreshToken);
 
     navigate("/");
   },
@@ -476,24 +440,6 @@ export const handleMapKeyPressAtom = atom(
   },
 );
 
-// Reload user information when the application loads
-export const userInfoEffect = (get, set) => {
-  const user = get(userAtom);
-
-  if (user) {
-    (async () => {
-      const userInfo: any = await set(getUserInfoAtom, {});
-      set(userAtom, userInfo?.error ? null : { ...user, ...(userInfo as any) });
-    })();
-  }
-};
-
-// Save user information to local storage when it changes
-export const userPersistenceEffect = (get, set) => {
-  const user = get(userAtom);
-  saveUser(user);
-};
-
 // Reset the activity when the user logs out
 export const activityResetEffect = (get, set) => {
   const activity = get(activityAtom);
@@ -501,54 +447,6 @@ export const activityResetEffect = (get, set) => {
 
   if (activity !== "data" && !user) {
     set(activityAtom, "data");
-  }
-};
-
-// Load a list of portal users when a user logs in
-export const usersEffect = (get, set) => {
-  const user = get(userAtom);
-  const users = get(usersAtom);
-
-  if (user?.clickupId && users.length === 0) {
-    (async () => {
-      const usersData = await getManagementJson(get, "/users");
-      set(
-        usersAtom,
-        usersData.sort((a: any, b: any) => (a.fullName < b.fullName ? -1 : 1)),
-      );
-    })();
-  }
-};
-
-// Load the task list
-export const tasksEffect = (get, set) => {
-  const activity = get(activityAtom);
-  const issueFilterTags = get(issueFilterTagsAtom);
-
-  if (activity === "issues" && issueFilterTags) {
-    set(reloadTasksAtom);
-  }
-};
-
-// Load an individual task when an issue is selected
-export const taskEffect = (get, set) => {
-  const activity = get(activityAtom);
-  const issue = get(issueAtom);
-
-  if (activity === "issues") {
-    set(reloadTaskAtom);
-  }
-};
-
-// Load possible task statuses when the application loads
-export const taskStatusesEffect = (get, set) => {
-  const user = get(userAtom);
-
-  if (user) {
-    (async () => {
-      const statuses = await set(getStatusesAtom);
-      set(taskStatusesAtom, statuses);
-    })();
   }
 };
 

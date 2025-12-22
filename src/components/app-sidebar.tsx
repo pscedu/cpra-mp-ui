@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Suspense } from "react";
 import { useAtomValue } from "jotai";
 import { activityAtom, issueAtom } from "@/helpers/state";
 
@@ -18,6 +19,7 @@ import IssueDetail from "./issue-detail";
 import IssueForm from "./issue-form";
 import Issues from "./issues";
 import VisualizationSidebar from "./visualization-sidebar";
+import { LoaderCircle } from "lucide-react";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const activity = useAtomValue(activityAtom);
@@ -39,7 +41,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </>
             )}
             {activity === "issues" && (
-              <>
+              <Suspense
+                fallback={<LoaderCircle className="animate-spin m-2" />}
+              >
                 {issue ? (
                   issue === "new" ? (
                     <IssueForm />
@@ -49,7 +53,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 ) : (
                   <Issues />
                 )}
-              </>
+              </Suspense>
             )}
           </>
         )}
