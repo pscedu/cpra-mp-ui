@@ -1,4 +1,4 @@
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import {
   catalogQueriesAtom,
   structureAtom,
@@ -11,7 +11,9 @@ import { ChartLine } from "lucide-react";
 export default function VisualizationSelect() {
   const structure = useAtomValue(structureAtom);
   const mapCatalogQuery = useAtomValue(catalogQueriesAtom).getMapCatalogQuery();
-  const visualizationType = useAtomValue(visualizationTypeAtom);
+  const [visualizationType, setVisualizationType] = useAtom(
+    visualizationTypeAtom,
+  );
 
   if (!structure || !mapCatalogQuery) return;
 
@@ -27,9 +29,11 @@ export default function VisualizationSelect() {
 
   return (
     <SidebarSelect
+      id="visualization-type"
       label="Chart"
       options={options}
-      signal={visualizationType}
+      value={visualizationType}
+      onChange={setVisualizationType}
       icon={ChartLine}
     />
   );
