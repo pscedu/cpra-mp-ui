@@ -23,7 +23,7 @@ export default function TagToken({
   const structure = useAtomValue(structureAtom);
   const [category, value] = name.split(":");
   const valueLabel = structure?.dimensionsMap[category]?.values?.find(
-    (dv) => dv?.toString() === value,
+    (dv) => dv.value === value,
   )?.label;
 
   const Tag = onClick ? "button" : "span";

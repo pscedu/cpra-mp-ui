@@ -1,7 +1,5 @@
 import { useAtom } from "jotai";
-import {
-  taskAtom,
-} from "@/helpers/state";
+import { taskAtom } from "@/helpers/state";
 
 import AssigneesSelect from "@/components/assignees-select";
 
@@ -12,10 +10,10 @@ export default function TaskAssigneesSelect() {
     <AssigneesSelect
       className="mb-4"
       value={task?.assignees}
-      onChange={(users: any) =>
+      onChange={(selected: any) =>
         setTask({
           ...task,
-          assignees: users,
+          assignees: selected.map((option) => option.value),
         })
       }
     />

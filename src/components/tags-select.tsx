@@ -1,8 +1,5 @@
 import { useAtomValue, useAtom } from "jotai";
-import {
-  tagOptionsAtom,
-  taskAtom,
-} from "@/helpers/state";
+import { tagOptionsAtom, taskAtom } from "@/helpers/state";
 
 import RSelect from "@/components/ui/rselect";
 
@@ -11,7 +8,7 @@ export default function TagsSelect() {
   const [task, setTask] = useAtom(taskAtom);
 
   const optionsMap: Record<string, string> = {};
-  for (let option of tagOptions || []) optionsMap[option] = option;
+  for (let option of tagOptions || []) optionsMap[option.value] = option;
 
   return (
     tagOptions?.length > 0 && (
@@ -26,7 +23,7 @@ export default function TagsSelect() {
         onChange={(selected: any) =>
           setTask({
             ...task,
-            tags: selected.map((option: string) => ({ name: option })),
+            tags: selected.map((option: string) => ({ name: option.value })),
           })
         }
       />

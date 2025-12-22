@@ -1,5 +1,5 @@
 import { atom, WritableAtom, createStore } from "jotai";
-import { atomWithRefresh, atomWithStorage } from "jotai/utils";
+import { atomWithRefresh, atomWithReset, atomWithStorage } from "jotai/utils";
 import { observe } from "jotai-effect";
 import { jwtDecode } from "jwt-decode";
 import { CommentNode, exportTask, importTask } from "./clickup";
@@ -248,23 +248,7 @@ export const tasksAtom = atomWithRefresh(async (get) => {
   return tasksData.map(importTask);
 });
 
-export const taskAtom = atom(async (get) => {
-  const issue = get(issueAtom);
-  if (issue === "new")
-    return {
-      assignees: [],
-      tags: [],
-      markdown_description: "",
-      name: "",
-    };
-  else if (issue) {
-    const taskData = await await getManagementJson(
-      get,
-      `/tasks/${issue}?getComments=true`,
-    );
-    return importTask(taskData);
-  }
-});
+export const taskAtom = atom<any | Promise<any>>(new Promise<any>(() => {}));
 
 export const createTaskAtom = atom(null, async (get, set, task: any) => {
   return await getManagementJson(get, "/tasks/", {
@@ -524,6 +508,28 @@ observe((get, set) => {
     const visualization = await visualizationPromise;
     set(maxSelectedGeographiesAtom, visualization.max_geographies);
   })();
+}, store);
+
+// Update the task when the issue changes.
+observe((get, set) => {
+  const issue = get(issueAtom);
+  if (issue === "new")
+    set(taskAtom, {
+      assignees: [],
+      tags: [],
+      markdown_description: "",
+      name: "",
+    });
+  else if (issue) {
+    set(taskAtom, new Promise(() => {}));
+    (async () => {
+      const taskData = await getManagementJson(
+        get,
+        `/tasks/${issue}?getComments=true`,
+      );
+      set(taskAtom, importTask(taskData));
+    })();
+  }
 }, store);
 
 // Log filters for debugging
