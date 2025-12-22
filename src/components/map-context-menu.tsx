@@ -6,6 +6,7 @@ import {
   rotateSelectedGeographiesAtom,
   selectedGeographiesAtom,
   visualizationAtom,
+  maxSelectedGeographiesAtom,
 } from "@/helpers/state";
 import {
   ContextMenu,
@@ -35,14 +36,13 @@ export default function MapContextMenu({
 }) {
   const contextMenu = useAtomValue(contextMenuAtom);
   const selectedGeographies = useAtomValue(selectedGeographiesAtom);
-  const visualization = useAtomValue(visualizationAtom);
+  const maxSelectedGeographies = useAtomValue(maxSelectedGeographiesAtom);
   const mapCatalogQuery = useAtomValue(catalogQueriesAtom).getMapCatalogQuery();
   const rotateSelectedGeographies = useSetAtom(rotateSelectedGeographiesAtom);
   const trigger = useRef<HTMLDivElement>(null);
 
   const geography = contextMenu?.geography;
   const selectionCount = selectedGeographies?.length;
-  const maxGeographies = visualization.max_geographies || 10;
 
   useEffect(() => {
     if (
@@ -107,20 +107,22 @@ export default function MapContextMenu({
           <ChevronRight /> Next selection
           <ContextMenuShortcut>Ctrl &rarr;</ContextMenuShortcut>
         </ContextMenuItem>
-        {maxGeographies > 1 && (
+        {maxSelectedGeographies > 1 && (
           <>
             <ContextMenuItem
-              disabled={selectionCount <= maxGeographies}
-              onSelect={() => rotateSelectedGeographies(-1 * maxGeographies)}
+              disabled={selectionCount <= maxSelectedGeographies}
+              onSelect={() =>
+                rotateSelectedGeographies(-1 * maxSelectedGeographies)
+              }
             >
-              <ChevronsLeft /> Previous {maxGeographies} selections
+              <ChevronsLeft /> Previous {maxSelectedGeographies} selections
               <ContextMenuShortcut>Ctrl &uarr;</ContextMenuShortcut>
             </ContextMenuItem>
             <ContextMenuItem
-              disabled={selectionCount <= maxGeographies}
-              onSelect={() => rotateSelectedGeographies(maxGeographies)}
+              disabled={selectionCount <= maxSelectedGeographies}
+              onSelect={() => rotateSelectedGeographies(maxSelectedGeographies)}
             >
-              <ChevronsRight /> Next {maxGeographies} selections
+              <ChevronsRight /> Next {maxSelectedGeographies} selections
               <ContextMenuShortcut>Ctrl &darr;</ContextMenuShortcut>
             </ContextMenuItem>
           </>

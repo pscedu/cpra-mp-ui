@@ -98,6 +98,8 @@ export const selectedGeographiesAtom = hashAtom<number[] | number[][]>(
   },
 );
 
+export const maxSelectedGeographiesAtom = atom(10);
+
 export const mapOptionsAtom = atom({
   showGridLabels: false,
   showGridLines: true,
@@ -614,6 +616,15 @@ observe((get, set) => {
     } else {
       set(mapFeatureValuesAtom, {});
     }
+  })();
+}, store);
+
+// Update the maximum selected geographies when the visualization changes.
+observe((get, set) => {
+  const visualizationPromise = get(visualizationAtom);
+  (async () => {
+    const visualization = await visualizationPromise;
+    set(maxSelectedGeographiesAtom, visualization.max_geographies);
   })();
 }, store);
 

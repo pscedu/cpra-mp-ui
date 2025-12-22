@@ -11,10 +11,10 @@ import {
   selectedGeographiesAtom,
   mapOptionsAtom,
   structureAtom,
-  visualizationAtom,
   updateSelectedGeographyAtom,
   toggleGeographySelectedAtom,
   handleMapKeyPressAtom,
+  maxSelectedGeographiesAtom,
 } from "@/helpers/state";
 import {
   differenceRasterSource,
@@ -36,7 +36,7 @@ import { CPRAMapLegendControl } from "@/plugins/map-legend";
 // Map using MapLibre GL.
 export default function Map() {
   const structure = useAtomValue(structureAtom);
-  const visualization = useAtomValue(visualizationAtom);
+  const maxSelectedGeographies = useAtomValue(maxSelectedGeographiesAtom);
   const analysis = useAtomValue(analysisAtom);
   const mapCatalogQuery = useAtomValue(catalogQueriesAtom).getMapCatalogQuery();
   const selectedGeographies = useAtomValue(selectedGeographiesAtom);
@@ -55,7 +55,7 @@ export default function Map() {
   const mapTileUrl = mapCatalogQuery.getMapTileUrl(analysis);
 
   const container = useRef(null);
-  const map = useRef(null);
+  const map = useRef<GLMap | null>(null);
   const prevTileUrl = useRef(null);
   const prevDataset = useRef(null);
   const prevAnalysisOperation = useRef(null);
@@ -64,7 +64,7 @@ export default function Map() {
   const markers: Ref<Marker[]> = useRef([]);
 
   const selectionColorOptions = {
-    count: visualization.max_geographies || 10,
+    count: maxSelectedGeographies || 10,
   };
 
   const { operation, dimension } = analysis;
@@ -103,33 +103,35 @@ export default function Map() {
   };
 
   const initMap = () => {
+    console.log("initMap");
     const [z, y, x] = mapPosition;
-    map.current = new GLMap({
+    const glMap = new GLMap({
       container: container.current,
       center: [x, y],
       style: getBaseStyle(),
       zoom: z,
     });
 
-    map.current.on("click", (e) => {
+    glMap.on("click", (e) => {
       const geo = getGeography(e);
       if (geo) toggleGeographySelected(geo);
     });
-    map.current.on("contextmenu", (e) => {
+    glMap.on("contextmenu", (e) => {
       const geo = getGeography(e);
       if (geo) openContextMenu(geo, e);
     });
-    map.current.on("mousemove", (e) => {
+    glMap.on("mousemove", (e) => {
       const geo = getGeography(e);
-      map.current.getCanvas().style.cursor = geo ? "pointer" : "";
+      glMap.getCanvas().style.cursor = geo ? "pointer" : "";
     });
-    map.current.on("data", () => setMapTilesLoading(true));
-    map.current.on("idle", () => setMapTilesLoading(false));
-    map.current.on("moveend", () => {
-      const { lat, lng } = map.current.getCenter();
-      setMapPosition([map.current.getZoom(), lat, lng]);
+    glMap.on("data", () => setMapTilesLoading(true));
+    glMap.on("idle", () => setMapTilesLoading(false));
+    glMap.on("moveend", () => {
+      const { lat, lng } = glMap.getCenter();
+      setMapPosition([glMap.getZoom(), lat, lng]);
     });
-    map.current.dragRotate.disable();
+    glMap.dragRotate.disable();
+    map.current = glMap;
   };
 
   const addSource = (tileUrl: string, dataset: Dataset) => {
@@ -416,7 +418,7 @@ export default function Map() {
       updateFeatureState();
       updateMarkers();
     })();
-  }, [mapFeatureValues, selectedGeographies, visualization]);
+  }, [mapFeatureValues, selectedGeographies, maxSelectedGeographies]);
 
   // Update the map legend when the map catalog query or analysis changes.
   useEffect(() => {
