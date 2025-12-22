@@ -169,22 +169,6 @@ export const visualizationAtom = atom(async (get) => {
   return structure.visualizationsMap[visualizationType];
 });
 
-// ============================================================================
-// Action Atoms (Write-only atoms for complex operations)
-// ============================================================================
-
-export const rotateSelectedGeographiesAtom = atom(
-  null,
-  (get, set, offset: number) => {
-    const selectedGeographies = get(selectedGeographiesAtom);
-    if (offset != 0)
-      set(selectedGeographiesAtom, [
-        ...selectedGeographies.slice(offset),
-        ...selectedGeographies.slice(0, offset),
-      ]);
-  },
-);
-
 export const setSelectedFilterChoicesAtom = atom(
   null,
   (get, set, dimensionName: string, values: any[], sort = true) => {
@@ -196,10 +180,6 @@ export const setSelectedFilterChoicesAtom = atom(
     });
   },
 );
-
-// ============================================================================
-// Management API Actions
-// ============================================================================
 
 const getManagementJson = async (
   get: any,
@@ -433,6 +413,64 @@ export const linkClickupAtom = atom(
       // TODO: Add error handling for failed link operation.
     }
     navigate("/");
+  },
+);
+
+// Update the selected geography at a particular index.
+export const updateSelectedGeographyAtom = atom(
+  null,
+  (get, set, i: number, newGeo: any) => {
+    const geos = get(selectedGeographiesAtom).slice();
+    geos[i] = newGeo;
+    set(selectedGeographiesAtom, geos);
+  },
+);
+
+// Toggle whether the given geography is selected.
+export const toggleGeographySelectedAtom = atom(null, (get, set, geo: any) => {
+  const geos = get(selectedGeographiesAtom).slice();
+  const idx = geos.indexOf(geo);
+  if (idx === -1) geos.push(geo);
+  else geos.splice(idx, 1);
+  set(selectedGeographiesAtom, geos);
+});
+
+// Rotate selected geographies by an offset.
+export const rotateSelectedGeographiesAtom = atom(
+  null,
+  (get, set, offset: number) => {
+    const selectedGeographies = get(selectedGeographiesAtom);
+    if (offset != 0)
+      set(selectedGeographiesAtom, [
+        ...selectedGeographies.slice(offset),
+        ...selectedGeographies.slice(0, offset),
+      ]);
+  },
+);
+
+// Handle map key press.
+// This logic is in the state instead of in the Map component
+// to work around issues with stale values in the event handler.
+export const handleMapKeyPressAtom = atom(
+  null,
+  async (get, set, e: KeyboardEvent) => {
+    if (e.ctrlKey) {
+      const selectionCount = get(selectedGeographiesAtom).length;
+      const maxGeographies =
+        (await get(visualizationAtom)).max_geographies || 10;
+      if (selectionCount) {
+        if (e.key === "ArrowLeft") set(rotateSelectedGeographiesAtom, -1);
+        else if (e.key === "ArrowRight") set(rotateSelectedGeographiesAtom, 1);
+      }
+      if (selectionCount > maxGeographies) {
+        if (e.key === "ArrowUp")
+          set(rotateSelectedGeographiesAtom, -1 * maxGeographies);
+        else if (e.key === "ArrowDown")
+          set(rotateSelectedGeographiesAtom, maxGeographies);
+      }
+    } else if (e.key === "Escape") {
+      set(selectedGeographiesAtom, []);
+    }
   },
 );
 

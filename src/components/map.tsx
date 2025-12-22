@@ -12,6 +12,9 @@ import {
   mapOptionsAtom,
   structureAtom,
   visualizationAtom,
+  updateSelectedGeographyAtom,
+  toggleGeographySelectedAtom,
+  handleMapKeyPressAtom,
 } from "@/helpers/state";
 import {
   differenceRasterSource,
@@ -37,7 +40,9 @@ export default function Map() {
   const analysis = useAtomValue(analysisAtom);
   const mapCatalogQuery = useAtomValue(catalogQueriesAtom).getMapCatalogQuery();
   const selectedGeographies = useAtomValue(selectedGeographiesAtom);
-  const setSelectedGeographies = useSetAtom(selectedGeographiesAtom);
+  const handleMapKeyPress = useSetAtom(handleMapKeyPressAtom);
+  const updateSelectedGeography = useSetAtom(updateSelectedGeographyAtom);
+  const toggleGeographySelected = useSetAtom(toggleGeographySelectedAtom);
   const setContextMenu = useSetAtom(contextMenuAtom);
   const mapFeatureValues = useAtomValue(mapFeatureValuesAtom);
   const mapPosition = useAtomValue(mapPositionAtom);
@@ -70,12 +75,10 @@ export default function Map() {
 
   const getSourceId = () => `data-source-${dataSourceIdx.current}`;
   const getLayerId = () => `data-layer-${dataLayerIdx.current}`;
-  const getIsRaster = () =>
-    mapCatalogQuery?.dataset.grid.grid_type === "raster";
   const getGeography = (e) => {
     const source = map.current.getSource(getSourceId());
     if (!source) return;
-    if (getIsRaster()) {
+    if (source.type === "raster") {
       const { lngLat } = e;
       const { lng, lat } = lngLat;
 
@@ -89,18 +92,6 @@ export default function Map() {
       });
       if (features.length) return features[0].id;
     }
-  };
-  const updateGeography = (i: number, newGeo: any) => {
-    const geos = selectedGeographies?.slice();
-    geos[i] = newGeo;
-    setSelectedGeographies(geos);
-  };
-  const toggleGeographySelected = (geo: any) => {
-    const geos = selectedGeographies?.slice();
-    let idx = geos.indexOf(geo);
-    if (idx === -1) geos.push(geo);
-    else geos.splice(idx, 1);
-    setSelectedGeographies(geos);
   };
   const openContextMenu = (geo: any, e: any) => {
     setContextMenu({
@@ -273,7 +264,7 @@ export default function Map() {
           .addTo(map.current);
         marker.on("dragend", () => {
           const { lng, lat } = marker.getLngLat();
-          updateGeography(i, [lng, lat]);
+          updateSelectedGeography(i, [lng, lat]);
         });
         marker.getElement().addEventListener("click", (e) => {
           e.stopPropagation();
@@ -450,23 +441,8 @@ export default function Map() {
 
   // Add listeners for selection key combinations.
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.ctrlKey) {
-        const selectionCount = selectedGeographies?.length;
-        const maxGeographies = visualization.max_geographies || 10;
-        if (selectionCount) {
-          if (e.key === "ArrowLeft") rotateSelectedGeographies(-1);
-          else if (e.key === "ArrowRight") rotateSelectedGeographies(1);
-        }
-        if (selectionCount > maxGeographies) {
-          if (e.key === "ArrowUp")
-            rotateSelectedGeographies(-1 * maxGeographies);
-          else if (e.key === "ArrowDown")
-            rotateSelectedGeographies(maxGeographies);
-        }
-      } else if (e.key === "Escape") {
-        setSelectedGeographies([]);
-      }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      (async () => await handleMapKeyPress(e))();
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
