@@ -1,6 +1,11 @@
 "use client";
-import { useAtom, useSetAtom } from "jotai";
-import { avatarCacheKeyAtom, userAtom } from "@/helpers/state";
+import { useAtomValue, useSetAtom } from "jotai";
+import {
+  accessTokenAtom,
+  avatarCacheKeyAtom,
+  refreshTokenAtom,
+  userAtom,
+} from "@/helpers/state";
 import { launchGravatarEditor } from "@/helpers/avatar";
 import { clickupUrl, loginUrl } from "@/helpers/config";
 
@@ -23,7 +28,9 @@ import {
 import UserAvatar from "./user-avatar";
 
 export function NavUser() {
-  const [user, setUser] = useAtom(userAtom);
+  const user = useAtomValue(userAtom);
+  const setAccessToken = useSetAtom(accessTokenAtom);
+  const setRefreshToken = useSetAtom(refreshTokenAtom);
   const setAvatarCacheKey = useSetAtom(avatarCacheKeyAtom);
   const { isMobile } = useSidebar();
 
@@ -92,7 +99,12 @@ export function NavUser() {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => setUser(null)}>
+            <DropdownMenuItem
+              onClick={() => {
+                setAccessToken(null);
+                setRefreshToken(null);
+              }}
+            >
               <LogOut />
               Log out
             </DropdownMenuItem>

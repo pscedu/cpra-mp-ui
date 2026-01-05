@@ -222,7 +222,7 @@ const refreshAccessToken = async (get) => {
   return true;
 };
 
-export const userAtom = atom(async (get) => {
+export const userAtom = atomWithRefresh(async (get) => {
   const result = await getManagementJson(get, "/users/current_user");
   return result.error ? null : result;
 });
@@ -349,18 +349,14 @@ export const completeLoginAtom = atom(
 export const linkClickupAtom = atom(
   null,
   (
-    get,
+    _get,
     set,
     { search, navigate }: { search: string; navigate: NavigateFunction },
   ) => {
     const query = new URLSearchParams(search);
-    const user = get(userAtom);
-
     if (query.get("status") === "success") {
-      set(userAtom, {
-        ...user,
-        clickupId: query.get("clickup_id"),
-      });
+      // Refresh the user record.
+      set(userAtom);
     } else {
       // TODO: Add error handling for failed link operation.
     }
@@ -425,16 +421,6 @@ export const handleMapKeyPressAtom = atom(
     }
   },
 );
-
-// Reset the activity when the user logs out
-export const activityResetEffect = (get, set) => {
-  const activity = get(activityAtom);
-  const user = get(userAtom);
-
-  if (activity !== "data" && !user) {
-    set(activityAtom, "data");
-  }
-};
 
 /* Effects */
 
@@ -534,7 +520,15 @@ observe((get, set) => {
   }
 }, store);
 
-// Log filters for debugging
-observe((get) => {
-  console.log("filters", get(requestedFiltersAtom));
+// Reset the activity when the user logs out
+observe((get, set) => {
+  const activity = get(activityAtom);
+  const userPromise = get(userAtom);
+
+  (async () => {
+    const user = await userPromise;
+    if (activity !== "data" && !user) {
+      set(activityAtom, "data");
+    }
+  })();
 }, store);
