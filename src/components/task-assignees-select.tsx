@@ -10,10 +10,10 @@ export default function TaskAssigneesSelect() {
     <AssigneesSelect
       className="mb-4"
       value={task?.assignees}
-      onChange={(selected: any) =>
+      onChange={(assignees: any) =>
         setTask({
           ...task,
-          assignees: selected.map((option) => option.value),
+          assignees,
         })
       }
     />

@@ -48,9 +48,9 @@ export default function AssigneesSelect({
       onChange={(selected) =>
         onChange(
           Array.isArray(selected)
-            ? selected.map((option) => option)
+            ? selected.map((option) => option.value)
             : selected
-              ? selected
+              ? selected.value
               : null,
         )
       }

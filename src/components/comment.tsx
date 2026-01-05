@@ -181,12 +181,14 @@ export default function Comment({
               setValue={setMarkdown}
             />
             <div className="flex mt-2 gap-2">
-              <AssigneesSelect
-                isMulti={false}
-                menuPlacement="top"
-                value={assignee === null ? [] : [assignee]}
-                onChange={(user) => setAssignee(user)}
-              />
+              {id && (
+                <AssigneesSelect
+                  isMulti={false}
+                  menuPlacement="top"
+                  value={assignee === null ? [] : [assignee]}
+                  onChange={(user) => setAssignee(user)}
+                />
+              )}
               <div className="flex-none">
                 <Button
                   variant="ghost"
