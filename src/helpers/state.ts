@@ -127,27 +127,6 @@ export const mapTilesLoadingAtom = atom(false);
 export const issueFilterTagsAtom = atom([] as any[]);
 export const contextMenuAtom = atom(null as any);
 
-export const reconcileStateAtom = atom(
-  null,
-  (
-    get,
-    set,
-    { updateGeographies = false }: { updateGeographies?: boolean } = {},
-  ) => {
-    const datasets = get(datasetsAtom);
-    if (!datasets.length) return;
-    // TODO: Allow the user to select the map dataset.
-    const mapDataset = datasets[0];
-    const mapCatalogQuery = get(mapCatalogQueryAtom);
-    const analysis = get(analysisAtom);
-
-    if (analysis.dimension === "calendar_day")
-      set(analysisTypeAtom, `${analysis.operation}:calendar_year`);
-    if (analysis.dimension === "calendar_year")
-      set(analysisTypeAtom, `${analysis.operation}:calendar_day`);
-  },
-);
-
 export const tagOptionsAtom = atom(async (get) => {
   const structure = await get(structureAtom);
   const options = [];
@@ -422,6 +401,29 @@ export const handleMapKeyPressAtom = atom(
   },
 );
 
+// Set the executed catalog queries and related atoms.
+// This needs to be in its own write-only atom for Reach state batching to work property.
+// Otherwise, React tries to rerender components in the middle of updates.
+const setExecutedCatalogQueriesAtom = atom(
+  null,
+  (get, set, cqs: CatalogQueries) => {
+    set(catalogQueriesAtom, cqs);
+    set(
+      requestedTimeValuesAtom,
+      cqs.queries[0].response.results[cqs.getTimeDimension().name],
+    );
+    // Update the analysis dimension if needed.
+    const analysis = get(analysisAtom);
+    const timeDimName = cqs.getTimeDimension().name;
+    if (
+      analysis.dimension &&
+      ["calendar_day", "calendar_year"].includes(analysis.dimension) &&
+      analysis.dimension !== timeDimName
+    )
+      set(analysisAtom, { ...analysis, dimension: timeDimName });
+  },
+);
+
 /* Effects */
 
 // Query the catalog when datasets or filters change.
@@ -446,12 +448,7 @@ observe((get, set) => {
     const prevCqs = get(catalogQueriesAtom);
     if ("equals" in prevCqs && prevCqs.equals(cqs)) return;
     await cqs.executeAll();
-    set(catalogQueriesAtom, cqs);
-    set(
-      requestedTimeValuesAtom,
-      cqs.queries[0].response.results[cqs.getTimeDimension().name],
-    );
-    // set(requestedFiltersAtom, cqs.combinedFilters);
+    set(setExecutedCatalogQueriesAtom, cqs);
   })();
 }, store);
 
