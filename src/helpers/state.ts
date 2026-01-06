@@ -156,10 +156,15 @@ export const setSelectedFilterChoicesAtom = atom(
   (get, set, dimensionName: string, values: any[], sort = true) => {
     const filters = get(requestedFiltersAtom);
     if (sort) sortConsistent(values, filters[dimensionName]);
-    set(requestedFiltersAtom, {
+    const newFilters = {
       ...filters,
       [dimensionName]: values,
-    });
+    };
+    if (dimensionName === "calendar_day" && "calendar_year" in newFilters)
+      delete newFilters["calendar_year"];
+    if (dimensionName === "calendar_year" && "calendar_day" in newFilters)
+      delete newFilters["calendar_day"];
+    set(requestedFiltersAtom, newFilters);
   },
 );
 

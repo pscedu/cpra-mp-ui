@@ -37,8 +37,9 @@ export default function TimeSelect() {
 
     if (selectedTimeout) clearTimeout(selectedTimeout);
 
-    const updateFilters = () =>
+    const updateFilters = () => {
       setSelectedFilterChoices(timeDimension.name, values, true);
+    };
 
     if (useTimeout) {
       selectedTimeout = setTimeout(updateFilters, 250);

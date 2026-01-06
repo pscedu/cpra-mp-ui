@@ -263,7 +263,11 @@ export class CatalogQueries {
     const timeColumn = this.datasets[0].getTimeColumn();
     const timeUnit = this.datasets[0].time_unit;
     const newFilters = { ...filters };
-    if ("calendar_day" in filters && timeColumn === "calendar_year") {
+    if (
+      "calendar_day" in filters &&
+      !("calendar_year" in filters) &&
+      timeColumn === "calendar_year"
+    ) {
       newFilters["calendar_year"] = filters["calendar_day"].map(
         (dateStr: string) => {
           let year = parseInt(dateStr.substr(0, 4));
@@ -273,7 +277,11 @@ export class CatalogQueries {
       );
       delete newFilters["calendar_day"];
       this.filters = newFilters;
-    } else if ("calendar_year" in filters && timeColumn === "calendar_day") {
+    } else if (
+      "calendar_year" in filters &&
+      !("calendar_day" in filters) &&
+      timeColumn === "calendar_day"
+    ) {
       newFilters["calendar_day"] = filters["calendar_year"].map(
         (year: number) => `${year}-01-01`,
       );
