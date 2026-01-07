@@ -35,10 +35,24 @@ export const catalogQueriesAtom = atom<
   CatalogQueries | Promise<CatalogQueries>
 >(new Promise<CatalogQueries>(() => {}));
 
-export const analysisAtom = atom<Analysis>({
-  operation: "single",
-  dimension: null,
-});
+export const analysisAtom = hashAtom<Analysis>(
+  {
+    operation: "single",
+    dimension: null,
+  },
+  {
+    key: "analysis",
+    encoder: ({ operation, dimension }) => {
+      let valueStr = operation;
+      if (dimension) valueStr += `:${dimension}`;
+      return valueStr;
+    },
+    decoder: (valueStr) => {
+      const parts = valueStr.split(":");
+      return { operation: parts[0], dimension: parts[1] || null };
+    },
+  },
+);
 
 const mapDataUrlAtom = atom((get) => {
   const cqs = get(catalogQueriesAtom);
@@ -458,6 +472,7 @@ observe((get, set) => {
 let mapFeatureValuesAbortController: AbortController | null = null;
 observe((get, set) => {
   const mapDataUrl = get(mapDataUrlAtom);
+  console.log(mapDataUrl);
 
   (async () => {
     if (mapDataUrl) {
