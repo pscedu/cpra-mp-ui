@@ -77,7 +77,7 @@ export const simpleHashAtomFunctions = <T>(
   options: SimpleHashAtomOptions<T>,
 ): [FromHashFn<T>, UpdateHashFn<T>] => {
   const { key } = options;
-  knownKeys.push(key);
+  knownHashKeys.push(key);
   const encoder = options.encoder || ((val) => JSON.stringify(val));
   const decoder = options.decoder || ((val) => JSON.parse(val));
   const fromHash: FromHashFn<T> = (params) =>
@@ -92,7 +92,7 @@ export const simpleHashAtomFunctions = <T>(
 };
 
 const initialHashParams = getHashParams();
-const knownKeys: string[] = [];
+export const knownHashKeys: string[] = [];
 
 export const hashAtom = <T>(
   defaultValue: T,

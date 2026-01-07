@@ -4,7 +4,12 @@ import { observe } from "jotai-effect";
 import { jwtDecode } from "jwt-decode";
 import { CommentNode, exportTask, importTask } from "./clickup";
 import { managementBaseUrl } from "./config";
-import { hashAtom, hashObjectAtom, queueWriteHash } from "./hash";
+import {
+  hashAtom,
+  hashObjectAtom,
+  knownHashKeys,
+  queueWriteHash,
+} from "./hash";
 import { Dataset, getStructure } from "./structure";
 import { getJson, getNdJson, sortConsistent } from "./utils";
 import { NavigateFunction } from "react-router";
@@ -22,14 +27,40 @@ export const structureAtom = atom(async () => await getStructure());
 export const activityAtom = hashAtom("data", { key: "activity" });
 export const issueAtom = hashAtom(null, { key: "issue" });
 
-export const requestedDatasetsAtom = atom<DatasetRequest[]>([
-  {
-    variable: "sal",
-    grid: "hydro_compartment_v001",
-    time_unit: "annual",
+export const requestedDatasetsAtom = hashAtom<DatasetRequest[]>([], {
+  fromHash: (params) => {
+    const variables = params.getAll("variable") || [];
+    const grids = params.getAll("grid") || [];
+    const timeUnits = params.getAll("time_unit") || [];
+    const drs = variables.map((variable, i) => ({
+      variable,
+      grid: grids[i],
+      time_unit: timeUnits[i],
+    }));
+    return drs.length
+      ? drs
+      : [
+          {
+            variable: "sal",
+            grid: "hydro_compartment_v001",
+            time_unit: "annual",
+          },
+        ];
   },
-]);
-export const requestedFiltersAtom = atom({});
+});
+export const requestedFiltersAtom = hashAtom<any>(
+  {},
+  {
+    fromHash: (params) => {
+      const uniqueKeys = new Set(params.keys());
+      const value = {};
+      for (const key of uniqueKeys)
+        if (!knownHashKeys.includes(key)) value[key] = params.getAll(key);
+
+      return value;
+    },
+  },
+);
 export const requestedTimeValuesAtom = atom([]);
 export const catalogQueriesAtom = hashAtom<
   CatalogQueries | Promise<CatalogQueries>
@@ -46,7 +77,8 @@ export const catalogQueriesAtom = hashAtom<
       }
     if ("combinedFilters" in cqs)
       for (const dimension of Object.keys(cqs.combinedFilters))
-        params.append(dimension, cqs.combinedFilters[dimension]);
+        for (const value of cqs.combinedFilters[dimension])
+          params.append(dimension, value);
   },
   useBaseAtom: true, // Need to call queueWriteHash manually
 });
