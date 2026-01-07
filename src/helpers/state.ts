@@ -4,7 +4,7 @@ import { observe } from "jotai-effect";
 import { jwtDecode } from "jwt-decode";
 import { CommentNode, exportTask, importTask } from "./clickup";
 import { managementBaseUrl } from "./config";
-import { hashAtom, hashObjectAtom } from "./hash";
+import { hashAtom, hashObjectAtom, queueWriteHash } from "./hash";
 import { Dataset, getStructure } from "./structure";
 import { getJson, getNdJson, sortConsistent } from "./utils";
 import { NavigateFunction } from "react-router";
@@ -31,9 +31,25 @@ export const requestedDatasetsAtom = atom<DatasetRequest[]>([
 ]);
 export const requestedFiltersAtom = atom({});
 export const requestedTimeValuesAtom = atom([]);
-export const catalogQueriesAtom = atom<
+export const catalogQueriesAtom = hashAtom<
   CatalogQueries | Promise<CatalogQueries>
->(new Promise<CatalogQueries>(() => {}));
+>(new Promise<CatalogQueries>(() => {}), {
+  updateHash: (
+    params: URLSearchParams,
+    cqs: CatalogQueries | Promise<CatalogQueries>,
+  ) => {
+    if ("datasets" in cqs)
+      for (const { variable, grid, time_unit } of cqs.datasets) {
+        params.append("variable", variable.name);
+        params.append("grid", grid.name);
+        params.append("time_unit", time_unit);
+      }
+    if ("combinedFilters" in cqs)
+      for (const dimension of Object.keys(cqs.combinedFilters))
+        params.append(dimension, cqs.combinedFilters[dimension]);
+  },
+  useBaseAtom: true, // Need to call queueWriteHash manually
+});
 
 export const analysisAtom = hashAtom<Analysis>(
   {
@@ -437,6 +453,9 @@ const setExecutedCatalogQueriesAtom = atom(
       analysis.dimension !== timeDimName
     )
       set(analysisAtom, { ...analysis, dimension: timeDimName });
+    // We need to manually trigger the hash write, because the catalog queries
+    // promise approach is not compatible with derived atoms.
+    queueWriteHash(get);
   },
 );
 
@@ -472,7 +491,6 @@ observe((get, set) => {
 let mapFeatureValuesAbortController: AbortController | null = null;
 observe((get, set) => {
   const mapDataUrl = get(mapDataUrlAtom);
-  console.log(mapDataUrl);
 
   (async () => {
     if (mapDataUrl) {
