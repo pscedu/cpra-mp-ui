@@ -4,7 +4,7 @@ import { observe } from "jotai-effect";
 import { jwtDecode } from "jwt-decode";
 import { CommentNode, exportTask, importTask } from "./clickup";
 import { managementBaseUrl } from "./config";
-import { hashAtom } from "./hash";
+import { hashAtom, hashObjectAtom } from "./hash";
 import { Dataset, getStructure } from "./structure";
 import { getJson, getNdJson, sortConsistent } from "./utils";
 import { NavigateFunction } from "react-router";
@@ -19,8 +19,8 @@ export const accessTokenAtom = tokenAtom("access_token");
 export const refreshTokenAtom = tokenAtom("refresh_token");
 
 export const structureAtom = atom(async () => await getStructure());
-export const activityAtom = hashAtom("activity", "data");
-export const issueAtom = hashAtom("issue", null);
+export const activityAtom = hashAtom("data", { key: "activity" });
+export const issueAtom = hashAtom(null, { key: "issue" });
 
 export const requestedDatasetsAtom = atom<DatasetRequest[]>([
   {
@@ -79,19 +79,17 @@ export const setRequestedDatasetsAtom = atom(
   },
 );
 
-export const mapPositionAtom = hashAtom(
-  "map",
-  [8, 29.75, -91.5],
-  (values) => values.map((value) => value.toFixed(2)).join("/"),
-  (valueStr) => valueStr.split("/").map((value) => parseFloat(value)),
-  true,
-);
+export const mapPositionAtom = hashAtom([8, 29.75, -91.5], {
+  key: "map",
+  encoder: (values) => values.map((value) => value.toFixed(2)).join("/"),
+  decoder: (valueStr) => valueStr.split("/").map((value) => parseFloat(value)),
+  includeDefault: true,
+});
 
-export const selectedGeographiesAtom = hashAtom<number[] | number[][]>(
-  "geography",
-  [],
-  (values) => values.map((value) => value.toString()).join(","),
-  (str) => {
+export const selectedGeographiesAtom = hashAtom<number[] | number[][]>([], {
+  key: "geography",
+  encoder: (values) => values.map((value) => value.toString()).join(","),
+  decoder: (str) => {
     const geos = str.split(",");
     if (str.includes(".")) {
       const pairs = [];
@@ -101,24 +99,23 @@ export const selectedGeographiesAtom = hashAtom<number[] | number[][]>(
     }
     return geos.map((geo) => parseInt(geo));
   },
-);
+});
 
 export const maxSelectedGeographiesAtom = atom(10);
 
-export const mapOptionsAtom = atom({
+export const mapOptionsAtom = hashObjectAtom<boolean>({
   showGridLabels: false,
   showGridLines: true,
   showProjects: true,
   showWater: false,
 });
 
-export const startDateAtom = hashAtom("start_date", null);
-export const endDateAtom = hashAtom("end_date", null);
+export const startDateAtom = hashAtom(null, { key: "start_date" });
+export const endDateAtom = hashAtom(null, { key: "end_date" });
 
-export const visualizationTypeAtom = hashAtom(
-  "visualization",
-  "time-series-line",
-);
+export const visualizationTypeAtom = hashAtom("time-series-line", {
+  key: "visualization",
+});
 
 export const avatarCacheKeyAtom = atom(new Date().getTime());
 export const mapFeatureValuesAtom = atom({} as any);

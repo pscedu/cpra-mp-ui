@@ -1,6 +1,7 @@
-import { atom, WritableAtom } from "jotai";
-import { atomEffect } from "jotai-effect";
+import { atom, Getter, WritableAtom } from "jotai";
 import { portalBaseUrl } from "./config";
+import { camelToSnake, debounce } from "./utils";
+import { Store } from "jotai/vanilla/store";
 
 export const getHashParams = () =>
   new URLSearchParams(window.location.hash.replace(/^#/, ""));
@@ -17,205 +18,132 @@ export const getHashString = (params: URLSearchParams) => {
   return hashString ? `#${hashString}` : "";
 };
 
-let hashUpdateMode: string | null = "push";
-let hashPushTime: number = new Date().getTime();
-
-export const setHashUpdateMode = (mode: string | null) => {
-  hashUpdateMode = mode;
-};
-
-export const setHash = (params: URLSearchParams) => {
-  const newHashString = getHashString(params);
-  if (hashUpdateMode && newHashString !== window.location.hash) {
-    const currentTime = new Date().getTime();
-    const updateMethod =
-      hashUpdateMode === "replace" || currentTime - hashPushTime <= 1000
-        ? "replaceState"
-        : "pushState";
-    window.history[updateMethod](
-      window.history.state,
-      "",
-      getHashString(params),
-    );
-    if (hashUpdateMode === "pushState") hashPushTime = currentTime;
-  }
-};
-
-// Track hash atoms for synchronization
+type FromHashFn<T> = (params: URLSearchParams) => T;
+type UpdateHashFn<T> = (params: URLSearchParams, value: T) => void;
 type HashAtomConfig<T> = {
   atom: WritableAtom<T, [T], void>;
-  fromHash: (params: URLSearchParams) => T;
-  updateHash: (params: URLSearchParams, value: T) => void;
+  fromHash?: FromHashFn<T>;
+  updateHash?: UpdateHashFn<T>;
 };
 
 const hashAtoms: HashAtomConfig<any>[] = [];
 
-// Internal atom to trigger hash sync from URL changes
-const hashChangeCounterAtom = atom(0);
+type SimpleHashAtomOptions<T> = {
+  key: string;
+  encoder?: (val: T) => string;
+  decoder?: (val: string) => T;
+  includeDefault?: boolean;
+};
 
-// Effect atom for hash change listener
-export const hashSyncEffectAtom = atomEffect((get, set) => {
+type CustomHashAtomOptions<T> = {
+  fromHash?: FromHashFn<T>;
+  updateHash?: UpdateHashFn<T>;
+};
+
+type HashAtomOptions<T> = SimpleHashAtomOptions<T> | CustomHashAtomOptions<T>;
+
+const writeHash = (get: Getter) => {
+  const params = new URLSearchParams();
+  for (const config of hashAtoms)
+    if (config.updateHash) {
+      config.updateHash(params, get(config.atom));
+    }
+  params.sort();
+  const hashString = getHashString(params);
+  // Only add a new history entry if the hash string has changed.
+  if (hashString !== getHashString(getHashParams()))
+    window.history.pushState(window.history.state, "", hashString);
+};
+
+const queueWriteHash = debounce(writeHash, 500);
+
+export const hashEffect = (store: Store) => {
+  writeHash(store.get);
   const handleHashChange = () => {
     const params = getHashParams();
-    setHashUpdateMode(null);
-
-    // Update counter to trigger re-reads
-    set(hashChangeCounterAtom, (c) => c + 1);
-
-    // Update all hash atoms from URL
-    for (const config of hashAtoms) {
-      const newValue = config.fromHash(params);
-      set(config.atom, newValue);
-    }
-
-    setHashUpdateMode("push");
+    for (const config of hashAtoms)
+      if (config.fromHash) {
+        store.set(config.atom, config.fromHash(params));
+      }
   };
-
   window.addEventListener("hashchange", handleHashChange, false);
   return () => window.removeEventListener("hashchange", handleHashChange);
-});
-
-// Effect atom for writing hash to URL when atoms change
-export const hashWriteEffectAtom = atomEffect((get, set) => {
-  // Subscribe to all hash atoms
-  for (const config of hashAtoms) {
-    get(config.atom);
-  }
-
-  // When any hash atom changes, update the URL
-  const params = getHashParams();
-  for (const config of hashAtoms) {
-    const value = get(config.atom);
-    config.updateHash(params, value);
-  }
-
-  setHash(params);
-});
-
-export const hashAtomBase = <T>(
-  fromHash: (params: URLSearchParams) => T,
-  updateHash: (params: URLSearchParams, value: T) => void,
-): WritableAtom<T, [T], void> => {
-  const baseAtom = atom(fromHash(getHashParams()), (get, set, newValue: T) => {
-    set(baseAtom, newValue);
-  });
-
-  hashAtoms.push({
-    atom: baseAtom,
-    fromHash,
-    updateHash,
-  });
-
-  return baseAtom;
 };
+
+export const simpleHashAtomFunctions = <T>(
+  defaultValue: T,
+  options: SimpleHashAtomOptions<T>,
+): [FromHashFn<T>, UpdateHashFn<T>] => {
+  const { key } = options;
+  knownKeys.push(key);
+  const encoder = options.encoder || ((val) => JSON.stringify(val));
+  const decoder = options.decoder || ((val) => JSON.parse(val));
+  const fromHash: FromHashFn<T> = (params) =>
+    params.has(key) ? decoder(params.get(key) as string) : defaultValue;
+
+  const updateHash: UpdateHashFn<T> = (params, value) => {
+    if (!options.includeDefault && encoder(value) === encoder(defaultValue))
+      params.delete(key);
+    else params.set(key, encoder(value));
+  };
+  return [fromHash, updateHash];
+};
+
+const initialHashParams = getHashParams();
+const knownKeys: string[] = [];
 
 export const hashAtom = <T>(
-  hashKey: string,
   defaultValue: T,
-  encoder = (val: T): string => val as string,
-  decoder = (val: string | null): T => val as T,
-  includeDefault = false,
+  options: HashAtomOptions<T>,
 ): WritableAtom<T, [T], void> => {
-  const fromHash = (params: URLSearchParams) =>
-    params.has(hashKey) ? decoder(params.get(hashKey)) : defaultValue;
-  const updateHash = (params: URLSearchParams, value: T) => {
-    if (!includeDefault && encoder(value) === encoder(defaultValue))
-      params.delete(hashKey);
-    else params.set(hashKey, encoder(value));
-  };
-  return hashAtomBase(fromHash, updateHash);
-};
+  let fromHash: FromHashFn<T> | undefined = undefined;
+  let updateHash: UpdateHashFn<T> | undefined = undefined;
 
-export const datasetsAtom = (structureAtom: any) => {
-  const fromHash = (params: URLSearchParams, structure: any) => {
-    const variables = params.getAll("variable") || [];
-    const grids = params.getAll("grid") || [];
-    const timeUnits = params.getAll("time_unit") || [];
+  if ("key" in options) {
+    [fromHash, updateHash] = simpleHashAtomFunctions(defaultValue, options);
+  } else {
+    fromHash = options.fromHash;
+    updateHash = options.updateHash;
+  }
 
-    return (structure?.datasets || []).filter((dataset: any) => {
-      const variableIdx = variables.indexOf(dataset.variable.name);
-      if (variableIdx == -1) return false;
-      const gridIdx = grids.indexOf(dataset.grid.name);
-      const timeUnitIdx = timeUnits.indexOf(dataset.time_unit);
-      return gridIdx == variableIdx && timeUnitIdx == variableIdx;
-    });
-  };
-
-  const updateHash = (params: URLSearchParams, value: any, structure: any) => {
-    if (!structure) return;
-
-    params.delete("variable");
-    params.delete("grid");
-    params.delete("time_unit");
-
-    for (let dataset of value) {
-      params.append("variable", dataset.variable.name);
-      params.append("grid", dataset.grid.name);
-      params.append("time_unit", dataset.time_unit);
-    }
-  };
-
-  const baseAtom = atom(
-    (get) => {
-      const structure = get(structureAtom);
-      const params = getHashParams();
-      return fromHash(params, structure);
-    },
-    (get, set, newValue: any) => {
-      set(baseAtom, newValue);
+  const baseAtom = atom<T>(
+    fromHash ? fromHash(initialHashParams) : defaultValue,
+  );
+  hashAtoms.push({ atom: baseAtom, fromHash, updateHash });
+  if (!updateHash) return baseAtom;
+  return atom(
+    (get) => get(baseAtom),
+    (get, set, value) => {
+      queueWriteHash(get);
+      set(baseAtom, value);
     },
   );
-
-  hashAtoms.push({
-    atom: baseAtom,
-    fromHash: (params) => fromHash(params, null),
-    updateHash: (params, value) => updateHash(params, value, null),
-  });
-
-  return baseAtom;
 };
 
-export const filtersAtom = (structureAtom: any) => {
-  const fromHash = (params: URLSearchParams, structure: any) => {
-    const value: any = {};
-    for (let dimension of structure?.dimensions || []) {
-      if (["dataset", "metadata"].includes(dimension.type)) continue;
-      let dimensionValues = params.getAll(dimension.name);
-      if (dimensionValues.length) value[dimension.name] = dimensionValues;
-    }
+export const hashObjectAtom = <T>(defaultValue: { [key: string]: T }) => {
+  const attrFromHash: { [key: string]: FromHashFn<T> } = {};
+  const attrUpdateHash: { [key: string]: UpdateHashFn<T> } = {};
+  for (const key of Object.keys(defaultValue)) {
+    const [fromHash, updateHash] = simpleHashAtomFunctions(defaultValue[key], {
+      key: camelToSnake(key),
+    });
+    attrFromHash[key] = fromHash;
+    attrUpdateHash[key] = updateHash;
+  }
+  const fromHash: FromHashFn<{ [key: string]: T }> = (params) => {
+    const value: { [key: string]: T } = {};
+    for (const key of Object.keys(defaultValue))
+      value[key] = attrFromHash[key](params);
     return value;
   };
-
-  const updateHash = (params: URLSearchParams, value: any, structure: any) => {
-    if (!structure) return;
-
-    for (let dimension of structure.dimensions) {
-      if (["dataset", "metadata"].includes(dimension.type)) continue;
-      params.delete(dimension.name);
-      if (dimension.name in value)
-        for (let dimensionValue of value[dimension.name])
-          params.append(dimension.name, dimensionValue);
-    }
+  const updateHash: UpdateHashFn<{ [key: string]: T }> = (
+    params,
+    value: { [key: string]: T },
+  ) => {
+    for (const key of Object.keys(defaultValue))
+      attrUpdateHash[key](params, value[key]);
   };
-
-  const baseAtom = atom(
-    (get) => {
-      const structure = get(structureAtom);
-      const params = getHashParams();
-      return fromHash(params, structure);
-    },
-    (get, set, newValue: any) => {
-      set(baseAtom, newValue);
-    },
-  );
-
-  hashAtoms.push({
-    atom: baseAtom,
-    fromHash: (params) => fromHash(params, null),
-    updateHash: (params, value) => updateHash(params, value, null),
-  });
-
-  return baseAtom;
+  return hashAtom(defaultValue, { fromHash, updateHash });
 };
 
 export const getPermalink = ({

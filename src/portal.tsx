@@ -6,8 +6,11 @@ import { ThemeProvider } from "@/components/theme-provider";
 import MapPage from "@/components/map-page";
 import WorkerPage from "@/components/worker-page";
 import { store } from "./helpers/state";
+import { useEffect } from "react";
+import { hashEffect } from "./helpers/hash";
 
 export default function Portal() {
+  useEffect(() => hashEffect(store), []);
   return (
     <JotaiProvider store={store}>
       <ThemeProvider>
