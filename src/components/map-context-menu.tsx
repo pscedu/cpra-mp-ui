@@ -1,6 +1,13 @@
-import { useRef } from "react";
-import { useSignalEffect } from "@preact/signals-react";
-import { usePortalState } from "@/helpers/state";
+import { useRef, useEffect } from "react";
+import { useAtomValue, useSetAtom } from "jotai";
+import {
+  contextMenuAtom,
+  catalogQueriesAtom,
+  rotateSelectedGeographiesAtom,
+  selectedGeographiesAtom,
+  visualizationAtom,
+  maxSelectedGeographiesAtom,
+} from "@/helpers/state";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -22,27 +29,28 @@ import {
 } from "lucide-react";
 import ColorChooserMenuItems from "@/components/color-chooser-menu-items";
 
-export default function MapContextMenu({ children }) {
-  const {
-    contextMenu,
-    mapCatalogQuery,
-    rotateSelectedGeographies,
-    selectedGeographies,
-    visualization,
-  } = usePortalState();
-  const trigger = useRef(null);
+export default function MapContextMenu({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const contextMenu = useAtomValue(contextMenuAtom);
+  const selectedGeographies = useAtomValue(selectedGeographiesAtom);
+  const maxSelectedGeographies = useAtomValue(maxSelectedGeographiesAtom);
+  const mapCatalogQuery = useAtomValue(catalogQueriesAtom).getMapCatalogQuery();
+  const rotateSelectedGeographies = useSetAtom(rotateSelectedGeographiesAtom);
+  const trigger = useRef<HTMLDivElement>(null);
 
-  const geography = contextMenu.value?.geography;
-  const selectionCount = selectedGeographies.value.length;
-  const maxGeographies = visualization?.value?.max_geographies || 10;
+  const geography = contextMenu?.geography;
+  const selectionCount = selectedGeographies?.length;
 
-  useSignalEffect(() => {
+  useEffect(() => {
     if (
-      contextMenu.value &&
-      contextMenu.value.type === "geography-select" &&
+      contextMenu &&
+      contextMenu?.type === "geography-select" &&
       trigger.current
     ) {
-      const { x, y } = contextMenu.value;
+      const { x, y } = contextMenu;
       trigger.current.dispatchEvent(
         new MouseEvent("contextmenu", {
           bubbles: true,
@@ -51,12 +59,15 @@ export default function MapContextMenu({ children }) {
         }),
       );
     }
-  });
+  }, [contextMenu]);
+
+  const setContextMenu = useSetAtom(contextMenuAtom);
+  const setSelectedGeographies = useSetAtom(selectedGeographiesAtom);
 
   return (
     <ContextMenu
       onOpenChange={(open) => {
-        if (!open) contextMenu.value = null;
+        if (!open) setContextMenu(null);
       }}
     >
       <ContextMenuTrigger ref={trigger}>{children}</ContextMenuTrigger>
@@ -65,7 +76,7 @@ export default function MapContextMenu({ children }) {
           <>
             <ContextMenuSub>
               <ContextMenuSubTrigger inset>
-                Select {mapCatalogQuery.value.dataset.grid.label.toLowerCase()}
+                Select {mapCatalogQuery?.dataset.grid.label.toLowerCase()}
               </ContextMenuSubTrigger>
               <ContextMenuSubContent>
                 <ContextMenuLabel>Choose outline color</ContextMenuLabel>
@@ -77,7 +88,7 @@ export default function MapContextMenu({ children }) {
         )}
         <ContextMenuItem
           disabled={!selectionCount}
-          onSelect={() => (selectedGeographies.value = [])}
+          onSelect={() => setSelectedGeographies([])}
         >
           <X /> Clear selection
           <ContextMenuShortcut>Esc</ContextMenuShortcut>
@@ -96,20 +107,22 @@ export default function MapContextMenu({ children }) {
           <ChevronRight /> Next selection
           <ContextMenuShortcut>Ctrl &rarr;</ContextMenuShortcut>
         </ContextMenuItem>
-        {maxGeographies > 1 && (
+        {maxSelectedGeographies > 1 && (
           <>
             <ContextMenuItem
-              disabled={selectionCount <= maxGeographies}
-              onSelect={() => rotateSelectedGeographies(-1 * maxGeographies)}
+              disabled={selectionCount <= maxSelectedGeographies}
+              onSelect={() =>
+                rotateSelectedGeographies(-1 * maxSelectedGeographies)
+              }
             >
-              <ChevronsLeft /> Previous {maxGeographies} selections
+              <ChevronsLeft /> Previous {maxSelectedGeographies} selections
               <ContextMenuShortcut>Ctrl &uarr;</ContextMenuShortcut>
             </ContextMenuItem>
             <ContextMenuItem
-              disabled={selectionCount <= maxGeographies}
-              onSelect={() => rotateSelectedGeographies(maxGeographies)}
+              disabled={selectionCount <= maxSelectedGeographies}
+              onSelect={() => rotateSelectedGeographies(maxSelectedGeographies)}
             >
-              <ChevronsRight /> Next {maxGeographies} selections
+              <ChevronsRight /> Next {maxSelectedGeographies} selections
               <ContextMenuShortcut>Ctrl &darr;</ContextMenuShortcut>
             </ContextMenuItem>
           </>

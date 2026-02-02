@@ -1,5 +1,11 @@
 "use client";
-import { usePortalState } from "@/helpers/state";
+import { useAtomValue, useSetAtom } from "jotai";
+import {
+  accessTokenAtom,
+  avatarCacheKeyAtom,
+  refreshTokenAtom,
+  userAtom,
+} from "@/helpers/state";
 import { launchGravatarEditor } from "@/helpers/avatar";
 import { clickupUrl, loginUrl } from "@/helpers/config";
 
@@ -22,10 +28,12 @@ import {
 import UserAvatar from "./user-avatar";
 
 export function NavUser() {
-  const { avatarCacheKey, user: userSignal } = usePortalState();
+  const user = useAtomValue(userAtom);
+  const setAccessToken = useSetAtom(accessTokenAtom);
+  const setRefreshToken = useSetAtom(refreshTokenAtom);
+  const setAvatarCacheKey = useSetAtom(avatarCacheKeyAtom);
   const { isMobile } = useSidebar();
 
-  const user = userSignal.value;
   let menuContent;
 
   if (user) {
@@ -66,7 +74,7 @@ export function NavUser() {
               <DropdownMenuItem
                 onClick={() =>
                   launchGravatarEditor(user.email, () => {
-                    avatarCacheKey.value = new Date().getTime();
+                    setAvatarCacheKey(new Date().getTime());
                   })
                 }
               >
@@ -80,7 +88,7 @@ export function NavUser() {
                 disabled={user.clickupId !== null}
                 onClick={() =>
                   (window.location.href = `${clickupUrl}?access_token=${encodeURIComponent(
-                    user.accessToken
+                    user.accessToken,
                   )}`)
                 }
               >
@@ -91,7 +99,12 @@ export function NavUser() {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => (userSignal.value = null)}>
+            <DropdownMenuItem
+              onClick={() => {
+                setAccessToken(null);
+                setRefreshToken(null);
+              }}
+            >
               <LogOut />
               Log out
             </DropdownMenuItem>

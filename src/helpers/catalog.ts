@@ -1,6 +1,7 @@
 import { dataBaseUrl } from "./config";
 import { QueryOptions } from "./query";
 import { Dataset, Dimension, Structure } from "./structure";
+import { Analysis } from "./types";
 import {
   extractCatalogObject,
   getJson,
@@ -15,16 +16,29 @@ export class CatalogQuery {
   dataset: Dataset;
   filters: any;
   structure: Structure;
+  requestPath: string;
   response: any;
 
   constructor(dataset: Dataset, filters: any, structure: Structure) {
     this.dataset = dataset;
     this.filters = filters;
     this.structure = structure;
+    this.requestPath = this.getRequestPath();
     this.response = null;
   }
 
   async execute() {
+    this.response = await getJson(this.requestPath);
+    // Sort the filters so that the order of the requested filters is preserved if possible.
+    for (const key of Object.keys(this.response.results))
+      sortConsistent(this.response.results[key], this.filters[key]);
+  }
+
+  equals(other: CatalogQuery) {
+    return this.requestPath === other.requestPath;
+  }
+
+  getRequestPath() {
     const { variable, grid, time_unit } = this.dataset;
     const requiredDimensions = this.structure.getRequiredDimensions([
       this.dataset,
@@ -33,11 +47,7 @@ export class CatalogQuery {
     const qs = makeQueryString(
       getFilterParams(requiredDimensions, this.filters),
     );
-    const requestPath = `${dataBaseUrl}/datasets/${variable.name}/${grid.name}/${time_unit}/catalog.json${qs}`;
-    this.response = await getJson(requestPath);
-    // Sort the filters so that the order of the requested filters is preserved if possible.
-    for (const key of Object.keys(this.response.results))
-      sortConsistent(this.response.results[key], this.filters[key]);
+    return `${dataBaseUrl}/datasets/${variable.name}/${grid.name}/${time_unit}/catalog.json${qs}`;
   }
 
   getQueryParams(
@@ -125,6 +135,53 @@ export class CatalogQuery {
 
     return params;
   }
+
+  getMapDataUrl(analysis: Analysis) {
+    if (this.dataset.grid.grid_type === "raster") return null;
+
+    return this.dataset.getDataUrl(
+      this.getQueryParams({
+        analysis: analysis,
+        maxValues: 1,
+      }),
+      "ndjson",
+    );
+  }
+
+  getMapTileUrl(analysis: Analysis) {
+    return this.dataset.getTileUrl(
+      this.getQueryParams({
+        analysis: analysis,
+        maxValues: 1,
+      }),
+    );
+  }
+
+  getModelGroup() {
+    return (this?.response.results?.model_group_id || [-1])[0];
+  }
+
+  getVisulizationUrl({ visualizationType, selectedGeographies, analysis }) {
+    return visualizationType &&
+      selectedGeographies &&
+      selectedGeographies.length
+      ? this.structure.visualizationsMap[visualizationType].getSpecUrl(this, {
+          analysis: analysis.dimension?.startsWith("calendar_")
+            ? null
+            : analysis,
+          geographies: selectedGeographies,
+        })
+      : null;
+  }
+
+  getYear() {
+    const results = this.response?.results;
+    const days = results?.calendar_day;
+    if (days) return parseInt(days[0].substr(0, 4));
+    const years = results?.calendar_year;
+    if (years) return years[0];
+    return 0;
+  }
 }
 
 export class CatalogQueries {
@@ -140,13 +197,21 @@ export class CatalogQueries {
   constructor(datasets: Dataset[], filters: any, structure: Structure) {
     this.datasets = datasets;
     this.filters = filters;
+    this.reconcileFilters();
     this.structure = structure;
     this.queries = datasets.map(
-      (dataset) => new CatalogQuery(dataset, filters, structure),
+      (dataset) => new CatalogQuery(dataset, this.filters, structure),
     );
     this.combinedFilters = null;
     this.combinedChoices = null;
     this.activeDimensions = [];
+  }
+
+  equals(other: CatalogQueries) {
+    return (
+      this.queries.length === other.queries.length &&
+      this.queries.every((query, i) => query.equals(other.queries[i]))
+    );
   }
 
   async executeAll() {
@@ -176,5 +241,52 @@ export class CatalogQueries {
     this.activeDimensions = this.structure.dimensions.filter(
       (dim) => dim.name in this.combinedChoices,
     );
+  }
+
+  getMapCatalogQuery() {
+    return this.queries[0];
+  }
+
+  getTimeDimension() {
+    return this.activeDimensions.filter((dim) => dim.filterType === "time")[0];
+  }
+
+  getTimeChoices() {
+    const timeDimension = this.getTimeDimension();
+    return this.combinedChoices[timeDimension.name];
+  }
+
+  reconcileFilters() {
+    // Handle changing from daily/monthly datasets to annual/decadal datasets
+    // and vice-versa.
+    const filters = this.filters;
+    const timeColumn = this.datasets[0].getTimeColumn();
+    const timeUnit = this.datasets[0].time_unit;
+    const newFilters = { ...filters };
+    if (
+      "calendar_day" in filters &&
+      !("calendar_year" in filters) &&
+      timeColumn === "calendar_year"
+    ) {
+      newFilters["calendar_year"] = filters["calendar_day"].map(
+        (dateStr: string) => {
+          let year = parseInt(dateStr.substr(0, 4));
+          if (timeUnit === "decadal") year = Math.round(year / 10) * 10;
+          return year;
+        },
+      );
+      delete newFilters["calendar_day"];
+      this.filters = newFilters;
+    } else if (
+      "calendar_year" in filters &&
+      !("calendar_day" in filters) &&
+      timeColumn === "calendar_day"
+    ) {
+      newFilters["calendar_day"] = filters["calendar_year"].map(
+        (year: number) => `${year}-01-01`,
+      );
+      delete newFilters["calendar_year"];
+      this.filters = newFilters;
+    }
   }
 }

@@ -1,5 +1,11 @@
-import { batch } from "@preact/signals-react";
-import { usePortalState } from "@/helpers/state";
+import { useAtomValue, useSetAtom } from "jotai";
+import {
+  analysisAtom,
+  catalogQueriesAtom,
+  setRequestedDatasetsAtom,
+  setSelectedFilterChoicesAtom,
+  structureAtom,
+} from "@/helpers/state";
 import {
   getCartesianProductObject,
   moveToFirstPosition,
@@ -9,26 +15,24 @@ import SidebarSelect from "@/components/sidebar-select";
 import { Map } from "lucide-react";
 
 export default function MapSelect() {
-  const {
-    analysis,
-    catalogQueries,
-    datasets,
-    setSelectedDatasets,
-    setSelectedFilterChoices,
-    structure,
-  } = usePortalState();
-  if (!structure.value || !catalogQueries.value || !datasets.value) return;
+  const structure = useAtomValue(structureAtom);
+  const catalogQueries = useAtomValue(catalogQueriesAtom);
+  const datasets = catalogQueries.datasets;
+  const setRequestedDatasets = useSetAtom(setRequestedDatasetsAtom);
+  const analysis = useAtomValue(analysisAtom);
+  const setSelectedFilterChoices = useSetAtom(setSelectedFilterChoicesAtom);
+
   const allValues = {
-    dataset: catalogQueries.value.datasets,
-    ...catalogQueries.value.combinedFilters,
+    dataset: catalogQueries?.datasets,
+    ...catalogQueries?.combinedFilters,
   };
   // Remove the analysis dimnension, if applicable.
-  if (analysis.value?.dimension) delete allValues[analysis.value?.dimension];
+  if (analysis?.dimension) delete allValues[analysis?.dimension];
   // Also remove the model group dimnesion if we are doing a three-image
   // concatenate for land type.
   if (
-    analysis.value?.operation === "concatenate" &&
-    catalogQueries.value.combinedFilters.model_group_id?.length == 2
+    analysis?.operation === "concatenate" &&
+    catalogQueries?.combinedFilters.model_group_id?.length == 2
   )
     delete allValues["model_group_id"];
   const combos = getCartesianProductObject(allValues);
@@ -40,10 +44,7 @@ export default function MapSelect() {
     return {
       label:
         nameKeys
-          .map(
-            (key) =>
-              `${structure.value.dimensionsMap[key].label}: ${combo[key]}`,
-          )
+          .map((key) => `${structure?.dimensionsMap[key].label}: ${combo[key]}`)
           .join(", ") || "Default",
       value: combo,
     };
@@ -53,8 +54,8 @@ export default function MapSelect() {
   // Sort the options by value.
   options.sort((a, b) => {
     for (const key of nameKeys) {
-      if (a.value[key] < b.value[key]) return -1;
-      if (a.value[key] > b.value[key]) return 1;
+      if (a[key] < b[key]) return -1;
+      if (a[key] > b[key]) return 1;
     }
     return 0;
   });
@@ -63,26 +64,24 @@ export default function MapSelect() {
     <SidebarSelect
       label="Map"
       options={options}
-      onChange={(combo) => {
-        batch(() => {
-          for (const key of nameKeys) {
-            if (key === "dataset") {
-              if (combo.dataset !== datasets.value[0])
-                setSelectedDatasets(
-                  moveToFirstPosition(combo.dataset, datasets.value),
-                );
-            } else {
-              setSelectedFilterChoices(
-                key,
-                moveToFirstPosition(
-                  combo[key],
-                  catalogQueries.value.combinedFilters[key],
-                ),
-                false,
+      onChange={(combo: any) => {
+        for (const key of nameKeys) {
+          if (key === "dataset") {
+            if (combo.dataset !== datasets[0])
+              setRequestedDatasets(
+                moveToFirstPosition(combo.dataset, datasets),
               );
-            }
+          } else {
+            setSelectedFilterChoices(
+              key,
+              moveToFirstPosition(
+                combo[key],
+                catalogQueries?.combinedFilters[key],
+              ),
+              false,
+            );
           }
-        });
+        }
       }}
       value={selectedOption.value}
       icon={Map}

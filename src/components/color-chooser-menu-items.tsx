@@ -1,20 +1,27 @@
 import { selectionColors, selectionColorLabels } from "@/helpers/config";
-import { usePortalState } from "@/helpers/state";
+import { useAtom } from "jotai";
+import { selectedGeographiesAtom } from "@/helpers/state";
 
 import { ContextMenuItem } from "@/components/ui/context-menu";
 import { Circle, CircleCheckBig } from "lucide-react";
 
 // Color chooser that allows users to select what color a selected geography will
 // be assigned.
-export default function ColorChooserMenuItems({ geography }) {
-  const { selectedGeographies } = usePortalState();
+export default function ColorChooserMenuItems({
+  geography,
+}: {
+  geography: any;
+}) {
+  const [selectedGeographies, setSelectedGeographies] = useAtom(
+    selectedGeographiesAtom,
+  );
 
-  const isSelected = selectedGeographies.value.includes(geography);
+  const isSelected = selectedGeographies?.includes(geography);
 
   return selectionColors
-    .slice(0, selectedGeographies.value.length + (isSelected ? 0 : 1))
+    .slice(0, selectedGeographies?.length + (isSelected ? 0 : 1))
     .map((color, colorIdx) => {
-      const selected = selectedGeographies.value[colorIdx] == geography;
+      const selected = selectedGeographies[colorIdx] == geography;
       const Icon = selected ? CircleCheckBig : Circle;
 
       return (
@@ -22,12 +29,14 @@ export default function ColorChooserMenuItems({ geography }) {
           key={colorIdx}
           disabled={selected}
           onSelect={() => {
-            if (!isSelected) selectedGeographies.value.push(geography);
-            const currentIdx = selectedGeographies.value.indexOf(geography);
-            const currentId = selectedGeographies.value[colorIdx];
-            selectedGeographies.value = selectedGeographies.value.map(
-              (id: string, i: number) =>
+            const newGeographies = [...selectedGeographies];
+            if (!isSelected) newGeographies.push(geography);
+            const currentIdx = newGeographies.indexOf(geography);
+            const currentId = newGeographies[colorIdx];
+            setSelectedGeographies(
+              newGeographies.map((id: any, i: number) =>
                 i == colorIdx ? geography : i == currentIdx ? currentId : id,
+              ),
             );
           }}
         >

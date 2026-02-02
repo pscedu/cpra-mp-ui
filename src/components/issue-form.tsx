@@ -1,6 +1,13 @@
-import { useEffect } from "react";
-import { usePortalState } from "@/helpers/state";
-import { batch, useSignal } from "@preact/signals-react";
+import { useEffect, useState } from "react";
+import { useAtomValue, useSetAtom, useAtom } from "jotai";
+import {
+  createTaskAtom,
+  issueAtom,
+  catalogQueriesAtom,
+  tagOptionsAtom,
+  taskAtom,
+  tasksAtom,
+} from "@/helpers/state";
 
 import { Input } from "@/components/ui/input";
 import TaskAssigneesSelect from "./task-assignees-select";
@@ -10,49 +17,45 @@ import IssueCloseButton from "./issue-close-button";
 import TagsSelect from "./tags-select";
 
 export default function IssueForm() {
-  const { createTask, issue, mapCatalogQuery, reloadTasks, tagOptions, task } =
-    usePortalState();
-  const isProcessing = useSignal(false);
+  const createTask = useSetAtom(createTaskAtom);
+  const setIssue = useSetAtom(issueAtom);
+  const mapCatalogQuery = useAtomValue(catalogQueriesAtom).getMapCatalogQuery();
+  const reloadTasks = useSetAtom(tasksAtom);
+  const tagOptions = useAtomValue(tagOptionsAtom);
+  const [task, setTask] = useAtom(taskAtom);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     // Update the issue tags to match the current dataset and filters.
-    const query = mapCatalogQuery.value;
-    if (!query || !tagOptions.value) return;
+    const query = mapCatalogQuery;
+    if (!query || !tagOptions || !task) return;
     const wantedTags = [];
     for (const dimensionName of Object.keys(query.response.results))
       for (const dimensionValue of query.response.results[dimensionName])
         wantedTags.push(`${dimensionName}:${dimensionValue.toString()}`);
-    const tags = tagOptions.value
-      .filter((tag) => wantedTags.includes(tag.value))
-      .map((tag) => ({ name: tag.value }));
-    if (tags.length) task.value = { ...task.value, tags };
-  }, [mapCatalogQuery.value, tagOptions.value]);
+    const tags = tagOptions
+      .filter((tag: string) => wantedTags.includes(tag))
+      .map((tag: string) => ({ name: tag }));
+    if (tags.length) setTask({ ...task, tags });
+  }, [mapCatalogQuery, tagOptions]);
 
   const updateTaskField = (fieldName: string, value: any) =>
-    (task.value = { ...task.value, [fieldName]: value });
+    setTask({ ...task, [fieldName]: value });
 
-  const saveTask = () => {
-    isProcessing.value = true;
-    const { name, markdown_description, assignees, tags } = task.value;
-    (async () => {
-      const res = await createTask({
-        name,
-        markdown_description,
-        assignees: assignees.map(({ id }) => id),
-        tags: tags.map(({ name }) => name),
-        status: "open",
-      });
-      batch(() => {
-        if (res.error) {
-          // TODO: Show an error toast.
-        } else {
-          issue.value = null;
-          task.value = null;
-        }
-        isProcessing.value = false;
-        reloadTasks();
-      });
-    })();
+  const saveTask = async () => {
+    setIsProcessing(true);
+    const { name, markdown_description, assignees, tags } = task;
+    await createTask({
+      name,
+      markdown_description,
+      assignees: assignees.map(({ id }: any) => id),
+      tags: tags.map(({ name }: any) => name),
+      status: "open",
+    });
+    setIssue(null);
+    setTask(null);
+    setIsProcessing(false);
+    reloadTasks();
   };
 
   return (
@@ -66,7 +69,7 @@ export default function IssueForm() {
         id="title"
         placeholder="Title"
         className="mb-4"
-        value={task.value.name}
+        value={task?.name}
         onChange={(e) => updateTaskField("name", e.target.value)}
       />
       <div className="mb-2">
@@ -74,7 +77,7 @@ export default function IssueForm() {
           cacheKey={null}
           placeholder="Description"
           setValue={(value) => updateTaskField("markdown_description", value)}
-          value={task.value.markdown_description}
+          value={task?.markdown_description}
         />
       </div>
       <TagsSelect />
@@ -85,8 +88,8 @@ export default function IssueForm() {
           buttonLabel="Create"
           fieldLabel="task description"
           onClick={saveTask}
-          processing={isProcessing.value}
-          text={task.value.markdown_description}
+          processing={isProcessing}
+          text={task?.markdown_description}
         />
       </div>
     </div>

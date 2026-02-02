@@ -1,5 +1,7 @@
 import * as React from "react";
-import { usePortalState } from "@/helpers/state";
+import { Suspense } from "react";
+import { useAtomValue } from "jotai";
+import { activityAtom, issueAtom } from "@/helpers/state";
 
 import { NavUser } from "@/components/nav-user";
 import { ActivitySwitcher } from "@/components/activity-switcher";
@@ -17,9 +19,11 @@ import IssueDetail from "./issue-detail";
 import IssueForm from "./issue-form";
 import Issues from "./issues";
 import VisualizationSidebar from "./visualization-sidebar";
+import { LoaderCircle } from "lucide-react";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { activity, issue } = usePortalState();
+  const activity = useAtomValue(activityAtom);
+  const issue = useAtomValue(issueAtom);
   const { open } = useSidebar();
 
   return (
@@ -30,16 +34,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         {open && (
           <>
-            {activity.value === "data" && (
+            {activity === "data" && (
               <>
                 <DataSidebar />
                 <VisualizationSidebar />
               </>
             )}
-            {activity.value === "issues" && (
-              <>
-                {issue.value ? (
-                  issue.value === "new" ? (
+            {activity === "issues" && (
+              <Suspense
+                fallback={<LoaderCircle className="animate-spin m-2" />}
+              >
+                {issue ? (
+                  issue === "new" ? (
                     <IssueForm />
                   ) : (
                     <IssueDetail />
@@ -47,7 +53,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 ) : (
                   <Issues />
                 )}
-              </>
+              </Suspense>
             )}
           </>
         )}

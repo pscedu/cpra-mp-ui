@@ -210,6 +210,7 @@ export function getCartesianProductObject(obj) {
 }
 
 export function sortConsistent(newValues, oldValues) {
+  if (!oldValues) return newValues;
   const getIdx = (value) => {
     const idx = (oldValues || []).indexOf(value);
     return idx === -1 ? 9999 : idx;
@@ -230,3 +231,36 @@ export function sqlValue(value: string | number | Date, dimension = "") {
       ? value
       : `'${value}'`;
 }
+
+/**
+ * Creates a debounced function that delays invoking the provided function
+ * until at least `wait` milliseconds have elapsed since the last time it was invoked.
+ *
+ * @param func The function to debounce.
+ * @param wait The number of milliseconds to delay.
+ * @returns A new debounced function.
+ */
+export const debounce = <T extends (...args: Parameters<T>) => void>(
+  func: T,
+  wait: number,
+): ((...args: Parameters<T>) => void) => {
+  let timeoutId: number | undefined;
+
+  return (...args: Parameters<T>): void => {
+    // Clear the previous timeout if the debounced function is called again
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+
+    // Set a new timeout to invoke the original function
+    timeoutId = setTimeout(() => {
+      func(...args);
+    }, wait) as unknown as number; // Type assertion for browser/Node compatibility
+  };
+};
+
+export const snakeToCamel = (str: string): string =>
+  str.replace(/(_\w)/g, (match) => match[1].toUpperCase());
+
+export const camelToSnake = (str: string): string =>
+  str.replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, "$1_$2").toLowerCase();

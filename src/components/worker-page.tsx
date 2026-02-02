@@ -1,32 +1,48 @@
 import { useEffect } from "react";
-import { useSignal } from "@preact/signals-react";
+import { atom, useAtom, useSetAtom } from "jotai";
 import { useLocation, useNavigate } from "react-router";
+import { completeLoginAtom, linkClickupAtom } from "@/helpers/state";
 
 import { LoaderCircle, TriangleAlert } from "lucide-react";
 
-export default function WorkerPage({
-  action,
-  description: initialDescription,
-  heading: initialHeading,
-}) {
+const descriptionAtom = atom("");
+const headingAtom = atom("Completing login...");
+const statusAtom = atom("working");
+
+export default function WorkerPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const description = useSignal(initialDescription);
-  const heading = useSignal(initialHeading);
-  const status = useSignal("working");
+  const [description, setDescription] = useAtom(descriptionAtom);
+  const [heading, setHeading] = useAtom(headingAtom);
+  const [status, setStatus] = useAtom(statusAtom);
+  const completeLogin = useSetAtom(completeLoginAtom);
+  const linkClickup = useSetAtom(linkClickupAtom);
 
   useEffect(() => {
-    action(location, navigate, { description, heading, status });
+    // Determine which action to call based on the path
+    if (location.pathname === "/callback/login") {
+      completeLogin({
+        search: location.search,
+        navigate,
+        status: {
+          description: atom(null, (get, set, value) => setDescription(value)),
+          heading: atom(null, (get, set, value) => setHeading(value)),
+          status: atom(null, (get, set, value) => setStatus(value)),
+        },
+      });
+    } else if (location.pathname === "/callback/clickup") {
+      linkClickup({ search: location.search, navigate });
+    }
   }, []);
 
   return (
     <div className="flex h-screen">
       <div className="m-auto">
-        {(status.value == "working" && (
+        {(status === "working" && (
           <LoaderCircle size="large" className="animate-spin" />
         )) || <TriangleAlert size="large" />}
-        {heading.value && <h1>{heading.value}</h1>}
-        {description.value && <p>{description.value}</p>}
+        {heading && <h1>{heading}</h1>}
+        {description && <p>{description}</p>}
       </div>
     </div>
   );

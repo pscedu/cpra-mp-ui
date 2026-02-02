@@ -2,36 +2,52 @@ import useMeasure from "react-use-measure";
 import { useTheme } from "@/components/theme-provider";
 import { VegaLite } from "react-vega";
 import { dark, excel } from "vega-themes";
-import { batch, useSignal } from "@preact/signals-react";
-import { Ref, useEffect, useRef } from "react";
+import { Ref, useEffect, useRef, useState } from "react";
 import { getJson } from "@/helpers/utils";
-import { usePortalState } from "@/helpers/state";
+import { useAtomValue, useSetAtom } from "jotai";
+import {
+  endDateAtom,
+  startDateAtom,
+} from "@/helpers/state";
 
 const darkTheme = { ...dark, background: "#161b22" };
 const lightTheme = excel;
 
 import { LoaderCircle } from "lucide-react";
 
-export default function Visualization({ actions = false, spec, padding = 16 }) {
-  const { endDate, startDate } = usePortalState();
+export default function Visualization({
+  actions = false,
+  spec,
+  padding = 16,
+}: {
+  actions?: boolean;
+  spec: any;
+  padding?: number;
+}) {
+  const startDate = useAtomValue(startDateAtom);
+  const setStartDate = useSetAtom(startDateAtom);
+  const endDate = useAtomValue(endDateAtom);
+  const setEndDate = useSetAtom(endDateAtom);
+
   const [ref, { height, width }] = useMeasure();
   const resizeTimeout: Ref<null | ReturnType<typeof setTimeout>> = useRef(null);
-  const specJson = useSignal(typeof spec === "string" ? null : spec);
+  const [specJson, setSpecJson] = useState<any>(
+    typeof spec === "string" ? null : spec,
+  );
   const theme = useTheme();
 
   useEffect(() => {
     if (typeof spec === "string") {
       if (height && width) {
-        const loadSpecJson = () => {
-          (async () => {
-            let specUrl = `${spec}${spec.includes("?") ? "" : "?"}&height=${Math.floor(height)}&width=${Math.floor(width)}`;
-            if (startDate.value) specUrl += `&start_date=${startDate.value}`;
-            if (endDate.value) specUrl += `&end_date=${endDate.value}`;
-            specJson.value = await getJson(specUrl);
-          })();
+        const loadSpecJson = async () => {
+          let specUrl = `${spec}${spec.includes("?") ? "" : "?"}&height=${Math.floor(height)}&width=${Math.floor(width)}`;
+          if (startDate) specUrl += `&start_date=${startDate}`;
+          if (endDate) specUrl += `&end_date=${endDate}`;
+          const json = await getJson(specUrl);
+          setSpecJson(json);
         };
-        if (specJson.peek() || resizeTimeout.current) {
-          specJson.value = null;
+        if (specJson || resizeTimeout.current) {
+          setSpecJson(null);
           if (resizeTimeout.current) clearTimeout(resizeTimeout.current);
           resizeTimeout.current = setTimeout(loadSpecJson, 250);
         } else {
@@ -39,47 +55,44 @@ export default function Visualization({ actions = false, spec, padding = 16 }) {
         }
       }
     } else {
-      specJson.value = spec;
+      setSpecJson(spec);
     }
-  }, [specJson, spec, height, width]);
+  }, [spec, height, width, startDate, endDate]);
 
   const signalListeners = {
-    date_range: (_signal, value) => {
+    date_range: (_signal: any, value: any) => {
       const key = Object.keys(value)[0];
       if (!key) return;
       const [start, end] = value[key].map(
-        (timestamp) => new Date(timestamp).toISOString().split("T")[0],
+        (timestamp: number) => new Date(timestamp).toISOString().split("T")[0],
       );
-      batch(() => {
-        startDate.value = start;
-        endDate.value = end;
-      });
+      setStartDate(start);
+      setEndDate(end);
     },
   };
   const signalCleanup = {
-    date_range: () =>
-      batch(() => {
-        startDate.value = null;
-        endDate.value = null;
-      }),
+    date_range: () => {
+      setStartDate(null);
+      setEndDate(null);
+    },
   };
   for (const signal of Object.keys(signalListeners))
     if (
-      specJson.value &&
-      !specJson.value?.params.find(({ name }) => signal === name)
+      specJson &&
+      !specJson?.params?.find(({ name }: any) => signal === name)
     ) {
-      delete signalListeners[signal];
-      if (signal in signalCleanup) signalCleanup[signal]();
+      delete (signalListeners as any)[signal];
+      if (signal in signalCleanup) (signalCleanup as any)[signal]();
     }
 
   return (
     <div className="h-full w-full relative" ref={ref}>
       <LoaderCircle className="animate-spin absolute" />
-      {specJson.value ? (
+      {specJson ? (
         <VegaLite
           actions={actions}
           className="absolute rounded-xl overflow-hidden"
-          spec={specJson.value}
+          spec={specJson}
           style={{
             height: `${height}px`,
             width: `${width}px`,

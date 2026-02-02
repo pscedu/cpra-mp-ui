@@ -1,6 +1,11 @@
 import { ReactNode, useEffect, useRef } from "react";
 import { getPermalink } from "@/helpers/hash";
-import { usePortalState } from "@/helpers/state";
+import { useAtomValue } from "jotai";
+import {
+  catalogQueriesAtom,
+  selectedGeographiesAtom,
+  structureAtom,
+} from "@/helpers/state";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,9 +26,12 @@ export default function CommentEdit({
   setValue: (text: string) => void;
   value: string;
 }) {
-  const { mapCatalogQuery, selectedGeographies, structure } = usePortalState();
-  const textarea = useRef(null);
-  const label = selectedGeographies.value.length ? "map and chart" : "map";
+  const selectedGeographies = useAtomValue(selectedGeographiesAtom);
+  const structure = useAtomValue(structureAtom);
+  const mapCatalogQuery = useAtomValue(catalogQueriesAtom).getMapCatalogQuery();
+
+  const textarea = useRef<HTMLTextAreaElement>(null);
+  const label = selectedGeographies?.length ? "map and chart" : "map";
 
   useEffect(() => {
     if (!cacheKey) return;
@@ -37,12 +45,13 @@ export default function CommentEdit({
     else localStorage.removeItem(cacheKey);
   }, [cacheKey, defaultValue, value]);
 
-  const insertLink = () => {
+  const insertLink = async () => {
     const icons = ["🌎️"];
-    if (selectedGeographies.value.length > 0) icons.push("📈");
-    const label = structure.value.getDataLabel(
-      mapCatalogQuery.value,
-      selectedGeographies.value,
+    if (selectedGeographies?.length > 0) icons.push("📈");
+    const resolvedStructure = await structure;
+    const label = resolvedStructure?.getDataLabel(
+      mapCatalogQuery,
+      selectedGeographies,
     );
     const ta = textarea.current;
     if (ta) {
@@ -70,7 +79,7 @@ export default function CommentEdit({
           variant="ghost"
           size="sm"
           className="cursor-pointer"
-          disabled={!structure.value}
+          disabled={!structure}
           onClick={insertLink}
         >
           <Link /> Insert current {label} link

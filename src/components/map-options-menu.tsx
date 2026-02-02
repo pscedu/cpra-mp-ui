@@ -1,4 +1,5 @@
-import { usePortalState } from "@/helpers/state";
+import { useAtom } from "jotai";
+import { mapOptionsAtom } from "@/helpers/state";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,8 +13,9 @@ import {
 import { EllipsisVertical } from "lucide-react";
 
 export default function MapOptionsMenu() {
-  const { showGridLabels, showGridLines, showProjects, showWater } =
-    usePortalState();
+  const [mapOptions, setMapOptions] = useAtom(mapOptionsAtom);
+  const setOption = (key: string, value: boolean) =>
+    setMapOptions({ ...mapOptions, [key]: value });
 
   return (
     <DropdownMenu>
@@ -26,26 +28,26 @@ export default function MapOptionsMenu() {
         <DropdownMenuLabel>Map Options</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuCheckboxItem
-          checked={showGridLabels.value}
-          onCheckedChange={(checked) => (showGridLabels.value = checked)}
+          checked={mapOptions.showGridLabels}
+          onCheckedChange={(checked) => setOption("showGridLabels", checked)}
         >
           Show Grid Labels
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
-          checked={showGridLines.value}
-          onCheckedChange={(checked) => (showGridLines.value = checked)}
+          checked={mapOptions.showGridLines}
+          onCheckedChange={(checked) => setOption("showGridLines", checked)}
         >
           Show Grid Lines
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
-          checked={showProjects.value}
-          onCheckedChange={(checked) => (showProjects.value = checked)}
+          checked={mapOptions.showProjects}
+          onCheckedChange={(checked) => setOption("showProjects", checked)}
         >
           Show Projects
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
-          checked={showWater.value}
-          onCheckedChange={(checked) => (showWater.value = checked)}
+          checked={mapOptions.showWater}
+          onCheckedChange={(checked) => setOption("showWater", checked)}
         >
           Show Water
         </DropdownMenuCheckboxItem>

@@ -1,4 +1,9 @@
-import { usePortalState } from "@/helpers/state";
+import { useAtomValue, useAtom, useSetAtom } from "jotai";
+import {
+  catalogQueriesAtom,
+  requestedTimeValuesAtom,
+  setSelectedFilterChoicesAtom,
+} from "@/helpers/state";
 import { parseDate } from "@/helpers/utils";
 
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -12,26 +17,40 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
+let selectedTimeout: ReturnType<typeof setTimeout> | null = null;
+
 import { SelectionModeDropdown } from "./selection-mode-dropdown";
 import { Slider } from "./ui/slider";
 
 export default function TimeSelect() {
-  const {
-    mapCatalogQuery,
-    timeChoices,
-    timeDimension,
-    timeValues,
-    setTimeValues,
-  } = usePortalState();
-
-  const choices = timeChoices.value;
-  const selected = timeValues.value;
+  const setSelectedFilterChoices = useSetAtom(setSelectedFilterChoicesAtom);
+  const catalogQueries = useAtomValue(catalogQueriesAtom);
+  const mapCatalogQuery = catalogQueries.getMapCatalogQuery();
+  const timeDimension = catalogQueries.getTimeDimension();
+  const [selected, setSelected] = useAtom(requestedTimeValuesAtom);
+  const choices = catalogQueries.getTimeChoices();
 
   if (!choices.length || !selected.length) return;
 
+  const setSelectedWithDebounce = (values, useTimeout = true) => {
+    setSelected(values);
+
+    if (selectedTimeout) clearTimeout(selectedTimeout);
+
+    const updateFilters = () => {
+      setSelectedFilterChoices(timeDimension.name, values, true);
+    };
+
+    if (useTimeout) {
+      selectedTimeout = setTimeout(updateFilters, 250);
+    } else {
+      updateFilters();
+    }
+  };
+
   const isYear = typeof choices[0] === "number";
   const values = selected.map((value) => choices.indexOf(value));
-  const label = timeDimension.value ? timeDimension.value.label : "Value";
+  const label = timeDimension ? timeDimension?.label : "Value";
   const editLabel = `Edit ${label.toLowerCase()}`;
 
   return (
@@ -60,11 +79,11 @@ export default function TimeSelect() {
                     min={choices[0]}
                     max={choices[choices.length - 1]}
                     onChange={(e) => {
-                      const newValue = parseInt(e.target.value);
+                      const newValue = parseInt(e.target);
                       if (choices.includes(newValue)) {
                         const newSelected = [...selected];
                         newSelected[idx] = newValue;
-                        setTimeValues(newSelected);
+                        setSelected(newSelected);
                       }
                     }}
                   />
@@ -85,7 +104,7 @@ export default function TimeSelect() {
                     newSelected[i] = (newDate || date)
                       .toISOString()
                       .split("T")[0];
-                    setTimeValues(newSelected);
+                    setSelectedWithDebounce(newSelected);
                   }}
                   disabled={(date) =>
                     !choices.includes(date.toISOString().split("T")[0])
@@ -106,31 +125,31 @@ export default function TimeSelect() {
           max={choices.length > 1 ? choices.length - 1 : 1}
           value={values}
           onValueChange={(idxs) =>
-            setTimeValues(idxs.map((idx) => choices[idx]))
+            setSelectedWithDebounce(idxs.map((idx) => choices[idx]))
           }
         />
       </div>
       <SelectionModeDropdown
-        dimensionName={timeDimension.value.name}
+        dimensionName={timeDimension?.name}
         dimensionLabel={label}
         maxLength={values.length}
         optionsLength={choices.length}
         setMaxLength={(ml) => {
           const newLength = Math.min(ml, 2);
           if (newLength > values.length) {
-            let newValues = values.slice();
+            const newValues = values.slice();
             if (values[0] === choices.length - 1) newValues.splice(0, 0, 0);
             else newValues.push(choices.length - 1);
-            setTimeValues(
+            setSelectedWithDebounce(
               newValues.map((idx) => choices[idx]),
               false,
             );
           } else if (newLength < values.length) {
-            setTimeValues([choices[values[0]]], false);
+            setSelectedWithDebounce([choices[values[0]]], false);
           }
         }}
         supportsConcatenate={
-          mapCatalogQuery.value?.dataset?.variable?.name === "lnd_type"
+          mapCatalogQuery?.dataset?.variable?.name === "lnd_type"
         }
         supportsSubtract={true}
       />

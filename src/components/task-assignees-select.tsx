@@ -1,18 +1,19 @@
-import { usePortalState } from "@/helpers/state";
+import { useAtom } from "jotai";
+import { taskAtom } from "@/helpers/state";
 
 import AssigneesSelect from "@/components/assignees-select";
 
 export default function TaskAssigneesSelect() {
-  const { task } = usePortalState();
+  const [task, setTask] = useAtom(taskAtom);
 
   return (
     <AssigneesSelect
       className="mb-4"
-      value={task.value.assignees}
-      onChange={(users) =>
-        (task.value = {
-          ...task.value,
-          assignees: users,
+      value={task?.assignees}
+      onChange={(assignees: any) =>
+        setTask({
+          ...task,
+          assignees,
         })
       }
     />

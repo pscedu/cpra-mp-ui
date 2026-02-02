@@ -1,501 +1,375 @@
-import { createContext, useContext } from "react";
-import {
-  batch,
-  computed,
-  effect,
-  Signal,
-  signal,
-  untracked,
-} from "@preact/signals-react";
+import { atom, WritableAtom, createStore } from "jotai";
+import { atomWithRefresh, atomWithReset, atomWithStorage } from "jotai/utils";
+import { observe } from "jotai-effect";
 import { jwtDecode } from "jwt-decode";
-import { loadUser, saveUser } from "./auth";
 import { CommentNode, exportTask, importTask } from "./clickup";
 import { managementBaseUrl } from "./config";
 import {
-  datasetsSignal,
-  filtersSignal,
-  hashSignal,
-  initHashSignals,
-  setHashUpdateMode,
+  hashAtom,
+  hashObjectAtom,
+  knownHashKeys,
+  queueWriteHash,
 } from "./hash";
-import { Dataset, getStructure, Structure } from "./structure";
+import { Dataset, getStructure } from "./structure";
 import { getJson, getNdJson, sortConsistent } from "./utils";
 import { NavigateFunction } from "react-router";
 import { CatalogQueries } from "./catalog";
+import { Analysis, DatasetRequest } from "./types";
 
-export const PortalState = createContext(null);
+export const store = createStore();
 
-function dataSignal(loadFn: Function, defaultValue = null) {
-  const sig = signal(defaultValue);
-  effect(() => {
-    (async () => {
-      sig.value = await loadFn();
-    })();
-  });
-  return sig;
-}
+const tokenAtom = (key: string) =>
+  atomWithStorage<string | null>(key, null, undefined, { getOnInit: true });
+export const accessTokenAtom = tokenAtom("access_token");
+export const refreshTokenAtom = tokenAtom("refresh_token");
 
-export function createPortalState() {
-  // Data signals
-  const structure: Signal<Structure | null> = dataSignal(getStructure);
+export const structureAtom = atom(async () => await getStructure());
+export const activityAtom = hashAtom("data", { key: "activity" });
+export const issueAtom = hashAtom(null, { key: "issue" });
 
-  // URL hash isgnals
-  const activity = hashSignal("activity", "data");
-  const issue = hashSignal("issue", null);
-  const datasets = datasetsSignal(structure);
-  const filters = filtersSignal(structure);
-  const mapPosition = hashSignal(
-    "map",
-    [8, 29.75, -91.5],
-    (values) => values.map((value) => value.toFixed(2)).join("/"),
-    (valueStr) => valueStr.split("/").map((value) => parseFloat(value)),
-    true,
-  );
-  const selectedGeographies = hashSignal<number[] | number[][]>(
-    "geography",
-    [],
-    (values) => values.map((value) => value.toString()).join(","),
-    (str) => {
-      const geos = str.split(",");
-      if (str.includes(".")) {
-        const pairs = [];
-        for (let i = 0; i < geos.length; i += 2)
-          pairs.push(geos.slice(i, i + 2).map((coord) => parseFloat(coord)));
-        return pairs;
-      }
-      return geos.map((geo) => parseInt(geo));
+export const requestedDatasetsAtom = hashAtom<DatasetRequest[]>([], {
+  fromHash: (params) => {
+    const variables = params.getAll("variable") || [];
+    const grids = params.getAll("grid") || [];
+    const timeUnits = params.getAll("time_unit") || [];
+    const drs = variables.map((variable, i) => ({
+      variable,
+      grid: grids[i],
+      time_unit: timeUnits[i],
+    }));
+    return drs.length
+      ? drs
+      : [
+          {
+            variable: "sal",
+            grid: "hydro_compartment_v001",
+            time_unit: "annual",
+          },
+        ];
+  },
+});
+export const requestedFiltersAtom = hashAtom<any>(
+  {},
+  {
+    fromHash: (params) => {
+      const uniqueKeys = new Set(params.keys());
+      const value = {};
+      for (const key of uniqueKeys)
+        if (!knownHashKeys.includes(key)) value[key] = params.getAll(key);
+
+      return value;
     },
-  );
-  const showGridLabels = hashSignal(
-    "show_grid_labels",
-    false,
-    (value) => (value ? "true" : "false"),
-    (value) => value === "true",
-  );
-  const showGridLines = hashSignal(
-    "show_grid_lines",
-    true,
-    (value) => (value ? "true" : "false"),
-    (value) => value === "true",
-  );
-  const showProjects = hashSignal(
-    "show_projects",
-    true,
-    (value) => (value ? "true" : "false"),
-    (value) => value !== "false",
-  );
-  const showWater = hashSignal(
-    "show_water",
-    false,
-    (value) => (value ? "true" : "false"),
-    (value) => value !== "false",
-  );
-  const startDate = hashSignal("start_date", null);
-  const endDate = hashSignal("end_date", null);
-  const reconcileState = (
-    { updateGeographies }: { updateGeographies: boolean } = {
-      updateGeographies: false,
-    },
+  },
+);
+export const requestedTimeValuesAtom = atom([]);
+export const catalogQueriesAtom = hashAtom<
+  CatalogQueries | Promise<CatalogQueries>
+>(new Promise<CatalogQueries>(() => {}), {
+  updateHash: (
+    params: URLSearchParams,
+    cqs: CatalogQueries | Promise<CatalogQueries>,
   ) => {
-    if (!datasets.value.length) return;
-    // TODO: Allow the user to select the map dataset.
-    const mapDataset = datasets.value[0];
+    if ("datasets" in cqs)
+      for (const { variable, grid, time_unit } of cqs.datasets) {
+        params.append("variable", variable.name);
+        params.append("grid", grid.name);
+        params.append("time_unit", time_unit);
+      }
+    if ("combinedFilters" in cqs)
+      for (const dimension of Object.keys(cqs.combinedFilters))
+        for (const value of cqs.combinedFilters[dimension])
+          params.append(dimension, value);
+  },
+  useBaseAtom: true, // Need to call queueWriteHash manually
+});
+
+export const analysisAtom = hashAtom<Analysis>(
+  {
+    operation: "single",
+    dimension: null,
+  },
+  {
+    key: "analysis",
+    encoder: ({ operation, dimension }) => {
+      let valueStr = operation;
+      if (dimension) valueStr += `:${dimension}`;
+      return valueStr;
+    },
+    decoder: (valueStr) => {
+      const parts = valueStr.split(":");
+      return { operation: parts[0], dimension: parts[1] || null };
+    },
+  },
+);
+
+const mapDataUrlAtom = atom((get) => {
+  const cqs = get(catalogQueriesAtom);
+  const analysis = get(analysisAtom);
+  if ("queries" in cqs) return cqs.queries[0].getMapDataUrl(analysis);
+  return null;
+});
+
+export const setRequestedDatasetsAtom = atom(
+  null,
+  (
+    get,
+    set,
+    datasets: Dataset[],
+    { updateGeographies } = { updateGeographies: true },
+  ) => {
+    const prevRequests = get(requestedDatasetsAtom);
+    const newRequests = datasets.map((ds) => ({
+      variable: ds.variable.name,
+      grid: ds.grid.name,
+      time_unit: ds.time_unit,
+    }));
+    const analysis = get(analysisAtom);
+
+    // Update dataset requests.
+    set(requestedDatasetsAtom, newRequests);
 
     // Reset selected geographies when the grid changes.
-    if (
-      updateGeographies &&
-      mapCatalogQuery.value &&
-      mapCatalogQuery.value.dataset.grid !== mapDataset.grid
-    )
-      selectedGeographies.value = [];
+    if (updateGeographies && prevRequests[0].grid !== newRequests[0].grid)
+      set(selectedGeographiesAtom, []);
 
     // Reset analysis when the variable changes.
     if (
-      analysis.value.operation === "concatenate" &&
-      mapDataset?.variable?.name !== "lnd_type"
+      analysis.operation === "concatenate" &&
+      newRequests[0].variable !== "lnd_type"
     )
-      analysisType.value = "single";
+      set(analysisAtom, { operation: "single", dimension: null });
+  },
+);
 
-    // Handle changing from daily/monthly datasets to annual/decadal datasets
-    // and vice-versa.
-    const timeColumn = mapDataset.getTimeColumn();
-    const newFilters = { ...filters.value };
-    if ("calendar_day" in filters.value && timeColumn === "calendar_year") {
-      newFilters["calendar_year"] = filters.value["calendar_day"].map(
-        (dateStr) => {
-          let year = parseInt(dateStr.substr(0, 4));
-          if (mapDataset.time_unit === "decadal")
-            year = Math.round(year / 10) * 10;
-          return year;
-        },
-      );
-      delete newFilters["calendar_day"];
-      filters.value = newFilters;
-      if (analysis.value.dimension === "calendar_day")
-        analysisType.value = `${analysis.value.operation}:calendar_year`;
-    } else if (
-      "calendar_year" in filters.value &&
-      timeColumn === "calendar_day"
-    ) {
-      newFilters["calendar_day"] = filters.value["calendar_year"].map(
-        (year) => `${year}-01-01`,
-      );
-      delete newFilters["calendar_year"];
-      filters.value = newFilters;
-      if (analysis.value.dimension === "calendar_year")
-        analysisType.value = `${analysis.value.operation}:calendar_day`;
+export const mapPositionAtom = hashAtom([8, 29.75, -91.5], {
+  key: "map",
+  encoder: (values) => values.map((value) => value.toFixed(2)).join("/"),
+  decoder: (valueStr) => valueStr.split("/").map((value) => parseFloat(value)),
+  includeDefault: true,
+});
+
+export const selectedGeographiesAtom = hashAtom<number[] | number[][]>([], {
+  key: "geography",
+  encoder: (values) => values.map((value) => value.toString()).join(","),
+  decoder: (str) => {
+    const geos = str.split(",");
+    if (str.includes(".")) {
+      const pairs = [];
+      for (let i = 0; i < geos.length; i += 2)
+        pairs.push(geos.slice(i, i + 2).map((coord) => parseFloat(coord)));
+      return pairs;
     }
-  };
+    return geos.map((geo) => parseInt(geo));
+  },
+});
 
-  initHashSignals(reconcileState);
+export const maxSelectedGeographiesAtom = atom(10);
 
-  // Other signals
-  const tasks = signal(null);
-  const task = signal(null);
+export const mapOptionsAtom = hashObjectAtom<boolean>({
+  showGridLabels: false,
+  showGridLines: true,
+  showProjects: true,
+  showWater: false,
+});
 
-  const user = signal(loadUser());
-  const users = signal([]);
-  const avatarCacheKey = signal(new Date().getTime());
+export const startDateAtom = hashAtom(null, { key: "start_date" });
+export const endDateAtom = hashAtom(null, { key: "end_date" });
 
-  const catalogQueries: Signal<CatalogQueries | null> = signal(null);
-  const timeValues = signal([]);
-  let timeValuesTimeout: number | null = null;
+export const visualizationTypeAtom = hashAtom("time-series-line", {
+  key: "visualization",
+});
 
-  const mapFeatureValues = signal({});
-  let mapFeatureValuesAbortController: AbortController | null = null;
-  const mapFeatureValuesLoading = signal(false);
-  const mapTilesLoading = signal(false);
+export const avatarCacheKeyAtom = atom(new Date().getTime());
+export const mapFeatureValuesAtom = atom({} as any);
+export const mapFeatureValuesLoadingAtom = atom(false);
+export const mapTilesLoadingAtom = atom(false);
+export const issueFilterTagsAtom = atom([] as any[]);
+export const contextMenuAtom = atom(null as any);
 
-  const visualizationType = hashSignal("visualization", "time-series-line");
-  const analysisType = hashSignal("analysis", "single");
-
-  const issueFilterTags = signal([]);
-  const taskStatuses = signal(null);
-  const contextMenu = signal(null);
-
-  // Query the catalog API for each selected dataset when the selected
-  // datasets or dimension values change.
-  const queryCatalog = () => {
-    (async () => {
-      const cqs = new CatalogQueries(
-        datasets.value,
-        filters.value,
-        structure.value,
-      );
-      await cqs.executeAll();
-      setHashUpdateMode("replace");
-      batch(() => {
-        catalogQueries.value = cqs;
-        filters.value = cqs.combinedFilters;
-      });
-      setHashUpdateMode("push");
-    })();
-  };
-
-  // Ensure there is always at least one dataset selected.
-  effect(() => {
-    if (structure.value) {
-      untracked(() => {
-        if (datasets.peek().length == 0)
-          datasets.value = [structure.value.datasets[0]];
-      });
-    }
-  });
-
-  // Query the catalog when datasets or filters change.
-  effect(() => {
-    if (!structure.value) return;
-    if (
-      !catalogQueries.value ||
-      datasets.value !== catalogQueries.value.datasets ||
-      filters.value !== catalogQueries.value.combinedFilters
-    )
-      return queryCatalog();
-  });
-
-  const mapCatalogQuery = computed(() => {
-    if (!catalogQueries.value) return null;
-    // TODO: Allow user to select the active query/dataset.
-    return catalogQueries.value.queries[0];
-  });
-
-  const mapDataUrl = computed(() => {
-    if (
-      !mapCatalogQuery.value ||
-      mapCatalogQuery.value.dataset.grid.grid_type === "raster"
-    )
-      return null;
-    return mapCatalogQuery.value.dataset.getDataUrl(
-      mapCatalogQuery.value.getQueryParams({
-        analysis: analysis.value,
-        maxValues: 1,
-      }),
-      "ndjson",
-    );
-  });
-
-  const mapTileUrl = computed(() =>
-    mapCatalogQuery.value
-      ? mapCatalogQuery.value.dataset.getTileUrl(
-          mapCatalogQuery.value.getQueryParams({
-            analysis: analysis.value,
-            maxValues: 1,
-          }),
-        )
-      : null,
-  );
-
-  const projectsModelGroup = computed(
-    () => (mapCatalogQuery.value?.response?.results?.model_group_id || [-1])[0],
-  );
-
-  const tagOptions = computed(() => {
-    const options = [];
-    if (structure.value) {
-      for (let dimension of structure.value.dimensions) {
-        if (dimension.values) {
-          options.push(
-            ...dimension.values.map((dv) => ({
-              value: `${dimension.name}:${dv.value}`,
-              label: `${dimension.label}: ${dv.label || dv.value}`,
-            })),
-          );
-        }
+export const tagOptionsAtom = atom(async (get) => {
+  const structure = await get(structureAtom);
+  const options = [];
+  if (structure) {
+    for (const dimension of structure.dimensions) {
+      if (dimension.values) {
+        options.push(
+          ...dimension.values.map((dv: any) => ({
+            value: `${dimension.name}:${dv.value}`,
+            label: `${dimension.label}: ${dv.label || dv.value}`,
+          })),
+        );
       }
     }
-    return options;
-  });
+  }
+  return options;
+});
 
-  const timeDimension = computed(() =>
-    catalogQueries.value
-      ? catalogQueries.value.activeDimensions.filter(
-          (dim) => dim.filterType === "time",
-        )[0]
-      : null,
-  );
+export const visualizationAtom = atom(async (get) => {
+  const structure = await get(structureAtom);
+  const visualizationType = get(visualizationTypeAtom);
+  return structure.visualizationsMap[visualizationType];
+});
 
-  const timeChoices = computed(() =>
-    timeDimension.value && catalogQueries.value
-      ? catalogQueries.value.combinedChoices[timeDimension.value.name] || []
-      : [],
-  );
-
-  const analysis = computed(() => {
-    const [operation, dimension] = analysisType.value.split(":");
-    return { operation, dimension };
-  });
-
-  const visualizationSpecUrl = computed(() => {
-    return structure.value &&
-      mapCatalogQuery.value &&
-      visualizationType.value &&
-      selectedGeographies.value &&
-      selectedGeographies.value.length
-      ? structure.value.visualizationsMap[visualizationType.value].getSpecUrl(
-          mapCatalogQuery.value,
-          {
-            analysis: analysis.value.dimension?.startsWith("calendar_")
-              ? null
-              : analysis.value,
-            geographies: selectedGeographies.value,
-          },
-        )
-      : null;
-  });
-
-  const projectsYear = computed(() => {
-    const { combinedFilters } = catalogQueries.value || {};
-    if (combinedFilters) {
-      if (combinedFilters.calendar_day)
-        return parseInt(combinedFilters.calendar_day[0].substr(0, 4));
-      if (combinedFilters.calendar_year)
-        return combinedFilters.calendar_year[0];
-    }
-    return 0;
-  });
-
-  const visualization = computed(() =>
-    structure.value && visualizationType.value
-      ? structure.value.visualizationsMap[visualizationType.value]
-      : null,
-  );
-
-  const rotateSelectedGeographies = (offset: number) => {
-    if (offset != 0)
-      selectedGeographies.value = [
-        ...selectedGeographies.value.slice(offset),
-        ...selectedGeographies.value.slice(0, offset),
-      ];
-  };
-
-  const setTimeValues = (values, useTimeout = true) => {
-    batch(() => {
-      timeValues.value = values;
-      if (timeValuesTimeout) clearTimeout(timeValuesTimeout);
-      const updateFilters = () =>
-        setSelectedFilterChoices(timeDimension.value.name, values);
-      if (useTimeout) {
-        timeValuesTimeout = setTimeout(updateFilters, 250);
-      } else {
-        updateFilters();
-      }
-    });
-  };
-
-  const setSelectedDatasets = (selected: Dataset[]) => {
-    batch(() => {
-      datasets.value = selected;
-      reconcileState({ updateGeographies: true });
-    });
-  };
-
-  const setSelectedFilterChoices = (
-    dimensionName: string,
-    values: [],
-    sort = true,
-  ) => {
-    if (sort) sortConsistent(values, filters.value[dimensionName]);
-    filters.value = {
-      ...filters.value,
+export const setSelectedFilterChoicesAtom = atom(
+  null,
+  (get, set, dimensionName: string, values: any[], sort = true) => {
+    const filters = get(requestedFiltersAtom);
+    if (sort) sortConsistent(values, filters[dimensionName]);
+    const newFilters = {
+      ...filters,
       [dimensionName]: values,
     };
-  };
+    if (dimensionName === "calendar_day" && "calendar_year" in newFilters)
+      delete newFilters["calendar_year"];
+    if (dimensionName === "calendar_year" && "calendar_day" in newFilters)
+      delete newFilters["calendar_day"];
+    set(requestedFiltersAtom, newFilters);
+  },
+);
 
-  const setAnalysis = (operation: string, dimension: string) => {
-    batch(() => {
-      analysisType.value = dimension ? `${operation}:${dimension}` : operation;
-    });
-  };
+const getManagementJson = async (
+  get,
+  relativeUrl: string,
+  { accessToken = null, body = null, method = "GET" } = {},
+) => {
+  const res = await getJson(`${managementBaseUrl}${relativeUrl}`, {
+    body,
+    headers: {
+      authorization: `Bearer ${accessToken ?? get(accessTokenAtom)}`,
+      "content-type": "application/json",
+    },
+    method,
+  });
+  if (res.error && res.error.status === 401) {
+    // Try to obtain a new access token using the refresh token.
+    if (!accessToken && (await refreshAccessToken(get)))
+      return await getManagementJson(get, relativeUrl, {
+        accessToken,
+        body,
+        method,
+      });
+    store.set(accessTokenAtom, null);
+    store.set(refreshTokenAtom, null);
+  }
+  return res;
+};
 
-  const getManagementJson = async (
-    relativeUrl: string,
-    { accessToken = null, body = null, method = "GET", tryRefresh = true } = {},
+const refreshAccessToken = async (get) => {
+  const refreshToken = store.get(refreshTokenAtom);
+  if (!refreshToken) return false;
+  const data = await getManagementJson(get, "/login/refresh", {
+    accessToken: refreshToken,
+  });
+  if (data.error) return false;
+  store.set(accessTokenAtom, data.accessToken);
+  return true;
+};
+
+export const userAtom = atomWithRefresh(async (get) => {
+  const result = await getManagementJson(get, "/users/current_user");
+  return result.error ? null : result;
+});
+
+export const usersAtom = atom(async (get) => {
+  const user = await get(userAtom);
+  if (!user?.clickupId) return [];
+  const usersData = await getManagementJson(get, "/users/");
+  return usersData.sort((a: any, b: any) => (a.fullName < b.fullName ? -1 : 1));
+});
+
+export const taskStatusesAtom = atom(async (get) => {
+  const statuses = await getManagementJson(get, "/statuses/");
+  return statuses.error ? [] : statuses;
+});
+
+export const tasksAtom = atomWithRefresh(async (get) => {
+  const issueFilterTags = get(issueFilterTagsAtom);
+  const params = new URLSearchParams();
+  if (issueFilterTags)
+    for (const tag of issueFilterTags) params.append("tags", tag.value);
+  const tasksData = await getManagementJson(get, `/tasks/?${params}`);
+  return tasksData.map(importTask);
+});
+
+export const taskAtom = atomWithReset<any | Promise<any>>(
+  new Promise<any>(() => {}),
+);
+
+export const createTaskAtom = atom(null, async (get, set, task: any) => {
+  return await getManagementJson(get, "/tasks/", {
+    body: exportTask(task),
+    method: "POST",
+  });
+});
+
+export const createCommentAtom = atom(
+  null,
+  async (
+    get,
+    set,
+    {
+      taskId,
+      comment,
+    }: {
+      taskId: string;
+      comment: { assignee?: any; comment: CommentNode | CommentNode[] };
+    },
   ) => {
-    const res = await getJson(`${managementBaseUrl}${relativeUrl}`, {
-      body,
-      headers: {
-        authorization: `Bearer ${
-          accessToken ? accessToken : user.peek().accessToken
-        }`,
-        "content-type": "application/json",
-      },
-      method,
-    });
-    if (res.error && res.error.status === 401) {
-      // Try to obtain a new access token using the refresh token.
-      if (tryRefresh && (await refreshAccessToken()))
-        return await getManagementJson(relativeUrl, {
-          accessToken,
-          body,
-          method,
-          tryRefresh,
-        });
-      user.value = null;
-    }
-    return res;
-  };
-
-  const refreshAccessToken = async () => {
-    const refreshToken = user.peek()?.refreshToken;
-    if (!refreshToken) return false;
-    const data = await getManagementJson("/login/refresh", {
-      accessToken: refreshToken,
-      tryRefresh: false,
-    });
-    if (data.error) return false;
-    user.value = { ...user.value, accessToken: data.accessToken };
-    return true;
-  };
-
-  const getUserInfo = async (settings = {}) =>
-    await getManagementJson("/users/current_user", settings);
-
-  const getTasks = async ({ tags } = {}) => {
-    const params = new URLSearchParams();
-    if (tags) for (const tag of tags) params.append("tags", tag.value);
-    return await getManagementJson(`/tasks?${params}`);
-  };
-
-  const getTask = async (taskId: string, getComments: boolean = false) => {
-    return await getManagementJson(
-      `/tasks/${taskId}?getComments=${getComments.toString()}`,
-    );
-  };
-
-  const createTask = async (task: any) => {
-    return await getManagementJson("/tasks", {
-      body: exportTask(task),
-      method: "POST",
-    });
-  };
-
-  const createComment = async (
-    taskId: string,
-    comment: { assignee?: any; comment: CommentNode | CommentNode[] },
-  ) => {
-    return await getManagementJson(`/tasks/${taskId}/comments`, {
+    return await getManagementJson(get, `/tasks/${taskId}/comments`, {
       body: comment,
       method: "POST",
     });
-  };
+  },
+);
 
-  const getStatuses = async () => await getManagementJson("/statuses");
-
-  const reloadTask = () => {
-    task.value = null;
-    (async () => {
-      if (issue.value === "new")
-        task.value = {
-          assignees: [],
-          tags: [],
-          markdown_description: "",
-          name: "",
-        };
-      else if (issue.value)
-        task.value = importTask(await getTask(issue.value, true));
-    })();
-  };
-
-  const reloadTasks = () => {
-    tasks.value = null;
-    (async () => {
-      tasks.value = (await getTasks({ tags: issueFilterTags.value })).map(
-        importTask,
-      );
-    })();
-  };
-
-  const updateComment = async (commentId: string, commentUpdates: any) => {
-    return await getManagementJson(`/comments/${commentId}`, {
+export const updateCommentAtom = atom(
+  null,
+  async (
+    get,
+    set,
+    { commentId, commentUpdates }: { commentId: string; commentUpdates: any },
+  ) => {
+    return await getManagementJson(get, `/comments/${commentId}`, {
       body: commentUpdates,
       method: "PUT",
     });
-  };
+  },
+);
 
-  const updateTask = async (taskUpdates: any) => {
-    return await getManagementJson(`/tasks/${task.value.id}`, {
-      body: exportTask(taskUpdates),
-      method: "PUT",
-    });
-  };
+export const updateTaskAtom = atom(null, async (get, set, taskUpdates: any) => {
+  const task = get(taskAtom);
+  return await getManagementJson(get, `/tasks/${task.id}`, {
+    body: exportTask(taskUpdates),
+    method: "PUT",
+  });
+});
 
-  const completeLogin = (
-    { search }: Location,
-    navigate: NavigateFunction,
+export const completeLoginAtom = atom(
+  null,
+  async (
+    get,
+    set,
     {
-      description,
-      heading,
+      search,
+      navigate,
       status,
-    }: { description: Signal; heading: Signal; status: Signal },
+    }: {
+      search: string;
+      navigate: NavigateFunction;
+      status: {
+        description: WritableAtom<any, any, any>;
+        heading: WritableAtom<any, any, any>;
+        status: WritableAtom<any, any, any>;
+      };
+    },
   ) => {
     const query = new URLSearchParams(search);
     const loginError = (msg: string) => {
-      batch(() => {
-        description.value = msg;
-        heading.value = "Login error";
-        status.value = "error";
-      });
+      set(status.description, msg);
+      set(status.heading, "Login error");
+      set(status.status, "error");
     };
+
     if (!query.has("access_token") || !query.has("refresh_token"))
       return loginError("Required token parameters are missing.");
 
@@ -508,177 +382,217 @@ export function createPortalState() {
       return loginError(err as string);
     }
 
-    (async () => {
-      const currentUser = await getUserInfo({
-        accessToken: accessToken,
-      });
+    set(accessTokenAtom, accessToken);
+    set(refreshTokenAtom, refreshToken);
 
-      if (currentUser.error)
-        return loginError("Failed to get user information");
+    navigate("/");
+  },
+);
 
-      user.value = {
-        ...currentUser,
-        accessToken: accessToken,
-        refreshToken: refreshToken,
-      };
-
-      navigate("/");
-    })();
-  };
-
-  const linkClickup = ({ search }: Location, navigate: NavigateFunction) => {
+export const linkClickupAtom = atom(
+  null,
+  (
+    _get,
+    set,
+    { search, navigate }: { search: string; navigate: NavigateFunction },
+  ) => {
     const query = new URLSearchParams(search);
     if (query.get("status") === "success") {
-      user.value = {
-        ...user.value,
-        clickupId: query.get("clickup_id"),
-      };
+      // Refresh the user record.
+      set(userAtom);
     } else {
       // TODO: Add error handling for failed link operation.
     }
     navigate("/");
-  };
+  },
+);
 
-  // Update time values when new catalog queries are performed.
-  // TODO: The delay logic can probably be handled inside the time-select component.
-  effect(() => {
-    const cqs = catalogQueries.value;
-    const timeDim = timeDimension.peek();
-    if (cqs && timeDim) timeValues.value = cqs.combinedFilters[timeDim.name];
-  });
+// Update the selected geography at a particular index.
+export const updateSelectedGeographyAtom = atom(
+  null,
+  (get, set, i: number, newGeo: any) => {
+    const geos = get(selectedGeographiesAtom).slice();
+    geos[i] = newGeo;
+    set(selectedGeographiesAtom, geos);
+  },
+);
 
-  // Update map feature state when the dataset or filters change.
-  effect(() => {
-    (async () => {
-      if (mapDataUrl.value) {
-        if (mapFeatureValuesAbortController)
-          mapFeatureValuesAbortController.abort("map state changed");
-        mapFeatureValuesAbortController = new AbortController();
+// Toggle whether the given geography is selected.
+export const toggleGeographySelectedAtom = atom(null, (get, set, geo: any) => {
+  const geos = get(selectedGeographiesAtom).slice();
+  const idx = geos.indexOf(geo);
+  if (idx === -1) geos.push(geo);
+  else geos.splice(idx, 1);
+  set(selectedGeographiesAtom, geos);
+});
 
-        mapFeatureValuesLoading.value = true;
-        let data;
-        try {
-          data = await getNdJson(mapDataUrl.value, {
-            signal: mapFeatureValuesAbortController.signal,
-          });
-        } catch (err) {
-          if (err === "map state changed") return;
-          throw err;
-        }
+// Rotate selected geographies by an offset.
+export const rotateSelectedGeographiesAtom = atom(
+  null,
+  (get, set, offset: number) => {
+    const selectedGeographies = get(selectedGeographiesAtom);
+    if (offset != 0)
+      set(selectedGeographiesAtom, [
+        ...selectedGeographies.slice(offset),
+        ...selectedGeographies.slice(0, offset),
+      ]);
+  },
+);
 
-        if (data.length === 1) {
-          batch(() => {
-            mapFeatureValues.value = data[0];
-            mapFeatureValuesLoading.value = false;
-          });
-        } else {
-          console.error(`Expected 1 row, received ${data.length}`, data);
-        }
-      } else {
-        mapFeatureValues.value = {};
+// Handle map key press.
+// This logic is in the state instead of in the Map component
+// to work around issues with stale values in the event handler.
+export const handleMapKeyPressAtom = atom(
+  null,
+  async (get, set, e: KeyboardEvent) => {
+    if (e.ctrlKey) {
+      const selectionCount = get(selectedGeographiesAtom).length;
+      const maxGeographies =
+        (await get(visualizationAtom)).max_geographies || 10;
+      if (selectionCount) {
+        if (e.key === "ArrowLeft") set(rotateSelectedGeographiesAtom, -1);
+        else if (e.key === "ArrowRight") set(rotateSelectedGeographiesAtom, 1);
       }
-    })();
-  });
-
-  // Reload user information when the application loads.
-  // This also allows us to get a fresh ACCESS token, if necessary.
-  effect(() => {
-    if (user.peek())
-      (async () => {
-        const userInfo = await getUserInfo(user);
-        user.value = userInfo.error ? null : { ...user.value, ...userInfo };
-      })();
-  });
-
-  // Save user information to local storage when it changes.
-  effect(() => {
-    saveUser(user.value);
-  });
-
-  // Reset the activity when the user logs out.
-  effect(() => {
-    if (activity.value !== "data" && !user.value) activity.value = "data";
-  });
-
-  // Load a list of portal users when a user logs in.
-  effect(() => {
-    if (user.value?.clickupId && users.value.length === 0) {
-      (async () =>
-        (users.value = (await getManagementJson("/users")).sort((a, b) =>
-          a.fullName < b.fullName ? -1 : 1,
-        )))();
+      if (selectionCount > maxGeographies) {
+        if (e.key === "ArrowUp")
+          set(rotateSelectedGeographiesAtom, -1 * maxGeographies);
+        else if (e.key === "ArrowDown")
+          set(rotateSelectedGeographiesAtom, maxGeographies);
+      }
+    } else if (e.key === "Escape") {
+      set(selectedGeographiesAtom, []);
     }
-  });
+  },
+);
 
-  // Load the task list.
-  effect(() => {
-    if (activity.value === "issues" && issueFilterTags.value) reloadTasks();
-  });
+// Set the executed catalog queries and related atoms.
+// This needs to be in its own write-only atom for Reach state batching to work property.
+// Otherwise, React tries to rerender components in the middle of updates.
+const setExecutedCatalogQueriesAtom = atom(
+  null,
+  (get, set, cqs: CatalogQueries) => {
+    set(catalogQueriesAtom, cqs);
+    set(
+      requestedTimeValuesAtom,
+      cqs.queries[0].response.results[cqs.getTimeDimension().name],
+    );
+    // Update the analysis dimension if needed.
+    const analysis = get(analysisAtom);
+    const timeDimName = cqs.getTimeDimension().name;
+    if (
+      analysis.dimension &&
+      ["calendar_day", "calendar_year"].includes(analysis.dimension) &&
+      analysis.dimension !== timeDimName
+    )
+      set(analysisAtom, { ...analysis, dimension: timeDimName });
+    // We need to manually trigger the hash write, because the catalog queries
+    // promise approach is not compatible with derived atoms.
+    queueWriteHash(get);
+  },
+);
 
-  // Load an individual task when an issue is selected.
-  effect(() => {
-    if (activity.value === "issues") reloadTask();
-  });
+/* Effects */
 
-  // Load possible task statuses when the application loads.
-  effect(() => {
-    if (user.value) (async () => (taskStatuses.value = await getStatuses()))();
-  });
+// Query the catalog when datasets or filters change.
+observe((get, set) => {
+  const requestedDatasets = get(requestedDatasetsAtom);
+  const requestedFilters = get(requestedFiltersAtom);
+  (async () => {
+    const structure = await get(structureAtom);
 
-  return {
-    activity,
-    analysis,
-    avatarCacheKey,
-    catalogQueries,
-    completeLogin,
-    contextMenu,
-    createComment,
-    createTask,
-    datasets,
-    endDate,
-    filters,
-    getTask,
-    getTasks,
-    issue,
-    issueFilterTags,
-    linkClickup,
-    mapCatalogQuery,
-    mapFeatureValues,
-    mapFeatureValuesLoading,
-    mapPosition,
-    mapTileUrl,
-    mapTilesLoading,
-    projectsModelGroup,
-    projectsYear,
-    reloadTask,
-    reloadTasks,
-    rotateSelectedGeographies,
-    selectedGeographies,
-    setAnalysis,
-    setSelectedDatasets,
-    setSelectedFilterChoices,
-    setTimeValues,
-    showGridLabels,
-    showGridLines,
-    showProjects,
-    showWater,
-    startDate,
-    structure,
-    tagOptions,
-    task,
-    tasks,
-    taskStatuses,
-    timeChoices,
-    timeDimension,
-    timeValues,
-    updateComment,
-    updateTask,
-    user,
-    users,
-    visualization,
-    visualizationType,
-    visualizationSpecUrl,
-  };
-}
+    const dsrSet = new Set(
+      requestedDatasets.map(
+        (dsr) => `${dsr.variable}|${dsr.grid}|${dsr.time_unit}`,
+      ),
+    );
+    const cqs = new CatalogQueries(
+      structure.datasets.filter((ds) =>
+        dsrSet.has(`${ds.variable.name}|${ds.grid.name}|${ds.time_unit}`),
+      ),
+      requestedFilters,
+      structure,
+    );
+    const prevCqs = get(catalogQueriesAtom);
+    if ("equals" in prevCqs && prevCqs.equals(cqs)) return;
+    await cqs.executeAll();
+    set(setExecutedCatalogQueriesAtom, cqs);
+  })();
+}, store);
 
-export const usePortalState = () => useContext(PortalState);
+// Update map feature state when the dataset or filters change
+let mapFeatureValuesAbortController: AbortController | null = null;
+observe((get, set) => {
+  const mapDataUrl = get(mapDataUrlAtom);
+
+  (async () => {
+    if (mapDataUrl) {
+      if (mapFeatureValuesAbortController)
+        mapFeatureValuesAbortController.abort("map state changed");
+      mapFeatureValuesAbortController = new AbortController();
+
+      set(mapFeatureValuesLoadingAtom, true);
+      let data;
+      try {
+        data = await getNdJson(mapDataUrl, {
+          signal: mapFeatureValuesAbortController.signal,
+        });
+      } catch (err) {
+        if (err === "map state changed") return;
+        throw err;
+      }
+
+      if (data.length === 1) {
+        set(mapFeatureValuesAtom, data[0]);
+        set(mapFeatureValuesLoadingAtom, false);
+      } else {
+        console.error(`Expected 1 row, received ${data.length}`, data);
+      }
+    } else {
+      set(mapFeatureValuesAtom, {});
+    }
+  })();
+}, store);
+
+// Update the maximum selected geographies when the visualization changes.
+observe((get, set) => {
+  const visualizationPromise = get(visualizationAtom);
+  (async () => {
+    const visualization = await visualizationPromise;
+    set(maxSelectedGeographiesAtom, visualization.max_geographies);
+  })();
+}, store);
+
+// Update the task when the issue changes.
+observe((get, set) => {
+  const issue = get(issueAtom);
+  if (issue === "new")
+    set(taskAtom, {
+      assignees: [],
+      tags: [],
+      markdown_description: "",
+      name: "",
+    });
+  else if (issue) {
+    set(taskAtom, new Promise(() => {}));
+    (async () => {
+      const taskData = await getManagementJson(
+        get,
+        `/tasks/${issue}?getComments=true`,
+      );
+      set(taskAtom, importTask(taskData));
+    })();
+  }
+}, store);
+
+// Reset the activity when the user logs out
+observe((get, set) => {
+  const activity = get(activityAtom);
+  const userPromise = get(userAtom);
+
+  (async () => {
+    const user = await userPromise;
+    if (activity !== "data" && !user) {
+      set(activityAtom, "data");
+    }
+  })();
+}, store);

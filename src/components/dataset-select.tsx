@@ -1,27 +1,31 @@
-import { usePortalState } from "@/helpers/state";
+import { useAtomValue, useSetAtom } from "jotai";
+import {
+  catalogQueriesAtom,
+  setRequestedDatasetsAtom,
+  structureAtom,
+} from "@/helpers/state";
 import { toTitleCase } from "@/helpers/utils";
 
 import SidebarSelect from "@/components/sidebar-select";
 import { Calendar, Ruler } from "lucide-react";
 
 export default function DatasetSelect() {
-  const { datasets, setSelectedDatasets, structure } = usePortalState();
-
-  if (!structure.value) return;
+  const structure = useAtomValue(structureAtom);
+  const datasets = useAtomValue(catalogQueriesAtom).datasets;
+  const setRequestedDatasets = useSetAtom(setRequestedDatasetsAtom);
 
   const timeUnits = [
-    ...new Set(structure.value.datasets.map((dataset) => dataset.time_unit)),
+    ...new Set(structure?.datasets.map((dataset) => dataset.time_unit)),
   ].sort();
 
-  const timeUnit =
-    (datasets.value.length && datasets.value[0].time_unit) || "annual";
+  const timeUnit = (datasets?.length && datasets[0].time_unit) || "annual";
 
   const timeOptions = timeUnits.map((value) => ({
     label: toTitleCase(value),
     value,
   }));
 
-  const variableOptions = structure.value.datasets
+  const variableOptions = structure?.datasets
     .filter((dataset) => dataset.time_unit === timeUnit)
     .map((dataset) => ({
       label: dataset.variable.label,
@@ -29,18 +33,18 @@ export default function DatasetSelect() {
     }));
 
   const setTimeUnit = (newTimeUnit) => {
-    const canidateDatasets = structure.value.datasets.filter(
+    const canidateDatasets = structure?.datasets.filter(
       (dataset) => dataset.time_unit === newTimeUnit,
     );
     let newDatasets = canidateDatasets.filter((candidate) =>
-      datasets.value.find(
+      datasets?.find(
         (dataset) =>
           dataset.variable === candidate.variable &&
           dataset.grid === candidate.grid,
       ),
     );
     if (newDatasets.length === 0) newDatasets = [canidateDatasets[0]];
-    setSelectedDatasets(newDatasets);
+    setRequestedDatasets(newDatasets);
   };
 
   return (
@@ -55,9 +59,9 @@ export default function DatasetSelect() {
       <SidebarSelect
         icon={Ruler}
         label="Variable"
-        onChange={setSelectedDatasets}
+        onChange={setRequestedDatasets}
         options={variableOptions}
-        value={datasets.value}
+        value={datasets}
       />
     </>
   );

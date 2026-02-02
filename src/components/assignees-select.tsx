@@ -1,4 +1,7 @@
-import { usePortalState } from "@/helpers/state";
+import { useAtomValue } from "jotai";
+import { usersAtom } from "@/helpers/state";
+
+// State atoms
 import { cn } from "@/lib/utils";
 
 import RSelect from "@/components/ui/rselect";
@@ -16,10 +19,10 @@ export default function AssigneesSelect({
   onChange: (selected: any | any[]) => void;
   value: any | any[];
 }) {
-  const { users } = usePortalState();
+  const users = useAtomValue(usersAtom);
 
   const optionsMap: { [username: string]: { value: any; label: string } } = {};
-  for (let user of users.value)
+  for (let user of users)
     if (user.clickupId)
       optionsMap[user.id] = {
         value: user,
