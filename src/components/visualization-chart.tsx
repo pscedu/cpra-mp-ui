@@ -4,31 +4,29 @@ import { VegaLite } from "react-vega";
 import { dark, excel } from "vega-themes";
 import { Ref, useEffect, useRef, useState } from "react";
 import { getJson } from "@/helpers/utils";
-import { useAtomValue, useSetAtom } from "jotai";
-import {
-  endDateAtom,
-  startDateAtom,
-} from "@/helpers/state";
 
 const darkTheme = { ...dark, background: "#161b22" };
 const lightTheme = excel;
 
 import { LoaderCircle } from "lucide-react";
 
-export default function Visualization({
+export default function VisualizationChart({
   actions = false,
+  endDate,
+  setEndDate,
+  setStartDate,
   spec,
+  startDate,
   padding = 16,
 }: {
   actions?: boolean;
+  endDate?: string | null;
+  setEndDate?: (date: string | null) => void | null;
+  setStartDate?: (date: string | null) => void | null;
   spec: any;
+  startDate?: string | null;
   padding?: number;
 }) {
-  const startDate = useAtomValue(startDateAtom);
-  const setStartDate = useSetAtom(startDateAtom);
-  const endDate = useAtomValue(endDateAtom);
-  const setEndDate = useSetAtom(endDateAtom);
-
   const [ref, { height, width }] = useMeasure();
   const resizeTimeout: Ref<null | ReturnType<typeof setTimeout>> = useRef(null);
   const [specJson, setSpecJson] = useState<any>(
@@ -57,7 +55,7 @@ export default function Visualization({
     } else {
       setSpecJson(spec);
     }
-  }, [spec, height, width, startDate, endDate]);
+  }, [spec, height, width]);
 
   const signalListeners = {
     date_range: (_signal: any, value: any) => {
@@ -66,14 +64,14 @@ export default function Visualization({
       const [start, end] = value[key].map(
         (timestamp: number) => new Date(timestamp).toISOString().split("T")[0],
       );
-      setStartDate(start);
-      setEndDate(end);
+      if (setStartDate) setStartDate(start);
+      if (setEndDate) setEndDate(end);
     },
   };
   const signalCleanup = {
     date_range: () => {
-      setStartDate(null);
-      setEndDate(null);
+      if (setStartDate) setStartDate(null);
+      if (setEndDate) setEndDate(null);
     },
   };
   for (const signal of Object.keys(signalListeners))
