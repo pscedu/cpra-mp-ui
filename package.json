@@ -45,7 +45,7 @@
     "jotai-effect": "^2.1.6",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.544.0",
-    "maplibre-gl": "^5.5.0",
+    "maplibre-gl": "^5.17.0",
     "react-day-picker": "^8.10.1",
     "react-resizable-panels": "^2.1.7",
     "react-router": "^7.4.1",
