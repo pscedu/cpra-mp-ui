@@ -7,10 +7,19 @@ import {
   analysisAtom,
   visualizationTypeAtom,
 } from "@/helpers/state";
-import { ResizableHandle, ResizablePanel } from "./ui/resizable";
-import VisualizationChart from "./visualization-chart";
+import { useTheme } from "@/components/theme-provider";
 
-export default function VisualizationPanel() {
+import { ResizableHandle, ResizablePanel } from "./ui/resizable";
+import { LoaderCircle } from "lucide-react";
+import Chart from "./visualization/chart";
+
+export default function VisualizationPanel({
+  actions = false,
+  padding = 16,
+}: {
+  actions?: boolean;
+  padding?: number;
+}) {
   const mapCatalogQuery = useAtomValue(catalogQueriesAtom).getMapCatalogQuery();
   const analysis = useAtomValue(analysisAtom);
   const selectedGeographies = useAtomValue(selectedGeographiesAtom);
@@ -18,6 +27,8 @@ export default function VisualizationPanel() {
 
   const [startDate, setStartDate] = useAtom(startDateAtom);
   const [endDate, setEndDate] = useAtom(endDateAtom);
+
+  const theme = useTheme();
 
   const visualizationSpecUrl = mapCatalogQuery.getVisulizationUrl({
     analysis,
@@ -31,13 +42,19 @@ export default function VisualizationPanel() {
         <>
           <ResizableHandle className="h-16" />
           <ResizablePanel>
-            <VisualizationChart
+            <Chart
+              actions={actions}
+              className="rounded-xl bg-sidebar"
               endDate={endDate}
               setEndDate={setEndDate}
               setStartDate={setStartDate}
               spec={visualizationSpecUrl}
               startDate={startDate}
-            />
+              padding={padding}
+              theme={theme.theme}
+            >
+              <LoaderCircle className="animate-spin absolute" />
+            </Chart>
           </ResizablePanel>
         </>
       ) : null}
