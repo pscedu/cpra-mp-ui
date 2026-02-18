@@ -34,8 +34,8 @@ export default function IssueForm() {
       for (const dimensionValue of query.response.results[dimensionName])
         wantedTags.push(`${dimensionName}:${dimensionValue.toString()}`);
     const tags = tagOptions
-      .filter((tag: string) => wantedTags.includes(tag))
-      .map((tag: string) => ({ name: tag }));
+      .filter((option) => wantedTags.includes(option.value))
+      .map((option) => ({ name: option.value }));
     if (tags.length) setTask({ ...task, tags });
   }, [mapCatalogQuery, tagOptions]);
 
