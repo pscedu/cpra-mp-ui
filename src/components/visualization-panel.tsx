@@ -30,7 +30,7 @@ export default function VisualizationPanel({
 
   const theme = useTheme();
 
-  const visualizationSpecUrl = mapCatalogQuery.getVisulizationUrl({
+  const visualizationSpecUrl = mapCatalogQuery.getVisualizationUrl({
     analysis,
     selectedGeographies,
     visualizationType,
