@@ -8,3 +8,7 @@ export type DatasetRequest = {
   grid: string;
   time_unit: string;
 };
+
+export type Tag = {
+  name: string;
+};

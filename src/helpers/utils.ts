@@ -1,5 +1,7 @@
 import { selectionColors } from "./config";
 import { Dataset } from "./structure";
+import { Tag } from "./types";
+import { hasLink } from "./markdown";
 
 export async function getJson(
   absoluteUrl: string,
@@ -264,3 +266,21 @@ export const snakeToCamel = (str: string): string =>
 
 export const camelToSnake = (str: string): string =>
   str.replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, "$1_$2").toLowerCase();
+
+export const getIssueOrCommentWarning = (
+  label: string,
+  text: string,
+  tags: Tag[] | null = null,
+) => {
+  if (!hasLink(text)) return `Your ${label} does not contain a link.`;
+
+  if (tags !== null)
+    for (const [prefix, tagLabel] of [
+      ["type:", "a type"],
+      ["impact:", "an impact"],
+      ["theme:", "a theme"],
+    ]) {
+      if (!tags.some(({ name }) => name.startsWith(prefix)))
+        return `Your ${label} is not tagged with ${tagLabel}.`;
+    }
+};

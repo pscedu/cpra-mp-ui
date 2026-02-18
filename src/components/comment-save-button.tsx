@@ -1,5 +1,4 @@
 import { MouseEventHandler } from "react";
-import { hasLink } from "@/helpers/markdown";
 
 import { Button } from "./ui/button";
 import {
@@ -11,25 +10,21 @@ import { LoaderCircle, TriangleAlert } from "lucide-react";
 
 export default function CommentSaveButton({
   buttonLabel = "Comment",
-  fieldLabel = "comment",
+  disabled = false,
   onClick,
   processing = false,
-  text = "",
+  warning = "",
 }: {
   buttonLabel?: string;
-  fieldLabel?: string;
+  disabled: boolean;
   onClick: MouseEventHandler<HTMLButtonElement>;
   processing?: boolean;
-  text?: string;
+  warning?: string;
 }) {
-  const disabled = text.length == 0;
-  const warning =
-    disabled || hasLink(text)
-      ? null
-      : `Your ${fieldLabel} does not contain a link.`;
+  const showWarning = warning && !disabled;
   const button = (
     <Button
-      className={`cursor-pointer bg-green-700 hover:bg-green-600 text-white font-bold ${warning && "bg-red-700 hover:bg-red-600"}`}
+      className={`cursor-pointer bg-green-700 hover:bg-green-600 text-white font-bold ${showWarning && "bg-red-700 hover:bg-red-600"}`}
       onClick={onClick}
       disabled={disabled || processing}
     >
@@ -37,13 +32,13 @@ export default function CommentSaveButton({
         <LoaderCircle className="animate-spin" />
       ) : (
         <>
-          {warning ? <TriangleAlert /> : null}
+          {showWarning ? <TriangleAlert /> : null}
           {buttonLabel}
         </>
       )}
     </Button>
   );
-  return warning ? (
+  return showWarning ? (
     <Tooltip>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
       <TooltipContent side="bottom" align="center">

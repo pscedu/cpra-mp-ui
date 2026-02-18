@@ -15,6 +15,7 @@ import CommentEdit from "./comment-edit";
 import CommentSaveButton from "./comment-save-button";
 import IssueCloseButton from "./issue-close-button";
 import TagsSelect from "./tags-select";
+import { getIssueOrCommentWarning } from "@/helpers/utils";
 
 export default function IssueForm() {
   const createTask = useSetAtom(createTaskAtom);
@@ -86,10 +87,14 @@ export default function IssueForm() {
         <IssueCloseButton variant="outline">Cancel</IssueCloseButton>
         <CommentSaveButton
           buttonLabel="Create"
-          fieldLabel="task description"
           onClick={saveTask}
           processing={isProcessing}
-          text={task?.markdown_description}
+          disabled={task?.markdown_description.length == 0}
+          warning={getIssueOrCommentWarning(
+            "observation",
+            task?.markdown_description,
+            task?.tags || [],
+          )}
         />
       </div>
     </div>

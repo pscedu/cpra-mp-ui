@@ -7,6 +7,7 @@ import CommentEdit from "@/components/comment-edit";
 import CommentSaveButton from "./comment-save-button";
 import UserAvatar from "@/components/user-avatar";
 import AssigneesSelect from "./assignees-select";
+import { getIssueOrCommentWarning } from "@/helpers/utils";
 
 export default function CommentForm() {
   const task = useAtomValue(taskAtom);
@@ -64,7 +65,8 @@ export default function CommentForm() {
           <CommentSaveButton
             onClick={saveComment}
             processing={isProcessing}
-            text={markdown}
+            disabled={markdown.length == 0}
+            warning={getIssueOrCommentWarning("comment", markdown)}
           />
         </div>
       </div>
