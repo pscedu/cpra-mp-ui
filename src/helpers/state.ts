@@ -172,8 +172,10 @@ export const mapOptionsAtom = hashObjectAtom<boolean>({
   showWater: false,
 });
 
-export const startDateAtom = hashAtom(null, { key: "start_date" });
-export const endDateAtom = hashAtom(null, { key: "end_date" });
+export const startDateAtom = hashAtom<string | null>(null, {
+  key: "start_date",
+});
+export const endDateAtom = hashAtom<string | null>(null, { key: "end_date" });
 
 export const visualizationTypeAtom = hashAtom("time-series-line", {
   key: "visualization",

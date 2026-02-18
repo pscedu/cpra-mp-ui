@@ -109,56 +109,6 @@ export class Variable {
     this.difference_legend_limit = difference_legend_limit;
     this.structure = structure;
   }
-
-  getMapLegend(analysis) {
-    if (analysis.operation.startsWith("subtract-"))
-      return {
-        entries: [
-          {
-            title: `${this.label} Difference`,
-            subtitle: this.unit,
-            type: "continuous",
-            steps: [
-              {
-                color: "#d53e4f",
-                value: -1 * this.difference_legend_limit,
-              },
-              { color: "#ffffff", value: 0 },
-              {
-                color: "#3288bd",
-                value: this.difference_legend_limit,
-              },
-            ].sort((a, b) => (a.value < b.value ? -1 : 1)),
-          },
-        ],
-      };
-
-    if (analysis.operation === "concatenate") {
-      const lndChngLegend = this.structure.legendsMap.lnd_chng;
-      if (lndChngLegend)
-        return {
-          entries: [
-            {
-              title: "Land Change",
-              ...lndChngLegend.toMapLegend(),
-            },
-          ],
-        };
-    }
-
-    if (this.legend)
-      return {
-        entries: [
-          {
-            title: this.label,
-            subtitle: this.unit,
-            ...this.legend.toMapLegend(),
-          },
-        ],
-      };
-
-    return null;
-  }
 }
 
 export class Grid {
@@ -214,10 +164,6 @@ export class LegendBreakPoint {
     this.color = color;
     this.upper_bound = upper_bound;
   }
-
-  toMapLegend() {
-    return { color: this.color, label: this.label };
-  }
 }
 
 export class Legend {
@@ -227,13 +173,6 @@ export class Legend {
   constructor({ name, break_points }) {
     this.name = name;
     this.break_points = break_points.map((bp) => new LegendBreakPoint(bp));
-  }
-
-  toMapLegend() {
-    return {
-      type: "discrete",
-      steps: this.break_points.map((bp) => bp.toMapLegend()),
-    };
   }
 }
 
@@ -305,11 +244,19 @@ export class Visualization {
     this.variables = variables;
   }
 
-  getSpecUrl(catalogQuery: CatalogQuery, options: QueryOptions) {
-    const params = catalogQuery.getQueryParams({
-      ...options,
-      maxGeographies: this.max_geographies,
-    });
+  getSpecUrl(
+    catalogQuery: CatalogQuery,
+    options: QueryOptions,
+    specParams: [string, any][] = [],
+  ) {
+    const params = [
+      ...catalogQuery.getQueryParams({
+        ...options,
+        maxGeographies: this.max_geographies,
+      }),
+      ...specParams,
+    ];
+
     const baseUrl =
       this.type === "dataset"
         ? `${catalogQuery.dataset.getBaseUrl()}/visualization`

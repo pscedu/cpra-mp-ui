@@ -3,9 +3,10 @@ import { QueryOptions } from "./query";
 import { Dataset, Dimension, Structure } from "./structure";
 import { Analysis } from "./types";
 import {
+  camelToSnake,
   extractCatalogObject,
-  getJson,
   getFilterParams,
+  getJson,
   makeQueryString,
   mergeOr,
   sortConsistent,
@@ -51,9 +52,16 @@ export class CatalogQuery {
   }
 
   getQueryParams(
-    { analysis, geographies, maxGeographies, maxValues }: QueryOptions = {
+    {
+      analysis,
+      geographies,
+      includeTimeDimension,
+      maxGeographies,
+      maxValues,
+    }: QueryOptions = {
       analysis: null,
       geographies: null,
+      includeTimeDimension: false,
       maxGeographies: null,
       maxValues: null,
     },
@@ -66,7 +74,11 @@ export class CatalogQuery {
     // value for each dimension.
     const selectedFilters = {};
     for (const dimension of requiredDimensions)
-      if (!geographies || dimension.filterType !== "time")
+      if (
+        !geographies ||
+        dimension.filterType !== "time" ||
+        includeTimeDimension
+      )
         selectedFilters[dimension.name] = this.response.results[dimension.name];
 
     const modelGroupValues = selectedFilters.model_group_id || [];
@@ -157,11 +169,25 @@ export class CatalogQuery {
     );
   }
 
+  getMapStyleUrl({ analysis, mapOptions }) {
+    return this.structure.visualizationsMap["map"].getSpecUrl(
+      this,
+      {
+        analysis,
+        includeTimeDimension: true,
+      },
+      Object.keys(mapOptions).map((key) => [
+        camelToSnake(key),
+        mapOptions[key],
+      ]),
+    );
+  }
+
   getModelGroup() {
     return (this?.response.results?.model_group_id || [-1])[0];
   }
 
-  getVisulizationUrl({ visualizationType, selectedGeographies, analysis }) {
+  getVisualizationUrl({ visualizationType, selectedGeographies, analysis }) {
     return visualizationType &&
       selectedGeographies &&
       selectedGeographies.length
