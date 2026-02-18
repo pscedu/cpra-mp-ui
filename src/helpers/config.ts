@@ -40,3 +40,26 @@ export const selectionColorLabels = [
   "Green",
   "Blue",
 ];
+export const qaqcTagOptions = [
+  { value: "type:qaqc", label: "Type: QA/QC" },
+  { value: "type:narrative", label: "Type: Narrative" },
+  { value: "impact:project", label: "Impact: Project" },
+  { value: "impact:fwoa", label: "Impact: FWOA" },
+  { value: "theme:stg", label: "Theme: Water Levels and Inundation" },
+  { value: "theme:sal", label: "Theme: Salinities and Estuarine Gradient" },
+  { value: "theme:lnd", label: "Theme: Land Change" },
+  {
+    value: "theme:veg",
+    label: "Theme: Vegetation Coverage and Habitat Diversity",
+  },
+  { value: "theme:sed", label: "Theme: Sedimentation Patterns" },
+  { value: "theme:hs", label: "Theme: Habitat Suitabilities" },
+  { value: "theme:wave", label: "Theme: Wave Generation Conditions" },
+  { value: "story:comp", label: "Storyline: Compartments Scale" },
+  { value: "story:basin", label: "Storyline: Basin Scale" },
+  { value: "story:coast", label: "Storyline: Coastwide Scale" },
+  { value: "story:ad", label: "Storyline: Annual/Decadal Trends" },
+  { value: "story:dms", label: "Storyline: Daily/Monthly/Seasonal Trends" },
+  { value: "story:time", label: "Storyline: Changes Over Time" },
+  { value: "story:scenario", label: "Storyline: Changes Across Scenarios" },
+];

@@ -3,7 +3,7 @@ import { atomWithRefresh, atomWithReset, atomWithStorage } from "jotai/utils";
 import { observe } from "jotai-effect";
 import { jwtDecode } from "jwt-decode";
 import { CommentNode, exportTask, importTask } from "./clickup";
-import { managementBaseUrl } from "./config";
+import { managementBaseUrl, qaqcTagOptions } from "./config";
 import {
   hashAtom,
   hashObjectAtom,
@@ -190,7 +190,7 @@ export const contextMenuAtom = atom(null as any);
 
 export const tagOptionsAtom = atom(async (get) => {
   const structure = await get(structureAtom);
-  const options = [];
+  const options = [...qaqcTagOptions];
   if (structure) {
     for (const dimension of structure.dimensions) {
       if (dimension.values) {
@@ -203,6 +203,7 @@ export const tagOptionsAtom = atom(async (get) => {
       }
     }
   }
+  options.sort((a, b) => (a.label < b.label ? -1 : 1));
   return options;
 });
 
