@@ -16,6 +16,7 @@ import CommentSaveButton from "./comment-save-button";
 import IssueCloseButton from "./issue-close-button";
 import TagsSelect from "./tags-select";
 import { getIssueOrCommentWarning } from "@/helpers/utils";
+import TagCategoryDropdown from "./tag-category-dropdown";
 
 export default function IssueForm() {
   const createTask = useSetAtom(createTaskAtom);
@@ -82,6 +83,11 @@ export default function IssueForm() {
         />
       </div>
       <TagsSelect />
+      <div className="flex gap-2 mb-4">
+        <TagCategoryDropdown category="type" label="Type" />
+        <TagCategoryDropdown category="impact" label="Impact" />
+        <TagCategoryDropdown category="theme" label="Theme" />
+      </div>
       <TaskAssigneesSelect />
       <div className="flex justify-end gap-2">
         <IssueCloseButton variant="outline">Cancel</IssueCloseButton>
