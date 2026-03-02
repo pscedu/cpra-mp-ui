@@ -59,9 +59,10 @@ export default function DatasetSelect() {
       <SidebarSelect
         icon={Ruler}
         label="Variable"
-        onChange={setRequestedDatasets}
+        onChange={(value) => setRequestedDatasets([value])}
         options={variableOptions}
-        value={datasets}
+        value={datasets[0]}
+        supp
       />
     </>
   );
