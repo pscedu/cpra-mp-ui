@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import useMeasure from "react-use-measure";
-import { VegaLite } from "react-vega";
+import { useVegaEmbed } from "react-vega";
 import { dark, excel } from "vega-themes";
 import { getJson } from "@/helpers/utils";
 
@@ -38,7 +38,8 @@ export default memo(
     style?: CSSProperties;
     theme?: "dark" | "light";
   }) {
-    const [ref, { height, width }] = useMeasure();
+    const [measureRef, { height, width }] = useMeasure();
+
     const resizeTimeout: Ref<null | ReturnType<typeof setTimeout>> =
       useRef(null);
     const [specJson, setSpecJson] = useState<any>(
@@ -47,6 +48,18 @@ export default memo(
 
     const darkTheme = { ...dark, background: "transparent" };
     const lightTheme = { ...excel, background: "transparent" };
+
+    const vegaRef = useRef<HTMLDivElement>(null);
+    const embed = useVegaEmbed({
+      ref: vegaRef,
+      spec: specJson,
+      options: {
+        mode: "vega-lite",
+        actions,
+        config: theme === "dark" ? darkTheme : lightTheme,
+        padding,
+      },
+    });
 
     useEffect(() => {
       if (typeof spec === "string") {
@@ -71,32 +84,46 @@ export default memo(
       }
     }, [spec, height, width]);
 
-    const signalListeners = {
-      date_range: (_signal: any, value: any) => {
-        const key = Object.keys(value)[0];
-        if (!key) return;
-        const [start, end] = value[key].map(
-          (timestamp: number) =>
-            new Date(timestamp).toISOString().split("T")[0],
-        );
-        if (setStartDate) setStartDate(start);
-        if (setEndDate) setEndDate(end);
-      },
-    };
-    const signalCleanup = {
-      date_range: () => {
-        if (setStartDate) setStartDate(null);
-        if (setEndDate) setEndDate(null);
-      },
-    };
-    for (const signal of Object.keys(signalListeners))
-      if (
-        specJson &&
-        !specJson?.params?.find(({ name }: any) => signal === name)
-      ) {
-        delete (signalListeners as any)[signal];
-        if (signal in signalCleanup) (signalCleanup as any)[signal]();
-      }
+    useEffect(() => {
+      const signalListeners = {
+        date_range: (_signal: any, value: any) => {
+          const key = Object.keys(value)[0];
+          if (!key) return;
+          const [start, end] = value[key].map(
+            (timestamp: number) =>
+              new Date(timestamp).toISOString().split("T")[0],
+          );
+          if (setStartDate) setStartDate(start);
+          if (setEndDate) setEndDate(end);
+        },
+      };
+      const signalCleanup = {
+        date_range: () => {
+          if (setStartDate) setStartDate(null);
+          if (setEndDate) setEndDate(null);
+        },
+      };
+
+      for (const signal of Object.keys(signalListeners))
+        if (
+          specJson &&
+          !specJson?.params?.find(({ name }: any) => signal === name)
+        ) {
+          delete (signalListeners as any)[signal];
+          if (signal in signalCleanup) (signalCleanup as any)[signal]();
+        }
+
+      for (const signal of Object.keys(signalListeners))
+        embed?.view.addSignalListener(signal, (signalListeners as any)[signal]);
+
+      return () => {
+        for (const signal of Object.keys(signalListeners))
+          embed?.view.removeSignalListener(
+            signal,
+            (signalListeners as any)[signal],
+          );
+      };
+    }, [embed]);
 
     return (
       <div
@@ -106,24 +133,20 @@ export default memo(
           width: "100%",
           ...style,
         }}
-        ref={ref}
+        ref={measureRef}
       >
         {children}
         {specJson ? (
-          <VegaLite
-            actions={actions}
-            className={className}
-            spec={specJson}
+          <div
             style={{
               height: `${height}px`,
               overflow: "hidden",
               position: "absolute",
               width: `${width}px`,
             }}
-            padding={padding}
-            config={theme === "dark" ? darkTheme : lightTheme}
-            signalListeners={signalListeners}
-          />
+            className={className}
+            ref={vegaRef}
+          ></div>
         ) : null}
       </div>
     );
