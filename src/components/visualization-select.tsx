@@ -21,8 +21,9 @@ export default function VisualizationSelect() {
     ? structure?.visualizations
         .filter(
           (viz) =>
-            viz.variables === null ||
-            viz.variables.includes(mapCatalogQuery?.dataset.variable.name),
+            viz.name !== "map" &&
+            (viz.variables === null ||
+              viz.variables.includes(mapCatalogQuery?.dataset.variable.name)),
         )
         .map((viz) => ({ label: viz.label, value: viz.name }))
     : [];
