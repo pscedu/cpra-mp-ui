@@ -11,7 +11,7 @@ import {
   queueWriteHash,
 } from "./hash";
 import { Dataset, getStructure } from "./structure";
-import { getJson, getNdJson, sortConsistent } from "./utils";
+import { getJson, sortConsistent } from "./utils";
 import { NavigateFunction } from "react-router";
 import { CatalogQueries } from "./catalog";
 import { Analysis, DatasetRequest } from "./types";
@@ -101,13 +101,6 @@ export const analysisAtom = hashAtom<Analysis>(
     },
   },
 );
-
-const mapDataUrlAtom = atom((get) => {
-  const cqs = get(catalogQueriesAtom);
-  const analysis = get(analysisAtom);
-  if ("queries" in cqs) return cqs.queries[0].getMapDataUrl(analysis);
-  return null;
-});
 
 export const setRequestedDatasetsAtom = atom(
   null,
@@ -494,6 +487,25 @@ const setExecutedCatalogQueriesAtom = atom(
   },
 );
 
+const downloadSettingsAtom = (key: string, defaultValue: string) =>
+  atomWithStorage<string>(key, defaultValue, undefined, { getOnInit: true });
+export const chartImageFormatAtom = downloadSettingsAtom(
+  "chart-image-format",
+  "png",
+);
+export const geometryDataFormatAtom = downloadSettingsAtom(
+  "geometry-data-format",
+  "zip",
+);
+export const tabularDataFormatAtom = downloadSettingsAtom(
+  "tabular-data-format",
+  "csv",
+);
+export const tabularDataShapeAtom = downloadSettingsAtom(
+  "tabular-data-shape",
+  "long",
+);
+
 /* Effects */
 
 // Query the catalog when datasets or filters change.
@@ -519,40 +531,6 @@ observe((get, set) => {
     if ("equals" in prevCqs && prevCqs.equals(cqs)) return;
     await cqs.executeAll();
     set(setExecutedCatalogQueriesAtom, cqs);
-  })();
-}, store);
-
-// Update map feature state when the dataset or filters change
-let mapFeatureValuesAbortController: AbortController | null = null;
-observe((get, set) => {
-  const mapDataUrl = get(mapDataUrlAtom);
-
-  (async () => {
-    if (mapDataUrl) {
-      if (mapFeatureValuesAbortController)
-        mapFeatureValuesAbortController.abort("map state changed");
-      mapFeatureValuesAbortController = new AbortController();
-
-      set(mapFeatureValuesLoadingAtom, true);
-      let data;
-      try {
-        data = await getNdJson(mapDataUrl, {
-          signal: mapFeatureValuesAbortController.signal,
-        });
-      } catch (err) {
-        if (err === "map state changed") return;
-        throw err;
-      }
-
-      if (data.length === 1) {
-        set(mapFeatureValuesAtom, data[0]);
-        set(mapFeatureValuesLoadingAtom, false);
-      } else {
-        console.error(`Expected 1 row, received ${data.length}`, data);
-      }
-    } else {
-      set(mapFeatureValuesAtom, {});
-    }
   })();
 }, store);
 

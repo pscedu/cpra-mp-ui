@@ -4,4 +4,5 @@ export type QueryOptions = {
   includeTimeDimension?: boolean | null;
   maxGeographies?: number | null;
   maxValues?: number | null;
+  unpivot?: boolean | null;
 };

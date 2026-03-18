@@ -12,3 +12,8 @@ export type DatasetRequest = {
 export type Tag = {
   name: string;
 };
+
+export type Option<T> = {
+  label: string;
+  value: T;
+};

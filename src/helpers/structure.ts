@@ -252,6 +252,7 @@ export class Visualization {
     const params = [
       ...catalogQuery.getQueryParams({
         ...options,
+        includeTimeDimension: !options.geographies,
         maxGeographies: this.max_geographies,
       }),
       ...specParams,

@@ -20,6 +20,7 @@ import IssueForm from "./issue-form";
 import Issues from "./issues";
 import VisualizationSidebar from "./visualization-sidebar";
 import { LoaderCircle } from "lucide-react";
+import DownloadSidebar from "./download-sidebar";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const activity = useAtomValue(activityAtom);
@@ -59,6 +60,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         )}
       </SidebarContent>
       <SidebarFooter>
+        <DownloadSidebar />
         <NavUser />
       </SidebarFooter>
       <SidebarRail />

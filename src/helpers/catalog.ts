@@ -58,12 +58,14 @@ export class CatalogQuery {
       includeTimeDimension,
       maxGeographies,
       maxValues,
+      unpivot,
     }: QueryOptions = {
       analysis: null,
       geographies: null,
-      includeTimeDimension: false,
+      includeTimeDimension: true,
       maxGeographies: null,
       maxValues: null,
+      unpivot: false,
     },
   ): [string, any][] {
     const requiredDimensions = this.structure.getRequiredDimensions([
@@ -74,11 +76,7 @@ export class CatalogQuery {
     // value for each dimension.
     const selectedFilters = {};
     for (const dimension of requiredDimensions)
-      if (
-        !geographies ||
-        dimension.filterType !== "time" ||
-        includeTimeDimension
-      )
+      if (dimension.filterType !== "time" || includeTimeDimension)
         selectedFilters[dimension.name] = this.response.results[dimension.name];
 
     const modelGroupValues = selectedFilters.model_group_id || [];
@@ -145,27 +143,41 @@ export class CatalogQuery {
         maxGeographies ? geographies.slice(0, maxGeographies) : geographies,
       ]);
 
+    if (unpivot) params.push(["unpivot", "true"]);
+
     return params;
   }
 
-  getMapDataUrl(analysis: Analysis) {
-    if (this.dataset.grid.grid_type === "raster") return null;
-
-    return this.dataset.getDataUrl(
-      this.getQueryParams({
-        analysis: analysis,
-        maxValues: 1,
-      }),
-      "ndjson",
-    );
+  getTimeIncrement() {
+    return {
+      annual: "Year",
+      daily: "Day",
+      decade: "Decade",
+      month: "Month",
+    }[this.dataset.time_unit];
   }
 
-  getMapTileUrl(analysis: Analysis) {
-    return this.dataset.getTileUrl(
+  getDataDownloadUrl({
+    analysis,
+    format,
+    geographies,
+    includeTimeDimension,
+    unpivot,
+  }: {
+    analysis: Analysis;
+    format: string;
+    geographies?: number[] | number[][] | null;
+    includeTimeDimension?: boolean;
+    unpivot?: boolean;
+  }) {
+    return this.dataset.getDataUrl(
       this.getQueryParams({
-        analysis: analysis,
-        maxValues: 1,
+        analysis,
+        geographies,
+        includeTimeDimension,
+        unpivot,
       }),
+      format,
     );
   }
 

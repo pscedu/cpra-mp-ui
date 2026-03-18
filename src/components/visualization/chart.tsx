@@ -18,6 +18,7 @@ export default memo(
     children,
     className = "",
     endDate,
+    id = "default",
     setEndDate,
     setStartDate,
     spec,
@@ -30,6 +31,7 @@ export default memo(
     children?: ReactNode;
     className?: string;
     endDate?: string | null;
+    id?: string;
     setEndDate?: (date: string | null) => void | null;
     setStartDate?: (date: string | null) => void | null;
     spec: any;
@@ -124,6 +126,28 @@ export default memo(
           );
       };
     }, [embed]);
+
+    useEffect(() => {
+      if (vegaRef.current) {
+        const handleDownloadEvent = (e) => {
+          if (e.detail.id === id)
+            (async () => {
+              const imageUrl = await embed?.view.toImageURL(e.detail.type);
+              if (imageUrl) {
+                const link = document.createElement("a");
+                link.setAttribute("href", imageUrl);
+                link.setAttribute("target", "_blank");
+                link.setAttribute("download", e.detail.filename);
+                link.dispatchEvent(new MouseEvent("click"));
+              }
+            })();
+        };
+        window.addEventListener("chartDownload", handleDownloadEvent);
+        return () => {
+          window.removeEventListener("chartDownload", handleDownloadEvent);
+        };
+      }
+    }, [embed, id]);
 
     return (
       <div
