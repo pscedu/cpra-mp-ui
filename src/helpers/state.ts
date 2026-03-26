@@ -189,7 +189,7 @@ export const tagOptionsAtom = atom(async (get) => {
       if (dimension.values) {
         options.push(
           ...dimension.values.map((dv: any) => ({
-            value: `${dimension.name}:${dv.value}`,
+            value: `${dimension.name}:${dv.value}`.toLowerCase(),
             label: `${dimension.label}: ${dv.label || dv.value}`,
           })),
         );
