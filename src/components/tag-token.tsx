@@ -1,6 +1,6 @@
 import DimensionIcon from "./dimension-icon";
 import { useAtomValue } from "jotai";
-import { structureAtom } from "@/helpers/state";
+import { tagOptionsAtom } from "@/helpers/state";
 
 // State atoms
 
@@ -20,11 +20,11 @@ export default function TagToken({
   name: string;
   onClick?: Function;
 }) {
-  const structure = useAtomValue(structureAtom);
+  const tagOptions = useAtomValue(tagOptionsAtom);
   const [category, value] = name.split(":");
-  const valueLabel = structure?.dimensionsMap[category]?.values?.find(
-    (dv) => dv.value === value,
-  )?.label;
+  const valueLabel = tagOptions
+    .find((option) => option.value.toLowerCase() === name)
+    ?.label.split(": ")[1];
 
   const Tag = onClick ? "button" : "span";
 
