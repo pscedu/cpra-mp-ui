@@ -49,7 +49,7 @@ export default function SidebarSelect({
               : selectedValues[0],
           );
         }}
-        options={options}
+        options={[{ label, options }]}
         placeholder={`Select ${label.toLowerCase()}...`}
         value={
           isMulti
