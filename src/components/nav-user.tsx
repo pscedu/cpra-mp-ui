@@ -1,5 +1,5 @@
 "use client";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   accessTokenAtom,
   avatarCacheKeyAtom,
@@ -29,7 +29,7 @@ import UserAvatar from "./user-avatar";
 
 export function NavUser() {
   const user = useAtomValue(userAtom);
-  const setAccessToken = useSetAtom(accessTokenAtom);
+  const [accessToken, setAccessToken] = useAtom(accessTokenAtom);
   const setRefreshToken = useSetAtom(refreshTokenAtom);
   const setAvatarCacheKey = useSetAtom(avatarCacheKeyAtom);
   const { isMobile } = useSidebar();
@@ -88,7 +88,7 @@ export function NavUser() {
                 disabled={user.clickupId !== null}
                 onClick={() =>
                   (window.location.href = `${clickupUrl}?access_token=${encodeURIComponent(
-                    user.accessToken,
+                    accessToken,
                   )}`)
                 }
               >
