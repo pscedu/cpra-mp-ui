@@ -22,7 +22,7 @@ import {
   ChevronsRight,
   X,
 } from "lucide-react";
-import ColorChooserMenuItems from "@/components/color-chooser-menu-items";
+import ColorChooserMenuItems from "@/components/visualization/color-chooser-menu-items";
 
 export default function MapContextMenu<G extends Geography>({
   children,
@@ -59,7 +59,11 @@ export default function MapContextMenu<G extends Geography>({
               </ContextMenuSubTrigger>
               <ContextMenuSubContent>
                 <ContextMenuLabel>Choose outline color</ContextMenuLabel>
-                <ColorChooserMenuItems geography={geography} />
+                <ColorChooserMenuItems
+                  geography={geography}
+                  selection={selection}
+                  setSelection={setSelection}
+                />
               </ContextMenuSubContent>
             </ContextMenuSub>
             <ContextMenuSeparator />

@@ -9,6 +9,8 @@ import {
   maxSelectedGeographiesAtom,
 } from "@/helpers/state";
 
+import "maplibre-gl/dist/maplibre-gl.css";
+
 import Map from "@/components/visualization/map";
 
 // Map using MapLibre GL.

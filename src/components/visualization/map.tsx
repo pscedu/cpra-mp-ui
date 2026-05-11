@@ -13,7 +13,6 @@ import { Geography } from "@/helpers/types";
 import { GeographySelection } from "@/helpers/selection";
 import { CPRAMapLegendControl } from "@/plugins/map-legend";
 
-import "maplibre-gl/dist/maplibre-gl.css";
 import "@/plugins/map-legend.css";
 
 import MapContextMenu from "@/components/visualization/map-context-menu";
