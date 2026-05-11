@@ -9,6 +9,8 @@ export type DatasetRequest = {
   time_unit: string;
 };
 
+export type Geography = number | [number, number];
+
 export type Tag = {
   name: string;
 };

@@ -6,18 +6,18 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import Map from "./map";
 import MapOptionsMenu from "./map-options-menu";
 import TimeSelect from "./time-select";
 import { ResizablePanel, ResizablePanelGroup } from "./ui/resizable";
 
-import MapContextMenu from "./map-context-menu";
 import VisualizationPanel from "./visualization-panel";
 import { Suspense } from "react";
+import GlobalMap from "./global-map";
 
 export default function MapPage() {
   return (
     <SidebarProvider>
+      Test
       <Suspense>
         <AppSidebar />
       </Suspense>
@@ -38,9 +38,7 @@ export default function MapPage() {
           <ResizablePanelGroup direction="vertical">
             <ResizablePanel>
               <Suspense>
-                <MapContextMenu>
-                  <Map />
-                </MapContextMenu>
+                <GlobalMap />
               </Suspense>
             </ResizablePanel>
             <Suspense>

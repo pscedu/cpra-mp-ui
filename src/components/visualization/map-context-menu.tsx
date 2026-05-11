@@ -1,13 +1,8 @@
-import { useRef, useEffect } from "react";
-import { useAtomValue, useSetAtom } from "jotai";
-import {
-  contextMenuAtom,
-  catalogQueriesAtom,
-  rotateSelectedGeographiesAtom,
-  selectedGeographiesAtom,
-  visualizationAtom,
-  maxSelectedGeographiesAtom,
-} from "@/helpers/state";
+import { Ref } from "react";
+import { Geography } from "@/helpers/types";
+import { GeographySelection } from "@/helpers/selection";
+import { Map as GLMap } from "maplibre-gl";
+
 import {
   ContextMenu,
   ContextMenuContent,
@@ -29,54 +24,38 @@ import {
 } from "lucide-react";
 import ColorChooserMenuItems from "@/components/color-chooser-menu-items";
 
-export default function MapContextMenu({
+export default function MapContextMenu<G extends Geography>({
   children,
+  geography,
+  map,
+  maxSelectedGeographies,
+  selection,
+  setGeography,
+  setSelection,
+  triggerRef,
 }: {
   children: React.ReactNode;
+  geography: G | null;
+  map: GLMap | null;
+  maxSelectedGeographies: number;
+  selection: GeographySelection<G>;
+  setGeography: (geography: G | null) => void;
+  setSelection: (selection: GeographySelection<G>) => void;
+  triggerRef: Ref<HTMLDivElement>;
 }) {
-  const contextMenu = useAtomValue(contextMenuAtom);
-  const selectedGeographies = useAtomValue(selectedGeographiesAtom);
-  const maxSelectedGeographies = useAtomValue(maxSelectedGeographiesAtom);
-  const mapCatalogQuery = useAtomValue(catalogQueriesAtom).getMapCatalogQuery();
-  const rotateSelectedGeographies = useSetAtom(rotateSelectedGeographiesAtom);
-  const trigger = useRef<HTMLDivElement>(null);
-
-  const geography = contextMenu?.geography;
-  const selectionCount = selectedGeographies?.length;
-
-  useEffect(() => {
-    if (
-      contextMenu &&
-      contextMenu?.type === "geography-select" &&
-      trigger.current
-    ) {
-      const { x, y } = contextMenu;
-      trigger.current.dispatchEvent(
-        new MouseEvent("contextmenu", {
-          bubbles: true,
-          clientX: x,
-          clientY: y,
-        }),
-      );
-    }
-  }, [contextMenu]);
-
-  const setContextMenu = useSetAtom(contextMenuAtom);
-  const setSelectedGeographies = useSetAtom(selectedGeographiesAtom);
-
   return (
     <ContextMenu
       onOpenChange={(open) => {
-        if (!open) setContextMenu(null);
+        if (!open) setGeography(null);
       }}
     >
-      <ContextMenuTrigger ref={trigger}>{children}</ContextMenuTrigger>
+      <ContextMenuTrigger ref={triggerRef}>{children}</ContextMenuTrigger>
       <ContextMenuContent>
         {geography && (
           <>
             <ContextMenuSub>
               <ContextMenuSubTrigger inset>
-                Select {mapCatalogQuery?.dataset.grid.label.toLowerCase()}
+                Select {map?.getGlobalState()?.grid?.label || "polygon"}
               </ContextMenuSubTrigger>
               <ContextMenuSubContent>
                 <ContextMenuLabel>Choose outline color</ContextMenuLabel>
@@ -87,22 +66,22 @@ export default function MapContextMenu({
           </>
         )}
         <ContextMenuItem
-          disabled={!selectionCount}
-          onSelect={() => setSelectedGeographies([])}
+          disabled={!selection.length}
+          onSelect={() => setSelection(new GeographySelection())}
         >
           <X /> Clear selection
           <ContextMenuShortcut>Esc</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
-          disabled={!selectionCount}
-          onSelect={() => rotateSelectedGeographies(-1)}
+          disabled={!selection.length}
+          onSelect={() => setSelection(selection.rotate(-1))}
         >
           <ChevronLeft /> Previous selection
           <ContextMenuShortcut>Ctrl &larr;</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
-          disabled={!selectionCount}
-          onSelect={() => rotateSelectedGeographies(1)}
+          disabled={!selection.length}
+          onSelect={() => setSelection(selection.rotate(1))}
         >
           <ChevronRight /> Next selection
           <ContextMenuShortcut>Ctrl &rarr;</ContextMenuShortcut>
@@ -110,17 +89,19 @@ export default function MapContextMenu({
         {maxSelectedGeographies > 1 && (
           <>
             <ContextMenuItem
-              disabled={selectionCount <= maxSelectedGeographies}
+              disabled={selection.length <= maxSelectedGeographies}
               onSelect={() =>
-                rotateSelectedGeographies(-1 * maxSelectedGeographies)
+                setSelection(selection.rotate(-1 * maxSelectedGeographies))
               }
             >
               <ChevronsLeft /> Previous {maxSelectedGeographies} selections
               <ContextMenuShortcut>Ctrl &uarr;</ContextMenuShortcut>
             </ContextMenuItem>
             <ContextMenuItem
-              disabled={selectionCount <= maxSelectedGeographies}
-              onSelect={() => rotateSelectedGeographies(maxSelectedGeographies)}
+              disabled={selection.length <= maxSelectedGeographies}
+              onSelect={() =>
+                setSelection(selection.rotate(maxSelectedGeographies))
+              }
             >
               <ChevronsRight /> Next {maxSelectedGeographies} selections
               <ContextMenuShortcut>Ctrl &darr;</ContextMenuShortcut>
