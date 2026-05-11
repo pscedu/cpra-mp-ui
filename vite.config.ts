@@ -2,9 +2,6 @@ import path from "path";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import pkg from "./package.json";
-
-const peerDependencies = Object.keys(pkg.peerDependencies || {});
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -23,13 +20,20 @@ export default defineConfig(({ mode }) => ({
             fileName: "cpra-mp-ui",
           },
           rollupOptions: {
-            // Externalize peer dependencies
-            external: [...peerDependencies],
+            external: [
+              "react",
+              "react-dom",
+              "react-dom/client",
+              "react-dom/server",
+              "react/jsx-runtime",
+            ],
             output: {
-              // Global variables to use in the UMD build for externalized deps
               globals: {
                 react: "React",
                 "react-dom": "ReactDOM",
+                "react-dom/client": "ReactDOMClient",
+                "react-dom/server": "ReactDOMServer",
+                "react/jsx-runtime": "jsxRuntime",
               },
             },
           },
