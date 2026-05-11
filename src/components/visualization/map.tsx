@@ -118,9 +118,9 @@ export default function Map<G extends Geography>({
     glMap.on("data", () => setMapLoading(true));
     glMap.on("idle", () => setMapLoading(false));
     glMap.on("moveend", () => {
-      const { lat, lng } = glMap.getCenter();
+      const { lng, lat } = glMap.getCenter();
       setZoom(glMap.getZoom());
-      setCenter([lat, lng]);
+      setCenter([lng, lat]);
     });
     glMap.on("styledata", () => {
       updateMarkers();
@@ -185,11 +185,13 @@ export default function Map<G extends Geography>({
 
   // Update the map position.
   useEffect(() => {
-    if (map.current) {
-      if (zoom.toFixed(2) != map.current.getZoom().toFixed(2))
-        map.current.setZoom(zoom);
-      const { lat, lng } = map.current.getCenter();
+    if (map.current && zoom.toFixed(2) != map.current.getZoom().toFixed(2))
+      map.current.setZoom(zoom);
+  }, [zoom]);
 
+  useEffect(() => {
+    if (map.current) {
+      const { lat, lng } = map.current.getCenter();
       const coords = LngLat.convert(center);
       if (
         coords.lat.toFixed(2) != lat.toFixed(2) ||
@@ -197,7 +199,7 @@ export default function Map<G extends Geography>({
       )
         map.current.setCenter(center);
     }
-  }, [center, zoom]);
+  }, [center]);
 
   // Update the map style.
   useEffect(() => {
