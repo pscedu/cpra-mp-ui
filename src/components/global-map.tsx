@@ -30,12 +30,12 @@ export default function GlobalMap() {
 
   const [z, y, x] = mapPosition;
 
-  const setCenter = (center) => {
+  const setCenter = (center: [number, number]) => {
     const [lng, lat] = center;
     setMapPosition([z, lat, lng]);
   };
 
-  const setZoom = (zoom) => {
+  const setZoom = (zoom: number) => {
     setMapPosition([zoom, y, x]);
   };
 

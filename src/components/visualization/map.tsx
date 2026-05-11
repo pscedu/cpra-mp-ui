@@ -5,15 +5,16 @@ import {
   Marker,
   LngLatLike,
   LngLat,
+  MapMouseEvent,
+  RasterTileSource,
 } from "maplibre-gl";
-import { getSelectionColor, sleep } from "../../helpers/utils";
-
+import { getSelectionColor, sleep } from "@/helpers/utils";
+import { Geography } from "@/helpers/types";
+import { GeographySelection } from "@/helpers/selection";
 import { CPRAMapLegendControl } from "@/plugins/map-legend";
 
 import "maplibre-gl/dist/maplibre-gl.css";
 import "@/plugins/map-legend.css";
-import { Geography } from "@/helpers/types";
-import { GeographySelection } from "@/helpers/selection";
 
 import MapContextMenu from "@/components/visualization/map-context-menu";
 
@@ -32,7 +33,7 @@ export default function Map<G extends Geography>({
   center?: LngLatLike;
   maxSelectedGeographies?: number;
   selectedGeographies?: G[];
-  setCenter?: (center: LngLatLike) => void;
+  setCenter?: (center: [number, number]) => void;
   setMapLoading?: (loading: boolean) => void;
   setSelectedGeographies?: (geographies: G[]) => void;
   setZoom?: (zoom: number) => void;
@@ -62,15 +63,16 @@ export default function Map<G extends Geography>({
     count: maxSelectedGeographies || 10,
   };
 
-  const getGeography = (e) => {
+  const getGeography = (e: MapMouseEvent) => {
     const source = map.current?.getSource("data");
     if (!source) return;
     if (source.type === "raster") {
       const { lngLat } = e;
       const { lng, lat } = lngLat;
 
-      const bounds = new LngLatBounds(source.bounds);
-      if (bounds.contains(lngLat)) return [lng.toFixed(5), lat.toFixed(5)] as G;
+      const bounds = new LngLatBounds((source as RasterTileSource).bounds);
+      if (bounds.contains(lngLat))
+        return [lng.toFixed(5), lat.toFixed(5)] as unknown as G;
     } else {
       const features =
         map.current?.queryRenderedFeatures(e.point, {
@@ -82,13 +84,14 @@ export default function Map<G extends Geography>({
     }
   };
 
-  const openContextMenu = (geo: G, e: any) => {
+  const openContextMenu = (geo: G, e: MouseEvent | MapMouseEvent) => {
     setContextMenuGeography(geo);
+    const event = "originalEvent" in e ? e.originalEvent : e;
     contextMenuTriggerRef.current?.dispatchEvent(
       new MouseEvent("contextmenu", {
         bubbles: true,
-        clientX: (e.originalEvent || e).clientX,
-        clientY: (e.originalEvent || e).clientY,
+        clientX: event.clientX,
+        clientY: event.clientY,
       }),
     );
   };
@@ -140,8 +143,8 @@ export default function Map<G extends Geography>({
           color: getSelectionColor(i, selectionColorOptions),
           draggable: true,
         })
-          .setLngLat(geo)
-          .addTo(map.current);
+          .setLngLat(geo as [number, number])
+          .addTo(map.current as GLMap);
         marker.on("dragend", () => {
           const { lng, lat } = marker.getLngLat();
           setSelection(sel.replace(i, [lng, lat] as G));
@@ -158,12 +161,15 @@ export default function Map<G extends Geography>({
   };
 
   const updateSelectionColors = () => {
-    const selectionColors = {};
+    const selectionColors: Record<number, string> = {};
     selectionRef.current.geographies
       .filter((geo) => !Array.isArray(geo))
       .forEach(
         (geo, i) =>
-          (selectionColors[geo] = getSelectionColor(i, selectionColorOptions)),
+          (selectionColors[geo as number] = getSelectionColor(
+            i,
+            selectionColorOptions,
+          )),
       );
     map.current?.setGlobalStateProperty("selectionColors", selectionColors);
   };

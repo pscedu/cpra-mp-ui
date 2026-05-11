@@ -14,7 +14,7 @@ import { Dataset, getStructure } from "./structure";
 import { getJson, sortConsistent } from "./utils";
 import { NavigateFunction } from "react-router";
 import { CatalogQueries } from "./catalog";
-import { Analysis, DatasetRequest } from "./types";
+import { Analysis, DatasetRequest, Geography } from "./types";
 
 export const store = createStore();
 
@@ -141,7 +141,7 @@ export const mapPositionAtom = hashAtom([8, 29.75, -91.5], {
   includeDefault: true,
 });
 
-export const selectedGeographiesAtom = hashAtom<number[] | number[][]>([], {
+export const selectedGeographiesAtom = hashAtom<Geography[]>([], {
   key: "geography",
   encoder: (values) => values.map((value) => value.toString()).join(","),
   decoder: (str) => {
@@ -150,7 +150,7 @@ export const selectedGeographiesAtom = hashAtom<number[] | number[][]>([], {
       const pairs = [];
       for (let i = 0; i < geos.length; i += 2)
         pairs.push(geos.slice(i, i + 2).map((coord) => parseFloat(coord)));
-      return pairs;
+      return pairs as Geography[];
     }
     return geos.map((geo) => parseInt(geo));
   },
