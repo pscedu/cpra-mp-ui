@@ -1,4 +1,4 @@
-import Chart from "./components/visualization/chart";
-import { CPRAMapLegendControl } from "./plugins/map-legend";
+import Chart from "@/components/visualization/chart";
+import Map from "@/components/visualization/map";
 
-export { Chart, CPRAMapLegendControl };
+export { Chart, Map };
