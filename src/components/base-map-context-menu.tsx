@@ -27,7 +27,7 @@ import BaseMapColorChooserMenuItems from "@/components/base-map-color-chooser-me
 export default function BaseMapContextMenu<G extends Geography>({
   children,
   geography,
-  map,
+  gridLabel,
   maxSelectedGeographies,
   selection,
   setGeography,
@@ -36,7 +36,7 @@ export default function BaseMapContextMenu<G extends Geography>({
 }: {
   children: React.ReactNode;
   geography: G | null;
-  map: GLMap | null;
+  gridLabel: string;
   maxSelectedGeographies: number;
   selection: GeographySelection<G>;
   setGeography: (geography: G | null) => void;
@@ -55,7 +55,7 @@ export default function BaseMapContextMenu<G extends Geography>({
           <>
             <ContextMenuSub>
               <ContextMenuSubTrigger inset>
-                Select {map?.getGlobalState()?.grid?.label || "polygon"}
+                Select {gridLabel}
               </ContextMenuSubTrigger>
               <ContextMenuSubContent>
                 <ContextMenuLabel>Choose outline color</ContextMenuLabel>

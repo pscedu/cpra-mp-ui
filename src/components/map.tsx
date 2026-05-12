@@ -29,6 +29,7 @@ export default function Map() {
     analysis,
     mapOptions,
   });
+  const gridLabel = mapCatalogQuery.dataset.grid.label.toLowerCase();
 
   const [z, y, x] = mapPosition;
 
@@ -44,6 +45,7 @@ export default function Map() {
   return (
     <BaseMap
       center={[x, y]}
+      gridLabel={gridLabel}
       maxSelectedGeographies={maxSelectedGeographies}
       selectedGeographies={selectedGeographies}
       setCenter={setCenter}
