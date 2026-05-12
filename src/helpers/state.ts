@@ -342,7 +342,7 @@ export const updateTaskAtom = atom(null, async (get, set, taskUpdates: any) => {
 export const completeLoginAtom = atom(
   null,
   async (
-    get,
+    _get,
     set,
     {
       search,
@@ -422,9 +422,6 @@ const setExecutedCatalogQueriesAtom = atom(
       analysis.dimension !== timeDimName
     )
       set(analysisAtom, { ...analysis, dimension: timeDimName });
-    // We need to manually trigger the hash write, because the catalog queries
-    // promise approach is not compatible with derived atoms.
-    queueWriteHash(get);
   },
 );
 
@@ -453,26 +450,29 @@ export const tabularDataShapeAtom = downloadSettingsAtom(
 observe((get, set) => {
   const requestedDatasets = get(requestedDatasetsAtom);
   const requestedFilters = get(requestedFiltersAtom);
-  (async () => {
-    const structure = await get(structureAtom);
+  // Effects run before the atoms have been hydrated, so we need to check
+  // to make sure we have requested datasets.
+  if (requestedDatasets.length)
+    (async () => {
+      const structure = await get(structureAtom);
 
-    const dsrSet = new Set(
-      requestedDatasets.map(
-        (dsr) => `${dsr.variable}|${dsr.grid}|${dsr.time_unit}`,
-      ),
-    );
-    const cqs = new CatalogQueries(
-      structure.datasets.filter((ds) =>
-        dsrSet.has(`${ds.variable.name}|${ds.grid.name}|${ds.time_unit}`),
-      ),
-      requestedFilters,
-      structure,
-    );
-    const prevCqs = get(catalogQueriesAtom);
-    if ("equals" in prevCqs && prevCqs.equals(cqs)) return;
-    await cqs.executeAll();
-    set(setExecutedCatalogQueriesAtom, cqs);
-  })();
+      const dsrSet = new Set(
+        requestedDatasets.map(
+          (dsr) => `${dsr.variable}|${dsr.grid}|${dsr.time_unit}`,
+        ),
+      );
+      const cqs = new CatalogQueries(
+        structure.datasets.filter((ds) =>
+          dsrSet.has(`${ds.variable.name}|${ds.grid.name}|${ds.time_unit}`),
+        ),
+        requestedFilters,
+        structure,
+      );
+      const prevCqs = get(catalogQueriesAtom);
+      if ("equals" in prevCqs && prevCqs.equals(cqs)) return;
+      await cqs.executeAll();
+      set(setExecutedCatalogQueriesAtom, cqs);
+    })();
 }, store);
 
 // Update the maximum selected geographies when the visualization changes.

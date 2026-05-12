@@ -1,7 +1,7 @@
 import { atom, Getter, WritableAtom } from "jotai";
 import { portalBaseUrl } from "./config";
 import { camelToSnake, debounce } from "./utils";
-import { Store } from "jotai/vanilla/store";
+import { atomEffect } from "jotai-effect";
 
 export const getHashParams = () =>
   new URLSearchParams(window.location.hash.replace(/^#/, ""));
@@ -26,7 +26,7 @@ type HashAtomConfig<T> = {
   updateHash?: UpdateHashFn<T>;
 };
 
-const hashAtoms: HashAtomConfig<any>[] = [];
+export const hashAtoms: HashAtomConfig<any>[] = [];
 
 type SimpleHashAtomOptions<T> = {
   key: string;
@@ -59,18 +59,19 @@ const writeHash = (get: Getter) => {
 
 export const queueWriteHash = debounce(writeHash, 500);
 
-export const hashEffect = (store: Store) => {
-  writeHash(store.get);
+export const fromHashEffect = atomEffect((_get, set) => {
   const handleHashChange = () => {
     const params = getHashParams();
     for (const config of hashAtoms)
       if (config.fromHash) {
-        store.set(config.atom, config.fromHash(params));
+        set(config.atom, config.fromHash(params));
       }
   };
   window.addEventListener("hashchange", handleHashChange, false);
   return () => window.removeEventListener("hashchange", handleHashChange);
-};
+});
+
+export const updateHashEffect = atomEffect((get) => writeHash(get));
 
 export const simpleHashAtomFunctions = <T>(
   defaultValue: T,
@@ -91,7 +92,6 @@ export const simpleHashAtomFunctions = <T>(
   return [fromHash, updateHash];
 };
 
-const initialHashParams = getHashParams();
 export const knownHashKeys: string[] = [];
 
 export const hashAtom = <T>(
@@ -108,18 +108,9 @@ export const hashAtom = <T>(
     updateHash = options.updateHash;
   }
 
-  const baseAtom = atom<T>(
-    fromHash ? fromHash(initialHashParams) : defaultValue,
-  );
+  const baseAtom = atom<T>(defaultValue);
   hashAtoms.push({ atom: baseAtom, fromHash, updateHash });
-  if (options.useBaseAtom || !updateHash) return baseAtom;
-  return atom(
-    (get) => get(baseAtom),
-    (get, set, value) => {
-      queueWriteHash(get);
-      set(baseAtom, value);
-    },
-  );
+  return baseAtom;
 };
 
 export const hashObjectAtom = <T>(defaultValue: { [key: string]: T }) => {
