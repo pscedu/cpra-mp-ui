@@ -33,13 +33,11 @@ type SimpleHashAtomOptions<T> = {
   encoder?: (val: T) => string;
   decoder?: (val: string) => T;
   includeDefault?: boolean;
-  useBaseAtom?: boolean;
 };
 
 type CustomHashAtomOptions<T> = {
   fromHash?: FromHashFn<T>;
   updateHash?: UpdateHashFn<T>;
-  useBaseAtom?: boolean;
 };
 
 type HashAtomOptions<T> = SimpleHashAtomOptions<T> | CustomHashAtomOptions<T>;
@@ -56,8 +54,6 @@ const writeHash = (get: Getter) => {
   if (hashString !== getHashString(getHashParams()))
     window.history.pushState(window.history.state, "", hashString);
 };
-
-export const queueWriteHash = debounce(writeHash, 500);
 
 export const fromHashEffect = atomEffect((_get, set) => {
   const handleHashChange = () => {

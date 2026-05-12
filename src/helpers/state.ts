@@ -4,12 +4,7 @@ import { observe } from "jotai-effect";
 import { jwtDecode } from "jwt-decode";
 import { CommentNode, exportTask, importTask } from "./clickup";
 import { managementBaseUrl, qaqcTagOptions } from "./config";
-import {
-  hashAtom,
-  hashObjectAtom,
-  knownHashKeys,
-  queueWriteHash,
-} from "./hash";
+import { hashAtom, hashObjectAtom, knownHashKeys } from "./hash";
 import { Dataset, getStructure } from "./structure";
 import { getJson, sortConsistent } from "./utils";
 import { NavigateFunction } from "react-router";
@@ -27,27 +22,29 @@ export const structureAtom = atom(async () => await getStructure());
 export const activityAtom = hashAtom("data", { key: "activity" });
 export const issueAtom = hashAtom(null, { key: "issue" });
 
-export const requestedDatasetsAtom = hashAtom<DatasetRequest[]>([], {
-  fromHash: (params) => {
-    const variables = params.getAll("variable") || [];
-    const grids = params.getAll("grid") || [];
-    const timeUnits = params.getAll("time_unit") || [];
-    const drs = variables.map((variable, i) => ({
-      variable,
-      grid: grids[i],
-      time_unit: timeUnits[i],
-    }));
-    return drs.length
-      ? drs
-      : [
-          {
-            variable: "sal",
-            grid: "hydro_compartment_v001",
-            time_unit: "annual",
-          },
-        ];
+export const defaultDatasets = [
+  {
+    variable: "sal",
+    grid: "hydro_compartment_v001",
+    time_unit: "annual",
   },
-});
+];
+export const requestedDatasetsAtom = hashAtom<DatasetRequest[]>(
+  defaultDatasets,
+  {
+    fromHash: (params) => {
+      const variables = params.getAll("variable") || [];
+      const grids = params.getAll("grid") || [];
+      const timeUnits = params.getAll("time_unit") || [];
+      const drs = variables.map((variable, i) => ({
+        variable,
+        grid: grids[i],
+        time_unit: timeUnits[i],
+      }));
+      return drs.length ? drs : defaultDatasets;
+    },
+  },
+);
 export const requestedFiltersAtom = hashAtom<any>(
   {},
   {
@@ -80,7 +77,6 @@ export const catalogQueriesAtom = hashAtom<
         for (const value of cqs.combinedFilters[dimension])
           params.append(dimension, value);
   },
-  useBaseAtom: true, // Need to call queueWriteHash manually
 });
 
 export const analysisAtom = hashAtom<Analysis>(
@@ -301,7 +297,7 @@ export const createCommentAtom = atom(
   null,
   async (
     get,
-    set,
+    _set,
     {
       taskId,
       comment,
@@ -321,7 +317,7 @@ export const updateCommentAtom = atom(
   null,
   async (
     get,
-    set,
+    _set,
     { commentId, commentUpdates }: { commentId: string; commentUpdates: any },
   ) => {
     return await getManagementJson(get, `/comments/${commentId}`, {
