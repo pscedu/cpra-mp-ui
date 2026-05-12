@@ -1,6 +1,6 @@
-import Chart from "@/components/visualization/chart";
+import BaseChart from "@/components/base-chart";
 import Map from "@/components/visualization/map";
 
 import "./index.css";
 
-export { Chart, Map };
+export { BaseChart, Map };

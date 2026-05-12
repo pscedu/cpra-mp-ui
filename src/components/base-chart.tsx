@@ -13,7 +13,7 @@ import { dark, excel } from "vega-themes";
 import { getJson } from "@/helpers/utils";
 
 export default memo(
-  function Chart({
+  function BaseChart({
     actions = false,
     children,
     className = "",
