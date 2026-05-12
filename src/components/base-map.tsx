@@ -15,10 +15,10 @@ import { CPRAMapLegendControl } from "@/plugins/map-legend";
 
 import "@/plugins/map-legend.css";
 
-import MapContextMenu from "@/components/visualization/map-context-menu";
+import BaseMapContextMenu from "@/components/base-map-context-menu";
 
 // Map using MapLibre GL.
-export default function Map<G extends Geography>({
+export default function BaseMap<G extends Geography>({
   center = [-91.5, 29.75],
   maxSelectedGeographies = 10,
   selectedGeographies = [],
@@ -254,7 +254,7 @@ export default function Map<G extends Geography>({
   }, [maxSelectedGeographies]);
 
   return (
-    <MapContextMenu
+    <BaseMapContextMenu
       geography={contextMenuGeography}
       map={map.current}
       maxSelectedGeographies={maxSelectedGeographies}
@@ -264,6 +264,6 @@ export default function Map<G extends Geography>({
       triggerRef={contextMenuTriggerRef}
     >
       <div className="h-full rounded-xl overflow-hidden" ref={container} />
-    </MapContextMenu>
+    </BaseMapContextMenu>
   );
 }

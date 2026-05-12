@@ -11,10 +11,10 @@ import {
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
-import Map from "@/components/visualization/map";
+import BaseMap from "@/components/base-map";
 
 // Map using MapLibre GL.
-export default function GlobalMap() {
+export default function Map() {
   const maxSelectedGeographies = useAtomValue(maxSelectedGeographiesAtom);
   const analysis = useAtomValue(analysisAtom);
   const mapCatalogQuery = useAtomValue(catalogQueriesAtom).getMapCatalogQuery();
@@ -42,7 +42,7 @@ export default function GlobalMap() {
   };
 
   return (
-    <Map
+    <BaseMap
       center={[x, y]}
       maxSelectedGeographies={maxSelectedGeographies}
       selectedGeographies={selectedGeographies}

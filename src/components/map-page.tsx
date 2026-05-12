@@ -13,7 +13,7 @@ import { ResizablePanel, ResizablePanelGroup } from "./ui/resizable";
 import { ErrorBoundary } from "react-error-boundary";
 import VisualizationPanel from "./visualization-panel";
 import { Suspense } from "react";
-import GlobalMap from "./global-map";
+import Map from "@/components/map";
 
 export default function MapPage() {
   return (
@@ -41,7 +41,7 @@ export default function MapPage() {
             <ResizablePanel>
               <ErrorBoundary fallback={<></>}>
                 <Suspense>
-                  <GlobalMap />
+                  <Map />
                 </Suspense>
               </ErrorBoundary>
             </ResizablePanel>

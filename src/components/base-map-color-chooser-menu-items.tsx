@@ -7,7 +7,7 @@ import { ContextMenuItem } from "@/components/ui/context-menu";
 
 // Color chooser that allows users to select what color a selected geography will
 // be assigned.
-export default function ColorChooserMenuItems<G extends Geography>({
+export default function BaseMapColorChooserMenuItems<G extends Geography>({
   geography,
   selection,
   setSelection,
