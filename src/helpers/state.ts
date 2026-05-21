@@ -1,6 +1,6 @@
 import { atom, WritableAtom, createStore } from "jotai";
 import { atomWithRefresh, atomWithReset, atomWithStorage } from "jotai/utils";
-import { observe } from "jotai-effect";
+import { atomEffect, observe } from "jotai-effect";
 import { jwtDecode } from "jwt-decode";
 import { CommentNode, exportTask, importTask } from "./clickup";
 import { managementBaseUrl, qaqcTagOptions } from "./config";
@@ -59,25 +59,35 @@ export const requestedFiltersAtom = hashAtom<any>(
   },
 );
 export const requestedTimeValuesAtom = atom([]);
+
+type CatalogQueriesResolver = {
+  resolve: (catalogQueries: CatalogQueries) => void;
+};
+const initialCatalogQueriesAtom = atom<CatalogQueriesResolver | null>(null);
 export const catalogQueriesAtom = hashAtom<
   CatalogQueries | Promise<CatalogQueries>
->(new Promise<CatalogQueries>(() => {}), {
-  updateHash: (
-    params: URLSearchParams,
-    cqs: CatalogQueries | Promise<CatalogQueries>,
-  ) => {
-    if ("datasets" in cqs)
-      for (const { variable, grid, time_unit } of cqs.datasets) {
-        params.append("variable", variable.name);
-        params.append("grid", grid.name);
-        params.append("time_unit", time_unit);
-      }
-    if ("combinedFilters" in cqs)
-      for (const dimension of Object.keys(cqs.combinedFilters))
-        for (const value of cqs.combinedFilters[dimension])
-          params.append(dimension, value);
+>(
+  new Promise<CatalogQueries>((resolve) => {
+    store.set(initialCatalogQueriesAtom, { resolve: resolve });
+  }),
+  {
+    updateHash: (
+      params: URLSearchParams,
+      cqs: CatalogQueries | Promise<CatalogQueries>,
+    ) => {
+      if ("datasets" in cqs)
+        for (const { variable, grid, time_unit } of cqs.datasets) {
+          params.append("variable", variable.name);
+          params.append("grid", grid.name);
+          params.append("time_unit", time_unit);
+        }
+      if ("combinedFilters" in cqs)
+        for (const dimension of Object.keys(cqs.combinedFilters))
+          for (const value of cqs.combinedFilters[dimension])
+            params.append(dimension, value);
+    },
   },
-});
+);
 
 export const analysisAtom = hashAtom<Analysis>(
   {
@@ -171,8 +181,6 @@ export const visualizationTypeAtom = hashAtom("time-series-line", {
 });
 
 export const avatarCacheKeyAtom = atom(new Date().getTime());
-export const mapFeatureValuesAtom = atom({} as any);
-export const mapFeatureValuesLoadingAtom = atom(false);
 export const mapTilesLoadingAtom = atom(false);
 export const issueFilterTagsAtom = atom([] as any[]);
 
@@ -405,6 +413,11 @@ const setExecutedCatalogQueriesAtom = atom(
   null,
   (get, set, cqs: CatalogQueries) => {
     set(catalogQueriesAtom, cqs);
+    const resolver = get(initialCatalogQueriesAtom);
+    if (resolver) {
+      resolver.resolve(cqs);
+      set(initialCatalogQueriesAtom, null);
+    }
     set(
       requestedTimeValuesAtom,
       cqs.queries[0].response.results[cqs.getTimeDimension().name],
@@ -503,7 +516,7 @@ observe((get, set) => {
 }, store);
 
 // Reset the activity when the user logs out
-observe((get, set) => {
+export const userActivityEffect = atomEffect((get, set) => {
   const activity = get(activityAtom);
   const userPromise = get(userAtom);
 
@@ -513,4 +526,4 @@ observe((get, set) => {
       set(activityAtom, "data");
     }
   })();
-}, store);
+});

@@ -14,7 +14,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import BaseMap from "@/components/base-map";
 
 // Map using MapLibre GL.
-export default function Map() {
+export default function Map({ className = "" }: { className?: string }) {
   const maxSelectedGeographies = useAtomValue(maxSelectedGeographiesAtom);
   const analysis = useAtomValue(analysisAtom);
   const mapCatalogQuery = useAtomValue(catalogQueriesAtom).getMapCatalogQuery();
@@ -45,6 +45,7 @@ export default function Map() {
   return (
     <BaseMap
       center={[x, y]}
+      className={className}
       gridLabel={gridLabel}
       maxSelectedGeographies={maxSelectedGeographies}
       selectedGeographies={selectedGeographies}

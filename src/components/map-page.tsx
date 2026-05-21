@@ -14,8 +14,11 @@ import { ErrorBoundary } from "react-error-boundary";
 import VisualizationPanel from "./visualization-panel";
 import { Suspense } from "react";
 import Map from "@/components/map";
+import { useAtom } from "jotai";
+import { userActivityEffect } from "@/helpers/state";
 
 export default function MapPage() {
+  useAtom(userActivityEffect);
   return (
     <SidebarProvider>
       <Suspense>
@@ -41,7 +44,7 @@ export default function MapPage() {
             <ResizablePanel>
               <ErrorBoundary fallback={<></>}>
                 <Suspense>
-                  <Map />
+                  <Map className="h-full rounded-xl overflow-hidden" />
                 </Suspense>
               </ErrorBoundary>
             </ResizablePanel>

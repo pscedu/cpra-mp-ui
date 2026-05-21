@@ -10,7 +10,11 @@ import { ReactNode } from "react";
 
 const initialHashParams = getHashParams();
 
-export function HashDataProvider({ children }: { children: ReactNode }) {
+export default function HashDataProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
   useAtom(fromHashEffect);
   useAtom(updateHashEffect);
 

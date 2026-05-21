@@ -26,6 +26,7 @@ import BaseMapColorChooserMenuItems from "@/components/base-map-color-chooser-me
 
 export default function BaseMapContextMenu<G extends Geography>({
   children,
+  className = "",
   geography,
   gridLabel,
   maxSelectedGeographies,
@@ -35,6 +36,7 @@ export default function BaseMapContextMenu<G extends Geography>({
   triggerRef,
 }: {
   children: React.ReactNode;
+  className?: string;
   geography: G | null;
   gridLabel: string;
   maxSelectedGeographies: number;
@@ -49,7 +51,9 @@ export default function BaseMapContextMenu<G extends Geography>({
         if (!open) setGeography(null);
       }}
     >
-      <ContextMenuTrigger ref={triggerRef}>{children}</ContextMenuTrigger>
+      <ContextMenuTrigger ref={triggerRef} asChild>
+        <div className={className}>{children}</div>
+      </ContextMenuTrigger>
       <ContextMenuContent>
         {geography && (
           <>

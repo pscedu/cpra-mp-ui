@@ -6,7 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import MapPage from "@/components/map-page";
 import WorkerPage from "@/components/worker-page";
 import { store } from "./helpers/state";
-import { HashDataProvider } from "./components/hash-data-provider";
+import HashDataProvider from "@/components/hash-data-provider";
 
 export default function Portal() {
   return (

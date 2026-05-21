@@ -20,6 +20,7 @@ import BaseMapContextMenu from "@/components/base-map-context-menu";
 // Map using MapLibre GL.
 export default function BaseMap<G extends Geography>({
   center = [-91.5, 29.75],
+  className = "",
   gridLabel = "area",
   maxSelectedGeographies = 10,
   selectedGeographies = [],
@@ -31,6 +32,7 @@ export default function BaseMap<G extends Geography>({
   zoom = 8,
 }: {
   center?: LngLatLike;
+  className?: string;
   gridLabel?: string;
   maxSelectedGeographies?: number;
   selectedGeographies?: G[];
@@ -257,6 +259,7 @@ export default function BaseMap<G extends Geography>({
 
   return (
     <BaseMapContextMenu
+      className={className}
       geography={contextMenuGeography}
       gridLabel={gridLabel}
       maxSelectedGeographies={maxSelectedGeographies}
@@ -265,7 +268,7 @@ export default function BaseMap<G extends Geography>({
       setSelection={setSelection}
       triggerRef={contextMenuTriggerRef}
     >
-      <div className="h-full rounded-xl overflow-hidden" ref={container} />
+      <div className={className} ref={container} />
     </BaseMapContextMenu>
   );
 }
