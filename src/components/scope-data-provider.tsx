@@ -16,9 +16,13 @@ import {
   requestedFiltersAtom,
   requestedTimeValuesAtom,
   selectedGeographiesAtom,
+  setExecutedCatalogQueriesAtom,
+  setRequestedDatasetsAtom,
   startDateAtom,
+  visualizationAtom,
   visualizationTypeAtom,
 } from "@/helpers/state";
+import DataProviderEffects from "@/components/data-provider-effects";
 
 export function ScopeHydrate({ children, ...props }: { children: ReactNode }) {
   const params = new URLSearchParams(props);
@@ -50,11 +54,16 @@ export default function ScopeDataProvider({
         requestedFiltersAtom,
         requestedTimeValuesAtom,
         selectedGeographiesAtom,
+        setExecutedCatalogQueriesAtom,
+        setRequestedDatasetsAtom,
         startDateAtom,
+        visualizationAtom,
         visualizationTypeAtom,
       ]}
     >
-      <ScopeHydrate {...props}>{children}</ScopeHydrate>
+      <ScopeHydrate {...props}>
+        <DataProviderEffects>{children}</DataProviderEffects>
+      </ScopeHydrate>
     </ScopeProvider>
   );
 }

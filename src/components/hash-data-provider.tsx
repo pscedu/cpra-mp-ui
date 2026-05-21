@@ -7,6 +7,7 @@ import {
 import { useAtom } from "jotai";
 import { useHydrateAtoms } from "jotai/utils";
 import { ReactNode } from "react";
+import DataProviderEffects from "@/components/data-provider-effects";
 
 const initialHashParams = getHashParams();
 
@@ -22,5 +23,5 @@ export default function HashDataProvider({
     config.fromHash ? [[config.atom, config.fromHash(initialHashParams)]] : [],
   );
   useHydrateAtoms(initialValues);
-  return children;
+  return <DataProviderEffects>{children}</DataProviderEffects>;
 }

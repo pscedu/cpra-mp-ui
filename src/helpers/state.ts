@@ -63,7 +63,9 @@ export const requestedTimeValuesAtom = atom([]);
 type CatalogQueriesResolver = {
   resolve: (catalogQueries: CatalogQueries) => void;
 };
-const initialCatalogQueriesAtom = atom<CatalogQueriesResolver | null>(null);
+export const initialCatalogQueriesAtom = atom<CatalogQueriesResolver | null>(
+  null,
+);
 export const catalogQueriesAtom = hashAtom<
   CatalogQueries | Promise<CatalogQueries>
 >(
@@ -409,7 +411,7 @@ export const linkClickupAtom = atom(
 // Set the executed catalog queries and related atoms.
 // This needs to be in its own write-only atom for Reach state batching to work property.
 // Otherwise, React tries to rerender components in the middle of updates.
-const setExecutedCatalogQueriesAtom = atom(
+export const setExecutedCatalogQueriesAtom = atom(
   null,
   (get, set, cqs: CatalogQueries) => {
     set(catalogQueriesAtom, cqs);
@@ -456,7 +458,7 @@ export const tabularDataShapeAtom = downloadSettingsAtom(
 /* Effects */
 
 // Query the catalog when datasets or filters change.
-observe((get, set) => {
+export const queryCatlogEffect = atomEffect((get, set) => {
   const requestedDatasets = get(requestedDatasetsAtom);
   const requestedFilters = get(requestedFiltersAtom);
   // Effects run before the atoms have been hydrated, so we need to check
@@ -482,16 +484,16 @@ observe((get, set) => {
       await cqs.executeAll();
       set(setExecutedCatalogQueriesAtom, cqs);
     })();
-}, store);
+});
 
 // Update the maximum selected geographies when the visualization changes.
-observe((get, set) => {
+export const updateMaxSelectedGeographiesEffect = atomEffect((get, set) => {
   const visualizationPromise = get(visualizationAtom);
   (async () => {
     const visualization = await visualizationPromise;
     set(maxSelectedGeographiesAtom, visualization.max_geographies);
   })();
-}, store);
+});
 
 // Update the task when the issue changes.
 observe((get, set) => {
