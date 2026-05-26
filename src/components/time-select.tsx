@@ -22,7 +22,11 @@ let selectedTimeout: ReturnType<typeof setTimeout> | null = null;
 import { SelectionModeDropdown } from "./selection-mode-dropdown";
 import { Slider } from "./ui/slider";
 
-export default function TimeSelect() {
+export default function TimeSelect({
+  showSelectionMode = true,
+}: {
+  showSelectionMode?: boolean;
+}) {
   const setSelectedFilterChoices = useSetAtom(setSelectedFilterChoicesAtom);
   const catalogQueries = useAtomValue(catalogQueriesAtom);
   const mapCatalogQuery = catalogQueries.getMapCatalogQuery();
@@ -129,30 +133,32 @@ export default function TimeSelect() {
           }
         />
       </div>
-      <SelectionModeDropdown
-        dimensionName={timeDimension?.name}
-        dimensionLabel={label}
-        maxLength={values.length}
-        optionsLength={choices.length}
-        setMaxLength={(ml) => {
-          const newLength = Math.min(ml, 2);
-          if (newLength > values.length) {
-            const newValues = values.slice();
-            if (values[0] === choices.length - 1) newValues.splice(0, 0, 0);
-            else newValues.push(choices.length - 1);
-            setSelectedWithDebounce(
-              newValues.map((idx) => choices[idx]),
-              false,
-            );
-          } else if (newLength < values.length) {
-            setSelectedWithDebounce([choices[values[0]]], false);
+      {showSelectionMode && (
+        <SelectionModeDropdown
+          dimensionName={timeDimension?.name}
+          dimensionLabel={label}
+          maxLength={values.length}
+          optionsLength={choices.length}
+          setMaxLength={(ml) => {
+            const newLength = Math.min(ml, 2);
+            if (newLength > values.length) {
+              const newValues = values.slice();
+              if (values[0] === choices.length - 1) newValues.splice(0, 0, 0);
+              else newValues.push(choices.length - 1);
+              setSelectedWithDebounce(
+                newValues.map((idx) => choices[idx]),
+                false,
+              );
+            } else if (newLength < values.length) {
+              setSelectedWithDebounce([choices[values[0]]], false);
+            }
+          }}
+          supportsConcatenate={
+            mapCatalogQuery?.dataset?.variable?.name === "lnd_type"
           }
-        }}
-        supportsConcatenate={
-          mapCatalogQuery?.dataset?.variable?.name === "lnd_type"
-        }
-        supportsSubtract={true}
-      />
+          supportsSubtract={true}
+        />
+      )}
     </>
   );
 }
