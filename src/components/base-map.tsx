@@ -74,6 +74,8 @@ export default function BaseMap<G extends Geography>({
       const { lng, lat } = lngLat;
 
       const bounds = new LngLatBounds((source as RasterTileSource).bounds);
+      if (bounds.isEmpty()) return;
+
       if (bounds.contains(lngLat))
         return [lng.toFixed(5), lat.toFixed(5)] as unknown as G;
     } else {
