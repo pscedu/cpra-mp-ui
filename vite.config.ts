@@ -21,6 +21,10 @@ export default defineConfig(({ mode }) => ({
           },
           rollupOptions: {
             external: [
+              "jotai",
+              "jotai/utils",
+              "jotai-effect",
+              "jotai-scope",
               "maplibre-gl",
               "react",
               "react-dom",
@@ -33,6 +37,10 @@ export default defineConfig(({ mode }) => ({
             ],
             output: {
               globals: {
+                jotai: "Jotai",
+                "jotai/utils": "JotaiUtils",
+                "jotai-effect": "JotaiEffect",
+                "jotai-scope": "JotaiScope",
                 "maplibre-gl": "MapLibreGl",
                 react: "React",
                 "react-dom": "ReactDOM",
