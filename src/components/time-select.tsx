@@ -83,7 +83,7 @@ export default function TimeSelect({
                     min={choices[0]}
                     max={choices[choices.length - 1]}
                     onChange={(e) => {
-                      const newValue = parseInt(e.target);
+                      const newValue = parseInt(e.target.value);
                       if (choices.includes(newValue)) {
                         const newSelected = [...selected];
                         newSelected[idx] = newValue;
