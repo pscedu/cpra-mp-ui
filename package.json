@@ -1,7 +1,7 @@
 {
   "name": "@cpra/mp-ui",
-  "private": true,
-  "version": "0.0.0",
+  "description": "User interface components for Louisiana's Coastal Master Plan",
+  "version": "0.1.0",
   "type": "module",
   "files": [
     "dist"
