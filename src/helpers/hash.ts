@@ -75,8 +75,19 @@ export const simpleHashAtomFunctions = <T>(
 ): [FromHashFn<T>, UpdateHashFn<T>] => {
   const { key } = options;
   knownHashKeys.push(key);
-  const encoder = options.encoder || ((val) => JSON.stringify(val));
-  const decoder = options.decoder || ((val) => JSON.parse(val));
+  const encoder =
+    options.encoder ||
+    ((val) => (typeof val === "string" ? val : JSON.stringify(val)));
+  const decoder =
+    options.decoder ||
+    ((val) => {
+      try {
+        return JSON.parse(val);
+      } catch (err) {
+        if (err instanceof SyntaxError) return val;
+        throw err;
+      }
+    });
   const fromHash: FromHashFn<T> = (params) =>
     params.has(key) ? decoder(params.get(key) as string) : defaultValue;
 
