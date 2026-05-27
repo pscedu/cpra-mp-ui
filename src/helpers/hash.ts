@@ -1,6 +1,5 @@
 import { atom, Getter, WritableAtom } from "jotai";
-import { portalBaseUrl } from "./config";
-import { camelToSnake, debounce } from "./utils";
+import { camelToSnake } from "./utils";
 import { atomEffect } from "jotai-effect";
 
 export const getHashParams = () =>
@@ -42,14 +41,33 @@ type CustomHashAtomOptions<T> = {
 
 type HashAtomOptions<T> = SimpleHashAtomOptions<T> | CustomHashAtomOptions<T>;
 
-const writeHash = (get: Getter) => {
+export const getHashStringFromAtoms = (
+  get: Getter,
+  {
+    include,
+    exclude,
+  }: {
+    include?: string[];
+    exclude?: string[];
+  } = {},
+) => {
   const params = new URLSearchParams();
   for (const config of hashAtoms)
     if (config.updateHash) {
       config.updateHash(params, get(config.atom));
     }
+
+  if (include)
+    for (const key of params.keys())
+      if (!include.includes(key)) params.delete(key);
+  if (exclude) for (const key of exclude) params.delete(key);
+
   params.sort();
-  const hashString = getHashString(params);
+  return getHashString(params);
+};
+
+const writeHash = (get: Getter) => {
+  const hashString = getHashStringFromAtoms(get);
   // Only add a new history entry if the hash string has changed.
   if (hashString !== getHashString(getHashParams()))
     window.history.pushState(window.history.state, "", hashString);
@@ -144,21 +162,6 @@ export const hashObjectAtom = <T>(defaultValue: { [key: string]: T }) => {
       attrUpdateHash[key](params, value[key]);
   };
   return hashAtom(defaultValue, { fromHash, updateHash });
-};
-
-export const getPermalink = ({
-  include,
-  exclude,
-}: {
-  include?: string[];
-  exclude?: string[];
-}) => {
-  const params = getHashParams();
-  if (include)
-    for (const key of params.keys())
-      if (!include.includes(key)) params.delete(key);
-  if (exclude) for (const key of exclude) params.delete(key);
-  return `${portalBaseUrl}#${params}`;
 };
 
 export const mergeHash = (url: string) => {

@@ -1,6 +1,7 @@
 import {
   analysisAtom,
   catalogQueriesAtom,
+  dataPermalinkAtom,
   endDateAtom,
   initialCatalogQueriesAtom,
   mapOptionsAtom,
@@ -41,6 +42,7 @@ export {
   TimeSelect,
   analysisAtom,
   catalogQueriesAtom,
+  dataPermalinkAtom,
   endDateAtom,
   initialCatalogQueriesAtom,
   mapOptionsAtom,

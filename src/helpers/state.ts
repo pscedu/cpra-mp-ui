@@ -3,8 +3,13 @@ import { atomWithRefresh, atomWithReset, atomWithStorage } from "jotai/utils";
 import { atomEffect, observe } from "jotai-effect";
 import { jwtDecode } from "jwt-decode";
 import { CommentNode, exportTask, importTask } from "./clickup";
-import { managementBaseUrl, qaqcTagOptions } from "./config";
-import { hashAtom, hashObjectAtom, knownHashKeys } from "./hash";
+import { managementBaseUrl, portalBaseUrl, qaqcTagOptions } from "./config";
+import {
+  getHashStringFromAtoms,
+  hashAtom,
+  hashObjectAtom,
+  knownHashKeys,
+} from "./hash";
 import { Dataset, getStructure } from "./structure";
 import { getJson, sortConsistent } from "./utils";
 import { NavigateFunction } from "react-router";
@@ -454,6 +459,13 @@ export const tabularDataShapeAtom = downloadSettingsAtom(
   "tabular-data-shape",
   "long",
 );
+
+export const dataPermalinkAtom = atom((get) => {
+  const hashString = getHashStringFromAtoms(get, {
+    exclude: ["activity", "issue"],
+  });
+  return `${portalBaseUrl}${hashString}`;
+});
 
 /* Effects */
 

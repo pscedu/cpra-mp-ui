@@ -6,6 +6,7 @@ import { ScopeProvider } from "jotai-scope";
 import {
   analysisAtom,
   catalogQueriesAtom,
+  dataPermalinkAtom,
   endDateAtom,
   initialCatalogQueriesAtom,
   mapOptionsAtom,
@@ -44,6 +45,7 @@ export default function ScopeDataProvider({
       atoms={[
         analysisAtom,
         catalogQueriesAtom,
+        dataPermalinkAtom,
         endDateAtom,
         initialCatalogQueriesAtom,
         mapOptionsAtom,

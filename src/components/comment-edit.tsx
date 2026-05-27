@@ -1,9 +1,10 @@
 import { ReactNode, useEffect, useRef } from "react";
-import { getPermalink } from "@/helpers/hash";
 import { useAtomValue } from "jotai";
 import {
   catalogQueriesAtom,
+  dataPermalinkAtom,
   selectedGeographiesAtom,
+  store,
   structureAtom,
 } from "@/helpers/state";
 
@@ -58,8 +59,9 @@ export default function CommentEdit({
       const before = value.slice(0, ta.selectionStart);
       const selection = value.slice(ta.selectionStart, ta.selectionEnd);
       const after = value.slice(ta.selectionEnd, value.length);
+      const permalink = store.get(dataPermalinkAtom);
       setValue(
-        `${before}[${selection || `${icons.join("")} ${label}`}](${getPermalink({ exclude: ["activity", "issue"] })})${after}`,
+        `${before}[${selection || `${icons.join("")} ${label}`}](${permalink})${after}`,
       );
     }
   };
