@@ -60,7 +60,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         )}
       </SidebarContent>
       <SidebarFooter>
-        <DownloadSidebar />
+        {activity === "data" && <DownloadSidebar />}
         <NavUser />
       </SidebarFooter>
       <SidebarRail />
