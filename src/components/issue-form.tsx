@@ -92,7 +92,7 @@ export default function IssueForm() {
       <div className="flex justify-end gap-2">
         <IssueCloseButton variant="outline">Cancel</IssueCloseButton>
         <CommentSaveButton
-          buttonLabel="Create"
+          buttonLabel="Save"
           onClick={saveTask}
           processing={isProcessing}
           disabled={task?.markdown_description.length == 0}
