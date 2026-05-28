@@ -30,17 +30,7 @@ export default function Map({ className = "" }: { className?: string }) {
     mapOptions,
   });
   const gridLabel = mapCatalogQuery.dataset.grid.label.toLowerCase();
-
   const [z, y, x] = mapPosition;
-
-  const setCenter = (center: [number, number]) => {
-    const [lng, lat] = center;
-    setMapPosition([z, lat, lng]);
-  };
-
-  const setZoom = (zoom: number) => {
-    setMapPosition([zoom, y, x]);
-  };
 
   return (
     <BaseMap
@@ -49,10 +39,9 @@ export default function Map({ className = "" }: { className?: string }) {
       gridLabel={gridLabel}
       maxSelectedGeographies={maxSelectedGeographies}
       selectedGeographies={selectedGeographies}
-      setCenter={setCenter}
       setMapLoading={setMapLoading}
+      setMapPosition={setMapPosition}
       setSelectedGeographies={setSelectedGeographies}
-      setZoom={setZoom}
       styleUrl={styleUrl}
       zoom={z}
     />

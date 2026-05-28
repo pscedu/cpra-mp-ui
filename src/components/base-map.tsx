@@ -24,10 +24,9 @@ export default function BaseMap<G extends Geography>({
   gridLabel = "area",
   maxSelectedGeographies = 10,
   selectedGeographies = [],
-  setCenter = () => {},
   setMapLoading = () => {},
+  setMapPosition = () => {},
   setSelectedGeographies = () => {},
-  setZoom = () => {},
   styleUrl,
   zoom = 8,
 }: {
@@ -36,10 +35,9 @@ export default function BaseMap<G extends Geography>({
   gridLabel?: string;
   maxSelectedGeographies?: number;
   selectedGeographies?: G[];
-  setCenter?: (center: [number, number]) => void;
   setMapLoading?: (loading: boolean) => void;
+  setMapPosition?: (position: [number, number, number]) => void;
   setSelectedGeographies?: (geographies: G[]) => void;
-  setZoom?: (zoom: number) => void;
   styleUrl: string;
   zoom?: number;
 }) {
@@ -127,8 +125,8 @@ export default function BaseMap<G extends Geography>({
     glMap.on("idle", () => setMapLoading(false));
     glMap.on("moveend", () => {
       const { lng, lat } = glMap.getCenter();
-      setZoom(glMap.getZoom());
-      setCenter([lng, lat]);
+      const zoom = glMap.getZoom();
+      setMapPosition([zoom, lat, lng]);
     });
     glMap.on("styledata", () => {
       updateMarkers();
