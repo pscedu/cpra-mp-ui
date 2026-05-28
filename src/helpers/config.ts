@@ -41,7 +41,9 @@ export const selectionColorLabels = [
   "Blue",
 ];
 export const qaqcTagOptions = [
-  { value: "type:qaqc", label: "Type: QA/QC" },
+  { value: "type:qaqc_high", label: "Type: QA/QC (High Concern)" },
+  { value: "type:qaqc_moderate", label: "Type: QA/QC (Moderate Concern)" },
+  { value: "type:qaqc_low", label: "Type: QA/QC (Low Concern)" },
   { value: "type:narrative", label: "Type: Narrative" },
   { value: "impact:project", label: "Impact: Project" },
   { value: "impact:fwoa", label: "Impact: FWOA" },
