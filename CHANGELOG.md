@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.0](https://github.com/pscedu/cpra-mp-ui/compare/v0.1.0...v0.2.0) (2026-06-04)
+
+
+### Features
+
+* **dataset-select:** add master plan filter ([3a0c2ab](https://github.com/pscedu/cpra-mp-ui/commit/3a0c2ab0a2b14c9166ffc194ea23dcfb1e976513))
+* **map-legend:** use D3 to format difference legend labels ([8cc612b](https://github.com/pscedu/cpra-mp-ui/commit/8cc612ba7129389ff5f9d21d35e7f67dd41c9579))
+* **tags:** add concern level to QA/QC tags ([4190646](https://github.com/pscedu/cpra-mp-ui/commit/419064684af4a8ec059f3bc5f9bcbcf95404ee1e))
+
+
+### Bug Fixes
+
+* **app-sidebar:** only show the download button on the data tab ([62cae87](https://github.com/pscedu/cpra-mp-ui/commit/62cae87b72ac37a55c4fb5a398cd434142c869db))
+* **catalog:** fix time label lookup for decadal data ([62b1810](https://github.com/pscedu/cpra-mp-ui/commit/62b1810075884c96a1ca32631714775cca608c42))
+* **issue-form:** change button text to Save ([1174f2b](https://github.com/pscedu/cpra-mp-ui/commit/1174f2bd59c1b4a161842861d864ee7a411b229b))
+* **map:** fix setting map position on move ([a2d20b1](https://github.com/pscedu/cpra-mp-ui/commit/a2d20b1cad95a5666ae2169196921fcdaa02b8d7))
+
 ## 0.1.0 (2026-05-27)
 
 
