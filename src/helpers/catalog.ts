@@ -152,7 +152,7 @@ export class CatalogQuery {
     return {
       annual: "Year",
       daily: "Day",
-      decade: "Decade",
+      decadal: "Decade",
       month: "Month",
     }[this.dataset.time_unit];
   }
