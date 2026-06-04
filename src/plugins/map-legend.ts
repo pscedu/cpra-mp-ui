@@ -1,4 +1,5 @@
 import { ControlPosition, IControl, Map } from "maplibre-gl";
+import { format } from "d3-format";
 
 export class CPRAMapLegendControl implements IControl {
   _container: HTMLElement | undefined;
@@ -59,14 +60,15 @@ export class CPRAMapLegendControl implements IControl {
           if (spec.type === "discrete")
             this.addDiscreteSteps(entry, spec.steps);
           else if (spec.type === "continuous")
-            this.addContinuousSteps(entry, spec.steps);
+            this.addContinuousSteps(entry, spec);
 
           this._container.append(entry);
         }
     }
   }
 
-  addContinuousSteps(entry, steps) {
+  addContinuousSteps(entry, spec) {
+    const { numberFormat, steps } = spec;
     if (steps.length < 2) return;
 
     const start = steps[0].value;
@@ -90,6 +92,7 @@ export class CPRAMapLegendControl implements IControl {
 
     const ticks = document.createElement("div");
     ticks.className = "continuous-ticks";
+    const formatter = format(numberFormat);
     for (const stop of stops) {
       const tick = document.createElement("div");
       tick.className = "tick";
@@ -97,7 +100,7 @@ export class CPRAMapLegendControl implements IControl {
       const label = document.createElement("span");
       label.className = "label";
       label.style.left = `-${stop.pct}%`;
-      label.innerText = stop.value.toString();
+      label.innerText = stop.value === 0 ? "0" : formatter(stop.value);
       tick.append(label);
       ticks.append(tick);
     }
