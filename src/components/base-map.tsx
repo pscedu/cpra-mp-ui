@@ -213,6 +213,7 @@ export default function BaseMap<G extends Geography>({
   // Update the map style.
   useEffect(() => {
     (async () => {
+      setMapLoading(true);
       await ensureStyleLoaded();
       if (map.current) map.current.setStyle(styleUrl);
     })();
