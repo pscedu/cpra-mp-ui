@@ -7,15 +7,43 @@ import {
 import { toTitleCase } from "@/helpers/utils";
 
 import SidebarSelect from "@/components/sidebar-select";
-import { Calendar, Ruler } from "lucide-react";
+import { BookImage, Calendar, Ruler } from "lucide-react";
+
+const getMasterPlan = (dataset) =>
+  dataset.grid.name.endsWith("_v001") ? "2023 Master Plan" : "2029 Master Plan";
 
 export default function DatasetSelect() {
   const structure = useAtomValue(structureAtom);
   const datasets = useAtomValue(catalogQueriesAtom).datasets;
   const setRequestedDatasets = useSetAtom(setRequestedDatasetsAtom);
 
+  const masterPlan =
+    datasets?.length && datasets[0]
+      ? getMasterPlan(datasets[0])
+      : "2023 Master Plan";
+
+  const masterPlans = [
+    ...new Set(structure?.datasets.map(getMasterPlan)),
+  ].sort();
+
+  console.log(
+    structure?.datasets.map((dataset) => ({
+      dataset,
+      mp: getMasterPlan(dataset),
+    })),
+  );
+
+  const masterPlanOptions = masterPlans.map((value) => ({
+    label: value,
+    value,
+  }));
+
+  const masterPlanDatasets = structure?.datasets.filter(
+    (dataset) => getMasterPlan(dataset) === masterPlan,
+  );
+
   const timeUnits = [
-    ...new Set(structure?.datasets.map((dataset) => dataset.time_unit)),
+    ...new Set(masterPlanDatasets?.map((dataset) => dataset.time_unit)),
   ].sort();
 
   const timeUnit = (datasets?.length && datasets[0].time_unit) || "annual";
@@ -25,30 +53,52 @@ export default function DatasetSelect() {
     value,
   }));
 
-  const variableOptions = structure?.datasets
-    .filter((dataset) => dataset.time_unit === timeUnit)
+  const variableOptions = masterPlanDatasets
+    ?.filter((dataset) => dataset.time_unit === timeUnit)
     .map((dataset) => ({
       label: dataset.variable.label,
       value: dataset,
     }));
 
+  const setMasterPlan = (newMasterPlan) => {
+    const candidateDatasets = structure?.datasets.filter(
+      (dataset) => getMasterPlan(dataset) === newMasterPlan,
+    );
+    let newDatasets = candidateDatasets.filter((candidate) =>
+      datasets?.find(
+        (dataset) =>
+          dataset.variable === candidate.variable &&
+          dataset.time_unit === candidate.time_unit,
+      ),
+    );
+    if (newDatasets.length === 0) newDatasets = [candidateDatasets[0]];
+    setRequestedDatasets(newDatasets);
+  };
+
   const setTimeUnit = (newTimeUnit) => {
-    const canidateDatasets = structure?.datasets.filter(
+    const candidateDatasets = masterPlanDatasets?.filter(
       (dataset) => dataset.time_unit === newTimeUnit,
     );
-    let newDatasets = canidateDatasets.filter((candidate) =>
+    let newDatasets = candidateDatasets.filter((candidate) =>
       datasets?.find(
         (dataset) =>
           dataset.variable === candidate.variable &&
           dataset.grid === candidate.grid,
       ),
     );
-    if (newDatasets.length === 0) newDatasets = [canidateDatasets[0]];
+    if (newDatasets.length === 0) newDatasets = [candidateDatasets[0]];
     setRequestedDatasets(newDatasets);
   };
 
   return (
     <>
+      <SidebarSelect
+        icon={BookImage}
+        label="Master Plan"
+        onChange={setMasterPlan}
+        options={masterPlanOptions}
+        value={masterPlan}
+      />
       <SidebarSelect
         icon={Calendar}
         label="Time Unit"
