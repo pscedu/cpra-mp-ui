@@ -26,13 +26,6 @@ export default function DatasetSelect() {
     ...new Set(structure?.datasets.map(getMasterPlan)),
   ].sort();
 
-  console.log(
-    structure?.datasets.map((dataset) => ({
-      dataset,
-      mp: getMasterPlan(dataset),
-    })),
-  );
-
   const masterPlanOptions = masterPlans.map((value) => ({
     label: value,
     value,
