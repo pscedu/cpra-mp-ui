@@ -1,4 +1,4 @@
-import DimensionIcon from "./dimension-icon";
+import { getDimensionIcon } from "../helpers/icon";
 import { useAtomValue } from "jotai";
 import { tagOptionsAtom } from "@/helpers/state";
 
@@ -27,6 +27,7 @@ export default function TagToken({
     ?.label.split(": ")[1];
 
   const Tag = onClick ? "button" : "span";
+  const Icon = getDimensionIcon(category);
 
   return (
     <Tag
@@ -35,7 +36,7 @@ export default function TagToken({
       onClick={onClick}
     >
       <span className="flex gap-2 items-center whitespace-nowrap overflow-hidden flex-nowrap">
-        <DimensionIcon name={category} size={16} />
+        <Icon size={16} />
         {valueLabel || toTitleCase(value || category)}
       </span>
     </Tag>

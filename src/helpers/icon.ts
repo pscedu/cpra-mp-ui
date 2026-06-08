@@ -1,0 +1,61 @@
+import {
+  ArrowsUpFromLine,
+  Blocks,
+  Bubbles,
+  Building,
+  Calculator,
+  Calendar,
+  CalendarSync,
+  CloudLightning,
+  CloudSun,
+  FolderInput,
+  Grid3x3,
+  House,
+  Leaf,
+  Percent,
+  PersonStanding,
+  Route,
+  Ruler,
+  Snail,
+  SoapDispenserDroplet,
+  Sprout,
+  Tag,
+  Trees,
+  Truck,
+  Users,
+  WindArrowDown,
+} from "lucide-react";
+
+const dimensionIcons = {
+  variable: Ruler,
+  grid: Grid3x3,
+  time_unit: Calendar,
+  model_group_id: FolderInput,
+  scenario_id: CloudSun,
+  aggregate_type: Calculator,
+  aep: CalendarSync,
+  storm_id: CloudLightning,
+  pumping_id: SoapDispenserDroplet,
+  fragility_scenario: ArrowsUpFromLine,
+  population_variant: Users,
+  clara_variant: Bubbles,
+  asset_type: House,
+  infrastructure_category: Building,
+  exposure_type: WindArrowDown,
+  ns_project_id: Blocks,
+  participation_rate: PersonStanding,
+  migration: Truck,
+  ssp: Route,
+  habitat_code: Snail,
+  vegetation_coverage_type: Sprout,
+  veg_species_code: Leaf,
+  ffibs_type: Trees,
+  percentile: Percent,
+  default: Tag,
+};
+
+export function getDimensionIcon(name: string) {
+  return name in dimensionIcons
+    ? dimensionIcons[name as keyof typeof dimensionIcons]
+    : dimensionIcons.default;
+}

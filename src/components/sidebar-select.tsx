@@ -10,6 +10,7 @@ export default function SidebarSelect({
   label,
   onChange,
   options,
+  showSelectionMode = true,
   supportsSubtract = false,
   value: explicitValue,
   ...rest
@@ -58,7 +59,7 @@ export default function SidebarSelect({
         }
         {...rest}
       />
-      {supportsMulti && (
+      {showSelectionMode && supportsMulti && (
         <SelectionModeDropdown
           className="ml-2"
           dimensionLabel={label}
