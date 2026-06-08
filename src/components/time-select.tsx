@@ -87,7 +87,7 @@ export default function TimeSelect({
                       if (choices.includes(newValue)) {
                         const newSelected = [...selected];
                         newSelected[idx] = newValue;
-                        setSelected(newSelected);
+                        setSelectedWithDebounce(newSelected);
                       }
                     }}
                   />
