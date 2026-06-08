@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.0](https://github.com/pscedu/cpra-mp-ui/compare/v0.2.0...v0.3.0) (2026-06-08)
+
+
+### Features
+
+* **dimension-select:** allow manual choices ([8abfae0](https://github.com/pscedu/cpra-mp-ui/commit/8abfae05b1b64ca810a50412bdb78ceb51f29e80))
+
+
+### Bug Fixes
+
+* **base-map:** set map loading when style URL changes ([7541bd0](https://github.com/pscedu/cpra-mp-ui/commit/7541bd0158b85b978abddc71f3d1055905e32388))
+* **time-select:** update filters after year input change ([0f502e8](https://github.com/pscedu/cpra-mp-ui/commit/0f502e80ac5817c8f6a5f4d6333abcf0603d097f))
+
 ## [0.2.0](https://github.com/pscedu/cpra-mp-ui/compare/v0.1.0...v0.2.0) (2026-06-04)
 
 
