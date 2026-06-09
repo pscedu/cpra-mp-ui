@@ -8,5 +8,5 @@ export default function DimensionsSelect() {
 
   return catalogQueries.activeDimensions
     .filter((dim) => dim.filterType === "select")
-    .map((dimension) => <DimensionSelect name={dimension.name} />);
+    .map((dimension) => <DimensionSelect key={dimension.name} name={dimension.name} />);
 }
