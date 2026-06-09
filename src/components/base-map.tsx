@@ -190,7 +190,7 @@ export default function BaseMap<G extends Geography>({
         map.current = null;
       }
     };
-  }, [container.current]);
+  }, []);
 
   // Update the map position.
   useEffect(() => {
