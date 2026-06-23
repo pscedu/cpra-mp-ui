@@ -1,5 +1,4 @@
-import { hashAtoms } from "@/helpers/hash";
-import { useHydrateAtoms } from "jotai/utils";
+import { useHydrateHashAtoms } from "@/helpers/hash";
 import { ReactNode } from "react";
 
 import { ScopeProvider } from "jotai-scope";
@@ -20,6 +19,7 @@ import {
   setExecutedCatalogQueriesAtom,
   setRequestedDatasetsAtom,
   startDateAtom,
+  useHydrateCatalogQueries,
   visualizationAtom,
   visualizationTypeAtom,
 } from "@/helpers/state";
@@ -27,10 +27,8 @@ import DataProviderEffects from "@/components/data-provider-effects";
 
 export function ScopeHydrate({ children, ...props }: { children: ReactNode }) {
   const params = new URLSearchParams(props);
-  const initialValues = hashAtoms.flatMap((config) =>
-    config.fromHash ? [[config.atom, config.fromHash(params)]] : [],
-  );
-  useHydrateAtoms(initialValues);
+  useHydrateHashAtoms(params);
+  useHydrateCatalogQueries();
   return children;
 }
 

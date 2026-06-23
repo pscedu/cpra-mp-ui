@@ -1,4 +1,5 @@
 import { atom, Getter, WritableAtom } from "jotai";
+import { useHydrateAtoms } from "jotai/utils";
 import { camelToSnake } from "./utils";
 import { atomEffect } from "jotai-effect";
 
@@ -26,6 +27,20 @@ type HashAtomConfig<T> = {
 };
 
 export const hashAtoms: HashAtomConfig<any>[] = [];
+
+// Tuple shape expected by jotai's useHydrateAtoms; annotating
+// hashAtoms.flatMap's return type with this gives the array literals below a
+// contextual tuple type, instead of widening to any[][].
+type HashAtomTuple = readonly [WritableAtom<any, [any], void>, any];
+
+// Hydrates every hash-backed atom with its initial value from `params`,
+// scoped to whichever jotai store is active in the calling component's tree.
+export const useHydrateHashAtoms = (params: URLSearchParams) => {
+  const initialValues = hashAtoms.flatMap((config): HashAtomTuple[] =>
+    config.fromHash ? [[config.atom, config.fromHash(params)]] : [],
+  );
+  useHydrateAtoms(initialValues);
+};
 
 type SimpleHashAtomOptions<T> = {
   key: string;

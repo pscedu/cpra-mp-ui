@@ -1,11 +1,11 @@
 import {
   fromHashEffect,
   getHashParams,
-  hashAtoms,
   updateHashEffect,
+  useHydrateHashAtoms,
 } from "@/helpers/hash";
+import { useHydrateCatalogQueries } from "@/helpers/state";
 import { useAtom } from "jotai";
-import { useHydrateAtoms } from "jotai/utils";
 import { ReactNode } from "react";
 import DataProviderEffects from "@/components/data-provider-effects";
 
@@ -18,10 +18,7 @@ export default function HashDataProvider({
 }) {
   useAtom(fromHashEffect);
   useAtom(updateHashEffect);
-
-  const initialValues = hashAtoms.flatMap((config) =>
-    config.fromHash ? [[config.atom, config.fromHash(initialHashParams)]] : [],
-  );
-  useHydrateAtoms(initialValues);
+  useHydrateHashAtoms(initialHashParams);
+  useHydrateCatalogQueries();
   return <DataProviderEffects>{children}</DataProviderEffects>;
 }

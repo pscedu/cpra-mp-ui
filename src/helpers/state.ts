@@ -1,5 +1,11 @@
 import { atom, WritableAtom, createStore } from "jotai";
-import { atomWithRefresh, atomWithReset, atomWithStorage } from "jotai/utils";
+import {
+  atomWithRefresh,
+  atomWithReset,
+  atomWithStorage,
+  useHydrateAtoms,
+} from "jotai/utils";
+import { useRef } from "react";
 import { atomEffect, observe } from "jotai-effect";
 import { jwtDecode } from "jwt-decode";
 import { CommentNode, exportTask, importTask } from "./clickup";
@@ -74,9 +80,9 @@ export const initialCatalogQueriesAtom = atom<CatalogQueriesResolver | null>(
 export const catalogQueriesAtom = hashAtom<
   CatalogQueries | Promise<CatalogQueries>
 >(
-  new Promise<CatalogQueries>((resolve) => {
-    store.set(initialCatalogQueriesAtom, { resolve: resolve });
-  }),
+  // Placeholder only; each provider (ScopeHydrate/HashDataProvider) hydrates
+  // its own scoped promise/resolver pair before this is ever read.
+  new Promise<CatalogQueries>(() => {}),
   {
     updateHash: (
       params: URLSearchParams,
@@ -95,6 +101,30 @@ export const catalogQueriesAtom = hashAtom<
     },
   },
 );
+
+// Hydrates this component tree's own pending catalog-queries promise and
+// resolver, scoped to whichever jotai store is active in its tree, rather
+// than sharing the module-level placeholder above across all instances.
+export const useHydrateCatalogQueries = () => {
+  const pendingRef = useRef<
+    | { promise: Promise<CatalogQueries>; resolve: (cqs: CatalogQueries) => void }
+    | undefined
+  >(undefined);
+  if (!pendingRef.current) {
+    let resolve!: (cqs: CatalogQueries) => void;
+    const promise = new Promise<CatalogQueries>((res) => (resolve = res));
+    pendingRef.current = { promise, resolve };
+  }
+
+  useHydrateAtoms(
+    new Map<typeof catalogQueriesAtom | typeof initialCatalogQueriesAtom, unknown>(
+      [
+        [catalogQueriesAtom, pendingRef.current.promise],
+        [initialCatalogQueriesAtom, { resolve: pendingRef.current.resolve }],
+      ],
+    ),
+  );
+};
 
 export const analysisAtom = hashAtom<Analysis>(
   {
