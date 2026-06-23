@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.1](https://github.com/pscedu/cpra-mp-ui/compare/v0.3.0...v0.3.1) (2026-06-23)
+
+
+### Bug Fixes
+
+* **base-map:** fix reload when filters first change ([6ff2cc6](https://github.com/pscedu/cpra-mp-ui/commit/6ff2cc6282683b2d4a85eb61e660613a6e3ee4a3))
+* **dimensions-select:** add missing key prop ([6c2ca5f](https://github.com/pscedu/cpra-mp-ui/commit/6c2ca5f86952b108ffed9cb6c3dfdbe7d7e4345f))
+* **state:** hydrate catalog queries in providers ([d5bc774](https://github.com/pscedu/cpra-mp-ui/commit/d5bc77466676b31c1c86b048a8a2d2b4c193fac8))
+
 ## [0.3.0](https://github.com/pscedu/cpra-mp-ui/compare/v0.2.0...v0.3.0) (2026-06-08)
 
 
