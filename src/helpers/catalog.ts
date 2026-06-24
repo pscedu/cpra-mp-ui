@@ -181,17 +181,27 @@ export class CatalogQuery {
     );
   }
 
-  getMapStyleUrl({ analysis, mapOptions }) {
+  getMapStyleUrl({
+    analysis,
+    mapOptions,
+    extraParams = [],
+  }: {
+    analysis: Analysis;
+    mapOptions: Record<string, any>;
+    extraParams?: [string, any][];
+  }) {
     return this.structure.visualizationsMap["map"].getSpecUrl(
       this,
       {
         analysis,
         includeTimeDimension: true,
       },
-      Object.keys(mapOptions).map((key) => [
-        camelToSnake(key),
-        mapOptions[key],
-      ]),
+      [
+        ...Object.keys(mapOptions).map(
+          (key): [string, any] => [camelToSnake(key), mapOptions[key]],
+        ),
+        ...extraParams,
+      ],
     );
   }
 

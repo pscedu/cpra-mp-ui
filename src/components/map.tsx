@@ -14,7 +14,13 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import BaseMap from "@/components/base-map";
 
 // Map using MapLibre GL.
-export default function Map({ className = "" }: { className?: string }) {
+export default function Map({
+  className = "",
+  styleParams = [],
+}: {
+  className?: string;
+  styleParams?: [string, any][];
+}) {
   const maxSelectedGeographies = useAtomValue(maxSelectedGeographiesAtom);
   const analysis = useAtomValue(analysisAtom);
   const mapCatalogQuery = useAtomValue(catalogQueriesAtom).getMapCatalogQuery();
@@ -28,6 +34,7 @@ export default function Map({ className = "" }: { className?: string }) {
   const styleUrl = mapCatalogQuery.getMapStyleUrl({
     analysis,
     mapOptions,
+    extraParams: styleParams,
   });
   const gridLabel = mapCatalogQuery.dataset.grid.label.toLowerCase();
   const [z, y, x] = mapPosition;
