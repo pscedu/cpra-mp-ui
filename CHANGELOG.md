@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/pscedu/cpra-mp-ui/compare/v0.3.1...v0.4.0) (2026-06-24)
+
+
+### Features
+
+* **map:** add style params property ([846d8a9](https://github.com/pscedu/cpra-mp-ui/commit/846d8a9e6eec11e49fd68bc58f311ce0cc322d4c))
+
 ## [0.3.1](https://github.com/pscedu/cpra-mp-ui/compare/v0.3.0...v0.3.1) (2026-06-23)
 
 
