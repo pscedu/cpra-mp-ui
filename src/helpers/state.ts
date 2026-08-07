@@ -37,7 +37,7 @@ export const defaultDatasets = [
   {
     variable: "sal",
     grid: "hydro_compartment_v001",
-    time_unit: "annual",
+    time_unit: "daily",
   },
 ];
 export const requestedDatasetsAtom = hashAtom<DatasetRequest[]>(
@@ -107,7 +107,10 @@ export const catalogQueriesAtom = hashAtom<
 // than sharing the module-level placeholder above across all instances.
 export const useHydrateCatalogQueries = () => {
   const pendingRef = useRef<
-    | { promise: Promise<CatalogQueries>; resolve: (cqs: CatalogQueries) => void }
+    | {
+        promise: Promise<CatalogQueries>;
+        resolve: (cqs: CatalogQueries) => void;
+      }
     | undefined
   >(undefined);
   if (!pendingRef.current) {
@@ -117,12 +120,13 @@ export const useHydrateCatalogQueries = () => {
   }
 
   useHydrateAtoms(
-    new Map<typeof catalogQueriesAtom | typeof initialCatalogQueriesAtom, unknown>(
-      [
-        [catalogQueriesAtom, pendingRef.current.promise],
-        [initialCatalogQueriesAtom, { resolve: pendingRef.current.resolve }],
-      ],
-    ),
+    new Map<
+      typeof catalogQueriesAtom | typeof initialCatalogQueriesAtom,
+      unknown
+    >([
+      [catalogQueriesAtom, pendingRef.current.promise],
+      [initialCatalogQueriesAtom, { resolve: pendingRef.current.resolve }],
+    ]),
   );
 };
 
