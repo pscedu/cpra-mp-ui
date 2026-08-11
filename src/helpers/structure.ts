@@ -1,6 +1,7 @@
 import { CatalogQuery } from "./catalog";
 import { dataBaseUrl, staticTilesBaseUrl } from "./config";
 import { QueryOptions } from "./query";
+import { Geography } from "./types";
 import {
   getJson,
   getNdJson,
@@ -143,6 +144,22 @@ export class Grid {
 
   isRaster() {
     return this.grid_type === "raster";
+  }
+
+  // Converts a geography selection made on this grid into the equivalent
+  // selection on another grid, returning an empty array when no conversion is
+  // possible. May return a promise, since some conversions require a remote
+  // lookup; callers must handle both.
+  convertSelection(
+    toGrid: Grid,
+    geographies: Geography[],
+  ): Geography[] | Promise<Geography[]> {
+    if (toGrid.name === this.name) return geographies;
+    // Raster grids are selected by coordinate pair rather than by cell ID, so
+    // a selection made on one raster grid carries over to any other.
+    if (this.isRaster() && toGrid.isRaster()) return geographies;
+    // Raster/vector conversions are not supported yet.
+    return [];
   }
 
   isVector() {

@@ -164,9 +164,30 @@ export const setRequestedDatasetsAtom = atom(
     // Update dataset requests.
     set(requestedDatasetsAtom, newRequests);
 
-    // Reset selected geographies when the grid changes.
-    if (updateGeographies && prevRequests[0].grid !== newRequests[0].grid)
-      set(selectedGeographiesAtom, []);
+    // Convert (or reset) selected geographies when the grid changes.
+    if (updateGeographies && prevRequests[0].grid !== newRequests[0].grid) {
+      // Datasets carry a reference back to the structure they came from, so
+      // the previous grid can be looked up by name without awaiting
+      // structureAtom.
+      const prevGrid =
+        datasets[0]?.variable.structure.gridsMap[prevRequests[0].grid];
+      const newGrid = datasets[0]?.grid;
+      const converted =
+        prevGrid && newGrid
+          ? prevGrid.convertSelection(newGrid, get(selectedGeographiesAtom))
+          : [];
+
+      if (Array.isArray(converted)) set(selectedGeographiesAtom, converted);
+      else {
+        // Clear the selection while an asynchronous conversion is in flight,
+        // then apply it unless a later grid change has superseded it.
+        set(selectedGeographiesAtom, []);
+        converted.then((geographies) => {
+          if (get(requestedDatasetsAtom)[0]?.grid === newGrid.name)
+            set(selectedGeographiesAtom, geographies);
+        });
+      }
+    }
 
     // Reset analysis when the variable changes.
     if (
