@@ -1,7 +1,7 @@
 import { dataBaseUrl } from "./config";
 import { QueryOptions } from "./query";
 import { Dataset, Dimension, Structure } from "./structure";
-import { Analysis } from "./types";
+import { Analysis, Geography } from "./types";
 import {
   camelToSnake,
   extractCatalogObject,
@@ -166,7 +166,7 @@ export class CatalogQuery {
   }: {
     analysis: Analysis;
     format: string;
-    geographies?: number[] | number[][] | null;
+    geographies?: Geography[] | null;
     includeTimeDimension?: boolean;
     unpivot?: boolean;
   }) {

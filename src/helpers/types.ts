@@ -9,7 +9,14 @@ export type DatasetRequest = {
   time_unit: string;
 };
 
-export type Geography = number | [number, number];
+export type Coordinate = [number, number];
+
+// A vector grid cell ID. Only ever produced by decoding a URL hash saved before
+// selections became coordinate-based; selections made in the UI are always
+// coordinates.
+export type LegacyCellId = number;
+
+export type Geography = Coordinate | LegacyCellId;
 
 export type Tag = {
   name: string;

@@ -1,6 +1,8 @@
+import { Geography } from "./types";
+
 export type QueryOptions = {
   analysis?: { operation: string; dimension: string | null } | null;
-  geographies?: number[] | number[][] | null;
+  geographies?: Geography[] | null;
   includeTimeDimension?: boolean | null;
   maxGeographies?: number | null;
   maxValues?: number | null;

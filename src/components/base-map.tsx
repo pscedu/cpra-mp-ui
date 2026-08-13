@@ -6,19 +6,22 @@ import {
   LngLatLike,
   LngLat,
   MapMouseEvent,
+  PointLike,
   RasterTileSource,
 } from "maplibre-gl";
-import { getSelectionColor, sleep } from "@/helpers/utils";
-import { Geography } from "@/helpers/types";
-import { GeographySelection } from "@/helpers/selection";
+import { getSelectionColor, roundCoordinate, sleep } from "@/helpers/utils";
+import { Coordinate, Geography } from "@/helpers/types";
+import { GeographySelection, isCoordinate } from "@/helpers/selection";
 import { CPRAMapLegendControl } from "@/plugins/map-legend";
 
 import "@/plugins/map-legend.css";
 
-import BaseMapContextMenu from "@/components/base-map-context-menu";
+import BaseMapContextMenu, {
+  ContextMenuTarget,
+} from "@/components/base-map-context-menu";
 
 // Map using MapLibre GL.
-export default function BaseMap<G extends Geography>({
+export default function BaseMap({
   center = [-91.5, 29.75],
   className = "",
   gridLabel = "area",
@@ -34,10 +37,10 @@ export default function BaseMap<G extends Geography>({
   className?: string;
   gridLabel?: string;
   maxSelectedGeographies?: number;
-  selectedGeographies?: G[];
+  selectedGeographies?: Geography[];
   setMapLoading?: (loading: boolean) => void;
   setMapPosition?: (position: [number, number, number]) => void;
-  setSelectedGeographies?: (geographies: G[]) => void;
+  setSelectedGeographies?: (geographies: Geography[]) => void;
   styleUrl: string;
   zoom?: number;
 }) {
@@ -46,12 +49,15 @@ export default function BaseMap<G extends Geography>({
   const markers: Ref<Marker[]> = useRef([]);
   const contextMenuTriggerRef = useRef<HTMLDivElement>(null);
 
-  const [contextMenuGeography, setContextMenuGeography] = useState<G | null>(
-    null,
-  );
+  // The colors last published to the map style, so that recomputing them on
+  // every idle frame does not repaint the map when nothing has changed.
+  const publishedColors = useRef<string | null>(null);
+
+  const [contextMenuTarget, setContextMenuTarget] =
+    useState<ContextMenuTarget | null>(null);
 
   const selection = new GeographySelection(selectedGeographies);
-  const setSelection = (newSelection: GeographySelection<G>) =>
+  const setSelection = (newSelection: GeographySelection) =>
     setSelectedGeographies(newSelection.geographies);
 
   const selectionRef = useRef(selection);
@@ -64,31 +70,41 @@ export default function BaseMap<G extends Geography>({
     count: maxSelectedGeographies || 10,
   };
 
-  const getGeography = (e: MapMouseEvent) => {
-    const source = map.current?.getSource("data");
-    if (!source) return;
-    if (source.type === "raster") {
-      const { lngLat } = e;
-      const { lng, lat } = lngLat;
+  const isRasterGrid = () => map.current?.getSource("data")?.type === "raster";
 
-      const bounds = new LngLatBounds((source as RasterTileSource).bounds);
-      if (bounds.isEmpty()) return;
-
-      if (bounds.contains(lngLat))
-        return [lng.toFixed(5), lat.toFixed(5)] as unknown as G;
-    } else {
-      const features =
-        map.current?.queryRenderedFeatures(e.point, {
-          layers: ["fill", "line", "selected", "label"].map(
-            (suffix) => `data-layer-${suffix}`,
-          ),
-        }) || [];
-      if (features.length) return features[0].id as G;
-    }
+  // Find the vector grid cell rendered at a point on the screen, if any. Only
+  // meaningful on vector grids, which are the only ones with these layers.
+  const getCellId = (point: PointLike) => {
+    // Cells are looked up while the style is in flux, so only the layers the
+    // style currently has are queried.
+    const layers = ["fill", "line", "selected", "label"]
+      .map((suffix) => `data-layer-${suffix}`)
+      .filter((id) => map.current?.getLayer(id));
+    if (!layers.length) return;
+    const features =
+      map.current?.queryRenderedFeatures(point, { layers }) || [];
+    return features.length ? (features[0].id as number) : undefined;
   };
 
-  const openContextMenu = (geo: G, e: MouseEvent | MapMouseEvent) => {
-    setContextMenuGeography(geo);
+  // Get the coordinate for a map event, if it lands somewhere selectable. Both
+  // grid types are selected by coordinate; the grid type only determines how a
+  // click is tested against the data.
+  const getCoordinate = (e: MapMouseEvent): Coordinate | undefined => {
+    const source = map.current?.getSource("data");
+    if (!source) return;
+    const { lngLat } = e;
+    if (source.type === "raster") {
+      const bounds = new LngLatBounds((source as RasterTileSource).bounds);
+      if (bounds.isEmpty() || !bounds.contains(lngLat)) return;
+    } else if (getCellId(e.point) === undefined) return;
+    return roundCoordinate([lngLat.lng, lngLat.lat]);
+  };
+
+  const openContextMenu = (
+    target: ContextMenuTarget,
+    e: MouseEvent | MapMouseEvent,
+  ) => {
+    setContextMenuTarget(target);
     const event = "originalEvent" in e ? e.originalEvent : e;
     contextMenuTriggerRef.current?.dispatchEvent(
       new MouseEvent("contextmenu", {
@@ -110,19 +126,23 @@ export default function BaseMap<G extends Geography>({
     glMap.addControl(new CPRAMapLegendControl());
 
     glMap.on("click", (e) => {
-      const geo = getGeography(e);
-      if (geo) setSelection(selectionRef.current.toggle(geo));
+      const coordinate = getCoordinate(e);
+      if (coordinate) setSelection(selectionRef.current.add(coordinate));
     });
     glMap.on("contextmenu", (e) => {
-      const geo = getGeography(e);
-      if (geo) openContextMenu(geo, e);
+      const coordinate = getCoordinate(e);
+      if (coordinate) openContextMenu({ coordinate, index: -1 }, e);
     });
     glMap.on("mousemove", (e) => {
-      const geo = getGeography(e);
-      glMap.getCanvas().style.cursor = geo ? "pointer" : "";
+      glMap.getCanvas().style.cursor = getCoordinate(e) ? "pointer" : "";
     });
     glMap.on("data", () => setMapLoading(true));
-    glMap.on("idle", () => setMapLoading(false));
+    glMap.on("idle", () => {
+      setMapLoading(false);
+      // Cells are resolved from the tiles currently rendered, so the colors are
+      // recomputed once panning or zooming has brought new ones into view.
+      updateSelectionColors();
+    });
     glMap.on("moveend", () => {
       const { lng, lat } = glMap.getCenter();
       const zoom = glMap.getZoom();
@@ -139,42 +159,50 @@ export default function BaseMap<G extends Geography>({
   const updateMarkers = () => {
     const sel = selectionRef.current;
     markers.current?.forEach((marker) => marker.remove());
-    markers.current = sel.geographies
-      .filter((geo) => Array.isArray(geo))
-      .map((geo, i) => {
-        const marker = new Marker({
-          color: getSelectionColor(i, selectionColorOptions),
-          draggable: true,
-        })
-          .setLngLat(geo as [number, number])
-          .addTo(map.current as GLMap);
-        marker.on("dragend", () => {
-          const { lng, lat } = marker.getLngLat();
-          setSelection(sel.replace(i, [lng, lat] as G));
-        });
-        marker.getElement().addEventListener("click", (e) => {
-          e.stopPropagation();
-          setSelection(sel.toggle(geo));
-        });
-        marker
-          .getElement()
-          .addEventListener("contextmenu", (e) => openContextMenu(geo, e));
-        return marker;
+    // Legacy cell IDs have no coordinate to place a pin at, so they are skipped
+    // while keeping the colors tied to each geography's place in the selection.
+    markers.current = sel.geographies.flatMap((geo, i) => {
+      if (!isCoordinate(geo)) return [];
+      const marker = new Marker({
+        color: getSelectionColor(i, selectionColorOptions),
+        draggable: true,
+      })
+        .setLngLat(geo)
+        .addTo(map.current as GLMap);
+      marker.on("dragend", () => {
+        const { lng, lat } = marker.getLngLat();
+        setSelection(sel.replace(i, roundCoordinate([lng, lat])));
       });
+      marker.getElement().addEventListener("click", (e) => {
+        e.stopPropagation();
+        setSelection(sel.remove(i));
+      });
+      marker
+        .getElement()
+        .addEventListener("contextmenu", (e) =>
+          openContextMenu({ coordinate: geo, index: i }, e),
+        );
+      return [marker];
+    });
   };
 
+  // Publish the color of each selected grid cell for the map style to draw its
+  // outline with. Vector grids are selected by coordinate just like raster
+  // grids, so the cell under each pin has to be looked up; where several pins
+  // share a cell, the first of them gives the cell its color.
   const updateSelectionColors = () => {
+    const glMap = map.current;
+    if (!glMap || isRasterGrid()) return;
     const selectionColors: Record<number, string> = {};
-    selectionRef.current.geographies
-      .filter((geo) => !Array.isArray(geo))
-      .forEach(
-        (geo, i) =>
-          (selectionColors[geo as number] = getSelectionColor(
-            i,
-            selectionColorOptions,
-          )),
-      );
-    map.current?.setGlobalStateProperty("selectionColors", selectionColors);
+    selectionRef.current.geographies.forEach((geo, i) => {
+      const cellId = isCoordinate(geo) ? getCellId(glMap.project(geo)) : geo;
+      if (cellId === undefined || cellId in selectionColors) return;
+      selectionColors[cellId] = getSelectionColor(i, selectionColorOptions);
+    });
+    const serialized = JSON.stringify(selectionColors);
+    if (serialized === publishedColors.current) return;
+    publishedColors.current = serialized;
+    glMap.setGlobalStateProperty("selectionColors", selectionColors);
   };
 
   const ensureStyleLoaded = async () => {
@@ -215,6 +243,9 @@ export default function BaseMap<G extends Geography>({
     (async () => {
       setMapLoading(true);
       await ensureStyleLoaded();
+      // A new style starts with empty global state, so the colors have to be
+      // published to it again.
+      publishedColors.current = null;
       if (map.current) map.current.setStyle(styleUrl);
     })();
   }, [styleUrl]);
@@ -261,12 +292,12 @@ export default function BaseMap<G extends Geography>({
   return (
     <BaseMapContextMenu
       className={className}
-      geography={contextMenuGeography}
       gridLabel={gridLabel}
       maxSelectedGeographies={maxSelectedGeographies}
       selection={selection}
-      setGeography={setContextMenuGeography}
       setSelection={setSelection}
+      setTarget={setContextMenuTarget}
+      target={contextMenuTarget}
       triggerRef={contextMenuTriggerRef}
     >
       <div className={className} ref={container} />

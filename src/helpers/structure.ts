@@ -1,6 +1,7 @@
 import { CatalogQuery } from "./catalog";
 import { dataBaseUrl, staticTilesBaseUrl } from "./config";
 import { QueryOptions } from "./query";
+import { formatGeography } from "./selection";
 import { Geography } from "./types";
 import {
   getJson,
@@ -144,22 +145,6 @@ export class Grid {
 
   isRaster() {
     return this.grid_type === "raster";
-  }
-
-  // Converts a geography selection made on this grid into the equivalent
-  // selection on another grid, returning an empty array when no conversion is
-  // possible. May return a promise, since some conversions require a remote
-  // lookup; callers must handle both.
-  convertSelection(
-    toGrid: Grid,
-    geographies: Geography[],
-  ): Geography[] | Promise<Geography[]> {
-    if (toGrid.name === this.name) return geographies;
-    // Raster grids are selected by coordinate pair rather than by cell ID, so
-    // a selection made on one raster grid carries over to any other.
-    if (this.isRaster() && toGrid.isRaster()) return geographies;
-    // Raster/vector conversions are not supported yet.
-    return [];
   }
 
   isVector() {
@@ -386,7 +371,7 @@ export class Structure {
     });
   }
 
-  getDataLabel(catalogQuery: CatalogQuery, selectedGeographies?: number[]) {
+  getDataLabel(catalogQuery: CatalogQuery, selectedGeographies?: Geography[]) {
     const { dataset, response } = catalogQuery;
     const { results } = response;
     const title: string[] = [toTitleCase(dataset.time_unit)];
@@ -405,7 +390,9 @@ export class Structure {
     }
     title.push(dataset.variable.label);
     if (selectedGeographies && selectedGeographies.length > 0)
-      subtitle.push(`${dataset.grid.label} ${selectedGeographies.join(", ")}`);
+      subtitle.push(
+        `${dataset.grid.label} ${selectedGeographies.map(formatGeography).join(", ")}`,
+      );
     return `${title.join(" ")}: ${subtitle.join(", ")}`;
   }
 }
