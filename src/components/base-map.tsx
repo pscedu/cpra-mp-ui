@@ -11,7 +11,9 @@ import {
 } from "maplibre-gl";
 import { getSelectionColor, roundCoordinate, sleep } from "@/helpers/utils";
 import { Coordinate, Geography } from "@/helpers/types";
+import { resolveGeographyIds } from "@/helpers/geography";
 import { GeographySelection, isCoordinate } from "@/helpers/selection";
+import { Grid } from "@/helpers/structure";
 import { CPRAMapLegendControl } from "@/plugins/map-legend";
 
 import "@/plugins/map-legend.css";
@@ -24,6 +26,7 @@ import BaseMapContextMenu, {
 export default function BaseMap({
   center = [-91.5, 29.75],
   className = "",
+  grid,
   gridLabel = "area",
   maxSelectedGeographies = 10,
   selectedGeographies = [],
@@ -35,6 +38,9 @@ export default function BaseMap({
 }: {
   center?: LngLatLike;
   className?: string;
+  // The grid the style draws. Selected cells are outlined only when it is given,
+  // since it is what says which grid a selection coordinate is to be resolved on.
+  grid?: Grid;
   gridLabel?: string;
   maxSelectedGeographies?: number;
   selectedGeographies?: Geography[];
@@ -49,10 +55,6 @@ export default function BaseMap({
   const markers: Ref<Marker[]> = useRef([]);
   const contextMenuTriggerRef = useRef<HTMLDivElement>(null);
 
-  // The colors last published to the map style, so that recomputing them on
-  // every idle frame does not repaint the map when nothing has changed.
-  const publishedColors = useRef<string | null>(null);
-
   const [contextMenuTarget, setContextMenuTarget] =
     useState<ContextMenuTarget | null>(null);
 
@@ -61,19 +63,27 @@ export default function BaseMap({
     setSelectedGeographies(newSelection.geographies);
 
   const selectionRef = useRef(selection);
+  // Read by the map's own event handlers, which are registered once and would
+  // otherwise keep looking a selection up on whichever grid was current when the
+  // map was created.
+  const gridRef = useRef(grid);
 
   useEffect(() => {
     selectionRef.current = new GeographySelection(selectedGeographies);
   }, [selectedGeographies]);
 
+  useEffect(() => {
+    gridRef.current = grid;
+  }, [grid]);
+
   const selectionColorOptions = {
     count: maxSelectedGeographies || 10,
   };
 
-  const isRasterGrid = () => map.current?.getSource("data")?.type === "raster";
-
   // Find the vector grid cell rendered at a point on the screen, if any. Only
-  // meaningful on vector grids, which are the only ones with these layers.
+  // meaningful on vector grids, which are the only ones with these layers, and
+  // only for testing where an interaction landed — a pointer is always over
+  // tiles that have been drawn, which a selected geography need not be.
   const getCellId = (point: PointLike) => {
     // Cells are looked up while the style is in flux, so only the layers the
     // style currently has are queried.
@@ -137,12 +147,7 @@ export default function BaseMap({
       glMap.getCanvas().style.cursor = getCoordinate(e) ? "pointer" : "";
     });
     glMap.on("data", () => setMapLoading(true));
-    glMap.on("idle", () => {
-      setMapLoading(false);
-      // Cells are resolved from the tiles currently rendered, so the colors are
-      // recomputed once panning or zooming has brought new ones into view.
-      updateSelectionColors();
-    });
+    glMap.on("idle", () => setMapLoading(false));
     glMap.on("moveend", () => {
       const { lng, lat } = glMap.getCenter();
       const zoom = glMap.getZoom();
@@ -152,6 +157,12 @@ export default function BaseMap({
       updateMarkers();
       updateSelectionColors();
     });
+    // Publishing again once a style is in place, since loading one resets the
+    // global state the selection colors live in. A style that differs from the
+    // one before it only in the colors baked into that state — which is every
+    // style a vector grid draws, whose tiles don't change with the data — is
+    // applied without any `styledata` of its own to publish on.
+    glMap.on("style.load", () => updateSelectionColors());
     glMap.dragRotate.disable();
     map.current = glMap;
   };
@@ -190,18 +201,40 @@ export default function BaseMap({
   // outline with. Vector grids are selected by coordinate just like raster
   // grids, so the cell under each pin has to be looked up; where several pins
   // share a cell, the first of them gives the cell its color.
-  const updateSelectionColors = () => {
+  //
+  // The lookup is the API's, not the rendered tiles': a selection restored with
+  // the map, or one made somewhere the map has since been panned away from, has
+  // no drawn feature to ask, and the cells it names would otherwise go
+  // unmarked.
+  const updateSelectionColors = async () => {
     const glMap = map.current;
-    if (!glMap || isRasterGrid()) return;
+    const selectionGrid = gridRef.current;
+    if (!glMap || !selectionGrid?.isVector()) return;
+    const { geographies } = selectionRef.current;
+    const cellIds = await resolveGeographyIds(selectionGrid, geographies);
+    // The selection can be edited, or the map torn down, while its cells are
+    // being looked up; either way the colors this call would publish are no
+    // longer the ones to draw.
+    if (
+      map.current !== glMap ||
+      selectionRef.current.geographies !== geographies
+    )
+      return;
     const selectionColors: Record<number, string> = {};
-    selectionRef.current.geographies.forEach((geo, i) => {
-      const cellId = isCoordinate(geo) ? getCellId(glMap.project(geo)) : geo;
+    cellIds.forEach((cellId, i) => {
       if (cellId === undefined || cellId in selectionColors) return;
       selectionColors[cellId] = getSelectionColor(i, selectionColorOptions);
     });
-    const serialized = JSON.stringify(selectionColors);
-    if (serialized === publishedColors.current) return;
-    publishedColors.current = serialized;
+    // Compared against the colors the map is holding rather than against the
+    // ones last published to it, so that publishing again is skipped only while
+    // they are still there to draw with. Loading a style resets the global state
+    // to what its own spec declares, which is no colors at all, and a record of
+    // what was published would go on reporting the colors that reset dropped.
+    if (
+      JSON.stringify(glMap.getGlobalState().selectionColors) ===
+      JSON.stringify(selectionColors)
+    )
+      return;
     glMap.setGlobalStateProperty("selectionColors", selectionColors);
   };
 
@@ -243,9 +276,6 @@ export default function BaseMap({
     (async () => {
       setMapLoading(true);
       await ensureStyleLoaded();
-      // A new style starts with empty global state, so the colors have to be
-      // published to it again.
-      publishedColors.current = null;
       if (map.current) map.current.setStyle(styleUrl);
     })();
   }, [styleUrl]);
@@ -257,7 +287,7 @@ export default function BaseMap({
       updateMarkers();
       updateSelectionColors();
     })();
-  }, [selectedGeographies, maxSelectedGeographies]);
+  }, [grid, selectedGeographies, maxSelectedGeographies]);
 
   // Clean up the map before the component unloads.
   useEffect(() => {

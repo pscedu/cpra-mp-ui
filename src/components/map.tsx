@@ -43,6 +43,7 @@ export default function Map({
     <BaseMap
       center={[x, y]}
       className={className}
+      grid={mapCatalogQuery.dataset.grid}
       gridLabel={gridLabel}
       maxSelectedGeographies={maxSelectedGeographies}
       selectedGeographies={selectedGeographies}
