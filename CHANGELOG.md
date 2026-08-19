@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.0](https://github.com/pscedu/cpra-mp-ui/compare/v0.4.0...v0.5.0) (2026-08-19)
+
+
+### Features
+
+* **base-chart:** use dynamic chart sizing ([c574adc](https://github.com/pscedu/cpra-mp-ui/commit/c574adc6b858c50147e0842815caeef3b5f37185))
+* **map:** look up coordinate vector IDs using crosswalk API endpoint ([19a7f73](https://github.com/pscedu/cpra-mp-ui/commit/19a7f735a8ca5ff70913282a5dff2353708dd1ac))
+* preserve selection when changing between raster grids ([870b7d9](https://github.com/pscedu/cpra-mp-ui/commit/870b7d991deed6989cb2ec8be5122f12373f5e88))
+
 ## [0.4.0](https://github.com/pscedu/cpra-mp-ui/compare/v0.3.1...v0.4.0) (2026-06-24)
 
 
