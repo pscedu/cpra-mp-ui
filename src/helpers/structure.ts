@@ -163,7 +163,7 @@ export class Grid {
     // themselves, so that every coordinate gets a row of its own and gets it from
     // the same polygons the data API selects data with.
     const params: [string, string][] = [
-      ["geography", coordinates.flat().join(",")],
+      ["grid_cell", coordinates.flat().join(",")],
       ["to_grid", this.name],
     ];
     return `${dataBaseUrl}/grids/wgs84/crosswalk.ndjson${makeQueryString(params)}`;
