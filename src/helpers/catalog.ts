@@ -48,7 +48,7 @@ export class CatalogQuery {
     const qs = makeQueryString(
       getFilterParams(requiredDimensions, this.filters),
     );
-    return `${dataBaseUrl}/datasets/${variable.name}/${grid.name}/${time_unit}/catalog.json${qs}`;
+    return `${dataBaseUrl}/datasets/${variable.name}/${time_unit}/${grid.name}/catalog.json${qs}`;
   }
 
   getQueryParams(
@@ -139,7 +139,7 @@ export class CatalogQuery {
 
     if (geographies)
       params.push([
-        "geography",
+        "grid_cell",
         maxGeographies ? geographies.slice(0, maxGeographies) : geographies,
       ]);
 
@@ -197,9 +197,10 @@ export class CatalogQuery {
         includeTimeDimension: true,
       },
       [
-        ...Object.keys(mapOptions).map(
-          (key): [string, any] => [camelToSnake(key), mapOptions[key]],
-        ),
+        ...Object.keys(mapOptions).map((key): [string, any] => [
+          camelToSnake(key),
+          mapOptions[key],
+        ]),
         ...extraParams,
       ],
     );

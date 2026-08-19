@@ -212,7 +212,7 @@ export class Dataset {
   }
 
   getBaseUrl() {
-    return `${dataBaseUrl}/datasets/${this.variable.name}/${this.grid.name}/${this.time_unit}`;
+    return `${dataBaseUrl}/datasets/${this.variable.name}/${this.time_unit}/${this.grid.name}`;
   }
 
   getDataUrl(params: [string, any][], format: string) {
