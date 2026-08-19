@@ -545,7 +545,7 @@ export const updateMaxSelectedGeographiesEffect = atomEffect((get, set) => {
   const visualizationPromise = get(visualizationAtom);
   (async () => {
     const visualization = await visualizationPromise;
-    set(maxSelectedGeographiesAtom, visualization.max_geographies);
+    set(maxSelectedGeographiesAtom, visualization.max_grid_cells);
   })();
 });
 

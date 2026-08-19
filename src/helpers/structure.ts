@@ -237,26 +237,26 @@ export class Visualization {
   name: string;
   label: string;
   type: string;
-  max_geographies: number;
+  max_grid_cells: number;
   variables: string[] | null;
 
   constructor({
     name,
     label,
     type,
-    max_geographies,
+    max_grid_cells,
     variables,
   }: {
     name: string;
     label: string;
     type: string;
-    max_geographies: number;
+    max_grid_cells: number;
     variables: string[] | null;
   }) {
     this.name = name;
     this.label = label;
     this.type = type;
-    this.max_geographies = max_geographies;
+    this.max_grid_cells = max_grid_cells;
     this.variables = variables;
   }
 
@@ -269,7 +269,7 @@ export class Visualization {
       ...catalogQuery.getQueryParams({
         ...options,
         includeTimeDimension: !options.geographies,
-        maxGeographies: this.max_geographies,
+        maxGridCells: this.max_grid_cells,
       }),
       ...specParams,
     ];

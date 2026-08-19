@@ -56,14 +56,14 @@ export class CatalogQuery {
       analysis,
       geographies,
       includeTimeDimension,
-      maxGeographies,
+      maxGridCells,
       maxValues,
       unpivot,
     }: QueryOptions = {
       analysis: null,
       geographies: null,
       includeTimeDimension: true,
-      maxGeographies: null,
+      maxGridCells: null,
       maxValues: null,
       unpivot: false,
     },
@@ -140,7 +140,7 @@ export class CatalogQuery {
     if (geographies)
       params.push([
         "grid_cell",
-        maxGeographies ? geographies.slice(0, maxGeographies) : geographies,
+        maxGridCells ? geographies.slice(0, maxGridCells) : geographies,
       ]);
 
     if (unpivot) params.push(["unpivot", "true"]);
