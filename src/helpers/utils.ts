@@ -1,6 +1,6 @@
 import { selectionColors } from "./config";
 import { Dataset } from "./structure";
-import { Tag } from "./types";
+import { Coordinate, Tag } from "./types";
 import { hasLink } from "./markdown";
 
 export async function getJson(
@@ -178,6 +178,15 @@ export const getSelectionColor = (
   { adjustment, count }: { adjustment?: number; count?: number } = {},
 ) =>
   adjustColor(selectionColors.slice(0, count)[i] || "000000", adjustment || 0);
+
+/**
+ * Round a coordinate to the precision at which selections are stored, so that
+ * map interactions do not fill the URL hash with meaningless precision.
+ * @param {Coordinate} coordinate - Longitude/latitude pair.
+ * @returns {Coordinate} - The rounded coordinate.
+ */
+export const roundCoordinate = ([lng, lat]: Coordinate): Coordinate =>
+  [lng, lat].map((value) => parseFloat(value.toFixed(5))) as Coordinate;
 
 export const parseDate = (dateStr: string) => {
   const dateParts = dateStr.split("-").map((val) => parseInt(val));

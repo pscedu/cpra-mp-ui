@@ -1,7 +1,8 @@
 import { CatalogQuery } from "./catalog";
 import { dataBaseUrl, staticTilesBaseUrl } from "./config";
 import { QueryOptions } from "./query";
-import { Geography } from "./types";
+import { formatGeography } from "./selection";
+import { Coordinate, Geography } from "./types";
 import {
   getJson,
   getNdJson,
@@ -146,28 +147,26 @@ export class Grid {
     return this.grid_type === "raster";
   }
 
-  // Converts a geography selection made on this grid into the equivalent
-  // selection on another grid, returning an empty array when no conversion is
-  // possible. May return a promise, since some conversions require a remote
-  // lookup; callers must handle both.
-  convertSelection(
-    toGrid: Grid,
-    geographies: Geography[],
-  ): Geography[] | Promise<Geography[]> {
-    if (toGrid.name === this.name) return geographies;
-    // Raster grids are selected by coordinate pair rather than by cell ID, so
-    // a selection made on one raster grid carries over to any other.
-    if (this.isRaster() && toGrid.isRaster()) return geographies;
-    // Raster/vector conversions are not supported yet.
-    return [];
-  }
-
   isVector() {
     return this.grid_type === "vector";
   }
 
   getTileUrl() {
     return this.isVector() ? `${staticTilesBaseUrl}/${this.name}` : null;
+  }
+
+  // The crosswalk URL that resolves coordinates to the geographies of this grid
+  // containing them, each reported as a `dst_id` alongside the `src_lng`/`src_lat`
+  // of the coordinate it answers for.
+  getGeographyUrl(coordinates: Coordinate[]) {
+    // Converted from `wgs84`, the source grid standing for the coordinates
+    // themselves, so that every coordinate gets a row of its own and gets it from
+    // the same polygons the data API selects data with.
+    const params: [string, string][] = [
+      ["geography", coordinates.flat().join(",")],
+      ["to_grid", this.name],
+    ];
+    return `${dataBaseUrl}/grids/wgs84/crosswalk.ndjson${makeQueryString(params)}`;
   }
 }
 
@@ -386,7 +385,7 @@ export class Structure {
     });
   }
 
-  getDataLabel(catalogQuery: CatalogQuery, selectedGeographies?: number[]) {
+  getDataLabel(catalogQuery: CatalogQuery, selectedGeographies?: Geography[]) {
     const { dataset, response } = catalogQuery;
     const { results } = response;
     const title: string[] = [toTitleCase(dataset.time_unit)];
@@ -405,7 +404,9 @@ export class Structure {
     }
     title.push(dataset.variable.label);
     if (selectedGeographies && selectedGeographies.length > 0)
-      subtitle.push(`${dataset.grid.label} ${selectedGeographies.join(", ")}`);
+      subtitle.push(
+        `${dataset.grid.label} ${selectedGeographies.map(formatGeography).join(", ")}`,
+      );
     return `${title.join(" ")}: ${subtitle.join(", ")}`;
   }
 }

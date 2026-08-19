@@ -41,6 +41,7 @@ export default memo(
     theme?: "dark" | "light";
   }) {
     const [measureRef, { height, width }] = useMeasure();
+    const isMeasured = Boolean(height && width);
 
     const resizeTimeout: Ref<null | ReturnType<typeof setTimeout>> =
       useRef(null);
@@ -84,7 +85,65 @@ export default memo(
       } else {
         setSpecJson(spec);
       }
-    }, [spec, height, width]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [spec, isMeasured]);
+
+    useEffect(() => {
+      // Width and height are applied to the live view instead of refetching
+      // the spec. With autosize "fit", Vega writes the computed inner width
+      // back into the `width` signal, so always set it from the measured
+      // container width, never from `view.width()`. For vconcat specs the
+      // top-level `height` signal doesn't drive the child heights - the main
+      // chart's height lives in `concat_0_height` (stable across specs),
+      // while the summary strip's is a hash-named signal (e.g.
+      // `view_2d6a0d9e5bbb8eb2_1_height`) that must never be hardcoded. So we
+      // probe for `concat_0_height` and either drive it directly or fall
+      // back to `view.height()` for non-concat specs.
+      let cancelled = false;
+
+      const applySize = async (view: NonNullable<typeof embed>["view"]) => {
+        if (width && Number.isFinite(width)) {
+          view.width(width);
+        }
+        if (!height || !Number.isFinite(height)) {
+          await view.runAsync();
+          return;
+        }
+
+        let hasConcatHeight = true;
+        try {
+          view.signal("concat_0_height");
+        } catch {
+          hasConcatHeight = false;
+        }
+
+        if (!hasConcatHeight) {
+          view.height(height);
+          await view.runAsync();
+          return;
+        }
+
+        await view.runAsync();
+        if (cancelled) return;
+        for (let i = 0; i < 2; i++) {
+          const svg = vegaRef.current?.querySelector("svg");
+          if (!svg) break;
+          const rendered = svg.getBoundingClientRect().height;
+          const delta = rendered - height;
+          if (Math.abs(delta) <= 1) break;
+          const current = view.signal("concat_0_height");
+          view.signal("concat_0_height", Math.max(current - delta, 40));
+          await view.runAsync();
+          if (cancelled) return;
+        }
+      };
+
+      if (embed?.view) applySize(embed.view);
+
+      return () => {
+        cancelled = true;
+      };
+    }, [embed, width, height]);
 
     useEffect(() => {
       const signalListeners = {

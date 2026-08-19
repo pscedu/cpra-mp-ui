@@ -1,7 +1,6 @@
 import { Ref } from "react";
-import { Geography } from "@/helpers/types";
+import { Coordinate } from "@/helpers/types";
 import { GeographySelection } from "@/helpers/selection";
-import { Map as GLMap } from "maplibre-gl";
 
 import {
   ContextMenu,
@@ -24,38 +23,45 @@ import {
 } from "lucide-react";
 import BaseMapColorChooserMenuItems from "@/components/base-map-color-chooser-menu-items";
 
-export default function BaseMapContextMenu<G extends Geography>({
+// The geography the context menu was opened on, and its position in the
+// selection, or -1 when it is not selected yet.
+export type ContextMenuTarget = {
+  coordinate: Coordinate;
+  index: number;
+};
+
+export default function BaseMapContextMenu({
   children,
   className = "",
-  geography,
   gridLabel,
   maxSelectedGeographies,
   selection,
-  setGeography,
   setSelection,
+  setTarget,
+  target,
   triggerRef,
 }: {
   children: React.ReactNode;
   className?: string;
-  geography: G | null;
   gridLabel: string;
   maxSelectedGeographies: number;
-  selection: GeographySelection<G>;
-  setGeography: (geography: G | null) => void;
-  setSelection: (selection: GeographySelection<G>) => void;
+  selection: GeographySelection;
+  setSelection: (selection: GeographySelection) => void;
+  setTarget: (target: ContextMenuTarget | null) => void;
+  target: ContextMenuTarget | null;
   triggerRef: Ref<HTMLDivElement>;
 }) {
   return (
     <ContextMenu
       onOpenChange={(open) => {
-        if (!open) setGeography(null);
+        if (!open) setTarget(null);
       }}
     >
       <ContextMenuTrigger ref={triggerRef} asChild>
         <div className={className}>{children}</div>
       </ContextMenuTrigger>
       <ContextMenuContent>
-        {geography && (
+        {target && (
           <>
             <ContextMenuSub>
               <ContextMenuSubTrigger inset>
@@ -64,9 +70,9 @@ export default function BaseMapContextMenu<G extends Geography>({
               <ContextMenuSubContent>
                 <ContextMenuLabel>Choose outline color</ContextMenuLabel>
                 <BaseMapColorChooserMenuItems
-                  geography={geography}
                   selection={selection}
                   setSelection={setSelection}
+                  target={target}
                 />
               </ContextMenuSubContent>
             </ContextMenuSub>

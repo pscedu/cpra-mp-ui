@@ -16,6 +16,7 @@ import {
   hashObjectAtom,
   knownHashKeys,
 } from "./hash";
+import { isCoordinate } from "./selection";
 import { Dataset, getStructure } from "./structure";
 import { getJson, sortConsistent } from "./utils";
 import { NavigateFunction } from "react-router";
@@ -164,30 +165,13 @@ export const setRequestedDatasetsAtom = atom(
     // Update dataset requests.
     set(requestedDatasetsAtom, newRequests);
 
-    // Convert (or reset) selected geographies when the grid changes.
-    if (updateGeographies && prevRequests[0].grid !== newRequests[0].grid) {
-      // Datasets carry a reference back to the structure they came from, so
-      // the previous grid can be looked up by name without awaiting
-      // structureAtom.
-      const prevGrid =
-        datasets[0]?.variable.structure.gridsMap[prevRequests[0].grid];
-      const newGrid = datasets[0]?.grid;
-      const converted =
-        prevGrid && newGrid
-          ? prevGrid.convertSelection(newGrid, get(selectedGeographiesAtom))
-          : [];
-
-      if (Array.isArray(converted)) set(selectedGeographiesAtom, converted);
-      else {
-        // Clear the selection while an asynchronous conversion is in flight,
-        // then apply it unless a later grid change has superseded it.
-        set(selectedGeographiesAtom, []);
-        converted.then((geographies) => {
-          if (get(requestedDatasetsAtom)[0]?.grid === newGrid.name)
-            set(selectedGeographiesAtom, geographies);
-        });
-      }
-    }
+    // Discard legacy cell IDs when the grid changes, since they refer to cells
+    // of the grid they were selected on. Coordinates are valid on any grid.
+    if (updateGeographies && prevRequests[0].grid !== newRequests[0].grid)
+      set(
+        selectedGeographiesAtom,
+        get(selectedGeographiesAtom).filter(isCoordinate),
+      );
 
     // Reset analysis when the variable changes.
     if (
@@ -208,6 +192,9 @@ export const mapPositionAtom = hashAtom([8, 29.75, -91.5], {
 export const selectedGeographiesAtom = hashAtom<Geography[]>([], {
   key: "geography",
   encoder: (values) => values.map((value) => value.toString()).join(","),
+  // Coordinates are always encoded with decimals and cell IDs never are, so the
+  // two can be told apart. A selection never holds both at once, since editing
+  // one that was restored from a legacy hash discards its cell IDs.
   decoder: (str) => {
     const geos = str.split(",");
     if (str.includes(".")) {
