@@ -71,12 +71,20 @@ export class Variable {
   dtype: string;
   model: string;
   subroutine: string;
+  // `unit` describes the values as stored; the display_* fields describe how they are
+  // shown, which differs when a variable is stored in a finer unit than it is read in.
+  // `display_scale_factor` is the divisor taking a stored value to a displayed one, and no
+  // variable currently sets it — storage and display units are the same throughout. The
+  // API already applies all three to everything it renders (chart specs, map legends), so
+  // these are only for a client that formats raw dataset values itself.
   unit: string | null;
+  display_unit: string | null;
+  display_scale_factor: number | null;
+  display_number_format: string | null;
   legend: Legend | null;
   geographic_units: string[];
   time_units: string[];
   required_dimensions: Dimension<any>[];
-  number_format: string | null;
   difference_legend_limit: string | null;
   structure: Structure;
 
@@ -88,11 +96,13 @@ export class Variable {
       model,
       subroutine,
       unit,
+      display_unit,
+      display_scale_factor,
+      display_number_format,
       legend,
       geographic_units,
       time_units,
       required_dimensions,
-      number_format,
       difference_legend_limit,
     },
     structure: Structure,
@@ -103,11 +113,13 @@ export class Variable {
     this.model = model;
     this.subroutine = subroutine;
     this.unit = unit;
+    this.display_unit = display_unit;
+    this.display_scale_factor = display_scale_factor;
+    this.display_number_format = display_number_format;
     this.legend = legend;
     this.geographic_units = geographic_units;
     this.time_units = time_units;
     this.required_dimensions = required_dimensions;
-    this.number_format = number_format;
     this.difference_legend_limit = difference_legend_limit;
     this.structure = structure;
   }
