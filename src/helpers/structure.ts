@@ -81,6 +81,11 @@ export class Variable {
   display_unit: string | null;
   display_scale_factor: number | null;
   display_number_format: string | null;
+  // Decimal places the API has already rounded this variable's values to in a CSV
+  // response, reported so a client can tell a rounded download from a full-precision one.
+  // Nothing to apply: the other formats carry the stored value, and formatting a value for
+  // display is `display_number_format`'s job.
+  float_precision: number | null;
   legend: Legend | null;
   geographic_units: string[];
   time_units: string[];
@@ -99,6 +104,7 @@ export class Variable {
       display_unit,
       display_scale_factor,
       display_number_format,
+      float_precision,
       legend,
       geographic_units,
       time_units,
@@ -116,6 +122,7 @@ export class Variable {
     this.display_unit = display_unit;
     this.display_scale_factor = display_scale_factor;
     this.display_number_format = display_number_format;
+    this.float_precision = float_precision;
     this.legend = legend;
     this.geographic_units = geographic_units;
     this.time_units = time_units;
