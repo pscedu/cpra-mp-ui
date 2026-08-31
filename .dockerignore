@@ -1,0 +1,8 @@
+node_modules
+dist
+dist-ssr
+scratch
+.git
+.env
+.env.*
+*.log
