@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0](https://github.com/pscedu/cpra-mp-ui/compare/v0.5.0...v0.6.0) (2026-08-31)
+
+
+### Features
+
+* **structure:** add display format columns ([3ad6ef1](https://github.com/pscedu/cpra-mp-ui/commit/3ad6ef1432620eb7ecf0f19a5d5998a7244ad70b))
+* **structure:** add variable float precision ([e9bf516](https://github.com/pscedu/cpra-mp-ui/commit/e9bf5162d04ca2eae553dc0baff406f0363556c9))
+
 ## [0.5.0](https://github.com/pscedu/cpra-mp-ui/compare/v0.4.0...v0.5.0) (2026-08-19)
 
 
