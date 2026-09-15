@@ -10,8 +10,17 @@ import {
   makeQueryString,
   mergeOr,
   sortConsistent,
-  sqlValue,
 } from "./utils";
+
+// Every registered analysis compares exactly two values of its `dimension`
+// ("difference" subtracts one from the other; "concatenate" puts one beside
+// the other), so a selection with any other number of values has nothing for
+// it to operate on and the API rejects it outright. The reader can leave the
+// menu on "Subtract A - B" while narrowing the dimension back down to one
+// value, which is a perfectly reasonable thing to do and used to produce a
+// 400 -- so the number of selected values, not the menu alone, decides
+// whether the analysis is actually sent.
+const ANALYSIS_DIMENSION_VALUE_COUNT = 2;
 
 export class CatalogQuery {
   dataset: Dataset;
@@ -39,6 +48,36 @@ export class CatalogQuery {
     return this.requestPath === other.requestPath;
   }
 
+  // The values currently selected for an analysis's own dimension, deduplicated
+  // the way the API counts them (it compares DISTINCT values, so a repeated one
+  // must not look like a second).
+  getAnalysisDimensionValues(analysis?: Analysis | null): unknown[] {
+    if (!analysis?.dimension) return [];
+    return [...new Set(this.response?.results?.[analysis.dimension] || [])];
+  }
+
+  // `analysis` when the selection can actually support it, else null. Returns
+  // the analysis rather than a boolean so callers keep TypeScript's narrowing
+  // of its nullable fields. Everything that names an analysis to the API goes
+  // through here, so the query parameters and the data-download ROUTE
+  // (`/analyses/{name}/data.csv`, via `getAnalysisName`) can never disagree
+  // about whether one is in play -- picking the route while dropping the
+  // parameters is its own 400.
+  getApplicableAnalysis(analysis?: Analysis | null): Analysis | null {
+    if (!analysis?.dimension) return null;
+    return this.getAnalysisDimensionValues(analysis).length ===
+      ANALYSIS_DIMENSION_VALUE_COUNT
+      ? analysis
+      : null;
+  }
+
+  // The name of the registered analysis to request, or null when the selection
+  // can't support one -- including when `analysis` is "single"/"compare", which
+  // is client-side view state with no `dimension` and is never sent to the API.
+  getAnalysisName(analysis?: Analysis | null): string | null {
+    return this.getApplicableAnalysis(analysis)?.operation ?? null;
+  }
+
   getRequestPath() {
     const { variable, grid, time_unit } = this.dataset;
     const requiredDimensions = this.structure.getRequiredDimensions([
@@ -58,14 +97,12 @@ export class CatalogQuery {
       includeTimeDimension,
       maxGridCells,
       maxValues,
-      unpivot,
     }: QueryOptions = {
       analysis: null,
       geographies: null,
       includeTimeDimension: true,
       maxGridCells: null,
       maxValues: null,
-      unpivot: false,
     },
   ): [string, any][] {
     const requiredDimensions = this.structure.getRequiredDimensions([
@@ -74,15 +111,36 @@ export class CatalogQuery {
 
     // TODO: Select the filters based on user input. For now, we select the first
     // value for each dimension.
-    const selectedFilters = {};
+    const selectedFilters: Record<string, unknown[]> = {};
     for (const dimension of requiredDimensions)
       if (dimension.filterType !== "time" || includeTimeDimension)
         selectedFilters[dimension.name] = this.response.results[dimension.name];
 
+    // An analysis the selection can't support is not sent at all, and its
+    // dimension falls back to a single value -- the plain unanalyzed
+    // visualization of the first thing the reader selected, which is the
+    // sensible view of a comparison with nothing to compare against. The
+    // fallback has to be explicit rather than left to `maxValues` below:
+    // `getSpecUrl` passes no `maxValues`, so nothing would otherwise narrow a
+    // three-value selection down, and the request would 400 just the same.
+    const appliedAnalysis = this.getApplicableAnalysis(analysis);
+    if (analysis?.dimension && !appliedAnalysis)
+      selectedFilters[analysis.dimension] = this.getAnalysisDimensionValues(
+        analysis,
+      ).slice(0, 1);
+
     const modelGroupValues = selectedFilters.model_group_id || [];
+    // Dimensions whose selected values must survive `maxValues` truncation:
+    // the analysis's own dimension, and (for a three-image concatenate)
+    // `model_group_id`, since the API derives two-image vs. three-image from
+    // how many `model_group_id` values are in the request's filters.
     const analysisDimensions = [];
-    if (analysis?.dimension) analysisDimensions.push(analysis.dimension);
-    if (analysis?.operation === "concatenate" && modelGroupValues.length === 2)
+    if (appliedAnalysis?.dimension)
+      analysisDimensions.push(appliedAnalysis.dimension);
+    if (
+      appliedAnalysis?.operation === "concatenate" &&
+      modelGroupValues.length === 2
+    )
       analysisDimensions.push("model_group_id");
 
     const params = getFilterParams(
@@ -92,49 +150,13 @@ export class CatalogQuery {
       analysisDimensions,
     );
 
-    if (analysis) {
-      const { operation, dimension } = analysis;
-      if (dimension) {
-        let groupByNames = requiredDimensions
-          .map(({ name }) => name)
-          .filter((name) => name !== dimension);
-        const values = [...this.response.results[dimension]];
-        values.sort((a, b) => (a < b ? -1 : 1));
-        if (operation.startsWith("subtract-")) {
-          if (values && values.length === 2) {
-            const negateValue = values[operation.endsWith("asc") ? 1 : 0];
-            params.push([
-              "negate",
-              `${dimension}=${sqlValue(negateValue, dimension)}`,
-            ]);
-            params.push(["group_by", groupByNames]);
-            params.push(["group_aggregate", "sum"]);
-          }
-        } else if (operation === "concatenate") {
-          const timeValues = values;
-          modelGroupValues.sort();
-          const threeImage = modelGroupValues.length === 2;
-          params.push([
-            threeImage ? "multiply100" : "multiply10",
-            `${dimension}=${sqlValue(timeValues[0], dimension)}`,
-          ]);
-          if (threeImage) {
-            params.push([
-              "multiply10",
-              `model_group_id=${sqlValue(modelGroupValues[0])} and ${dimension}=${sqlValue(timeValues[1], dimension)}`,
-            ]);
-            params.push([
-              "where",
-              `not (model_group_id=${sqlValue(modelGroupValues[1])} and ${dimension}=${sqlValue(timeValues[0], dimension)})`,
-            ]);
-            groupByNames = groupByNames.filter(
-              (name) => name !== "model_group_id",
-            );
-          }
-          params.push(["group_by", groupByNames]);
-          params.push(["group_aggregate", "sum"]);
-        }
-      }
+    // Named analyses are otherwise resolved and validated server-side; the UI
+    // only names the analysis and forwards its parameters.
+    if (appliedAnalysis?.dimension) {
+      params.push(["analysis", appliedAnalysis.operation]);
+      params.push(["dimension", appliedAnalysis.dimension]);
+      if (appliedAnalysis.operation === "difference" && appliedAnalysis.order)
+        params.push(["order", appliedAnalysis.order]);
     }
 
     if (geographies)
@@ -142,8 +164,6 @@ export class CatalogQuery {
         "grid_cell",
         maxGridCells ? geographies.slice(0, maxGridCells) : geographies,
       ]);
-
-    if (unpivot) params.push(["unpivot", "true"]);
 
     return params;
   }
@@ -162,22 +182,20 @@ export class CatalogQuery {
     format,
     geographies,
     includeTimeDimension,
-    unpivot,
   }: {
     analysis: Analysis;
     format: string;
     geographies?: Geography[] | null;
     includeTimeDimension?: boolean;
-    unpivot?: boolean;
   }) {
     return this.dataset.getDataUrl(
       this.getQueryParams({
         analysis,
         geographies,
         includeTimeDimension,
-        unpivot,
       }),
       format,
+      this.getAnalysisName(analysis),
     );
   }
 

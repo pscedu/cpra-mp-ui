@@ -1,10 +1,9 @@
-import { Geography } from "./types";
+import { Analysis, Geography } from "./types";
 
 export type QueryOptions = {
-  analysis?: { operation: string; dimension: string | null } | null;
+  analysis?: Analysis | null;
   geographies?: Geography[] | null;
   includeTimeDimension?: boolean | null;
   maxGridCells?: number | null;
   maxValues?: number | null;
-  unpivot?: boolean | null;
 };

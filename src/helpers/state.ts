@@ -138,14 +138,19 @@ export const analysisAtom = hashAtom<Analysis>(
   },
   {
     key: "analysis",
-    encoder: ({ operation, dimension }) => {
+    encoder: ({ operation, dimension, order }) => {
       let valueStr = operation;
       if (dimension) valueStr += `:${dimension}`;
+      if (order) valueStr += `:${order}`;
       return valueStr;
     },
     decoder: (valueStr) => {
-      const parts = valueStr.split(":");
-      return { operation: parts[0], dimension: parts[1] || null };
+      const [operation, dimension, order] = valueStr.split(":");
+      return {
+        operation,
+        dimension: dimension || null,
+        order: (order as "asc" | "desc") || null,
+      };
     },
   },
 );
@@ -177,12 +182,20 @@ export const setRequestedDatasetsAtom = atom(
         get(selectedGeographiesAtom).filter(isCoordinate),
       );
 
-    // Reset analysis when the variable changes.
-    if (
-      analysis.operation === "concatenate" &&
-      newRequests[0].variable !== "lnd_type"
-    )
-      set(analysisAtom, { operation: "single", dimension: null });
+    // Reset the analysis if it no longer applies to the new variable, per its
+    // catalog `variables` restriction (`null` means it applies to any
+    // variable). "single"/"compare" are not registered analyses, so this is a
+    // no-op for them.
+    const structurePromise = get(structureAtom);
+    (async () => {
+      const structure = await structurePromise;
+      const selectedAnalysis = structure.analysesMap[analysis.operation];
+      if (
+        selectedAnalysis?.variables &&
+        !selectedAnalysis.variables.includes(newRequests[0].variable)
+      )
+        set(analysisAtom, { operation: "single", dimension: null });
+    })();
   },
 );
 
@@ -496,10 +509,6 @@ export const geometryDataFormatAtom = downloadSettingsAtom(
 export const tabularDataFormatAtom = downloadSettingsAtom(
   "tabular-data-format",
   "csv",
-);
-export const tabularDataShapeAtom = downloadSettingsAtom(
-  "tabular-data-shape",
-  "long",
 );
 
 export const dataPermalinkAtom = atom((get) => {

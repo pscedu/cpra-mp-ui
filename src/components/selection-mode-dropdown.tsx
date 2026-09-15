@@ -1,5 +1,5 @@
-import { useAtom } from "jotai";
-import { analysisAtom } from "@/helpers/state";
+import { useAtom, useAtomValue } from "jotai";
+import { analysisAtom, structureAtom } from "@/helpers/state";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +20,18 @@ import {
 } from "lucide-react";
 import { useEffect } from "react";
 
+type SelectionOption = {
+  value: string;
+  label: string;
+  icon: typeof Square;
+  maxLength: number;
+  className?: string;
+  // Only set for options backed by a registered analysis (i.e. not
+  // "single"/"compare").
+  analysisName?: string;
+  order?: "asc" | "desc" | null;
+};
+
 export function SelectionModeDropdown({
   className,
   dimensionLabel,
@@ -31,9 +43,10 @@ export function SelectionModeDropdown({
   supportsConcatenate,
 }) {
   const [analysis, setAnalysis] = useAtom(analysisAtom);
-  const { operation, dimension } = analysis;
+  const structure = useAtomValue(structureAtom);
+  const { operation, dimension, order } = analysis;
 
-  const options = [
+  const options: SelectionOption[] = [
     {
       value: "single",
       label: "View Single",
@@ -48,39 +61,53 @@ export function SelectionModeDropdown({
     },
   ];
 
-  if (supportsSubtract)
+  // "difference" and "concatenate" are registered analyses (`/v1/analyses.json`);
+  // if the API's catalog doesn't have one, don't offer it. "single" and
+  // "compare" above are pure client-side view state and are never looked up
+  // there.
+  const difference = structure?.analysesMap["difference"];
+  if (supportsSubtract && difference)
     options.push(
       {
-        value: "subtract-asc",
-        label: "Subtract: A - B",
+        value: "difference-asc",
+        label: `${difference.label}: A - B`,
         icon: SquaresSubtract,
         maxLength: 2,
+        analysisName: difference.name,
+        order: "asc",
       },
       {
-        value: "subtract-desc",
-        label: "Subtract: B - A",
+        value: "difference-desc",
+        label: `${difference.label}: B - A`,
         icon: SquaresSubtract,
         className: "rotate-180",
         maxLength: 2,
+        analysisName: difference.name,
+        order: "desc",
       },
     );
 
-  if (supportsConcatenate)
+  const concatenate = structure?.analysesMap["concatenate"];
+  if (supportsConcatenate && concatenate)
     options.push({
       value: "concatenate",
-      label: "Concatenate",
+      label: concatenate.label,
       icon: Ampersand,
       maxLength: 2,
+      analysisName: concatenate.name,
+      order: null,
     });
 
+  const selectedValue =
+    dimension === dimensionName
+      ? order
+        ? `${operation}-${order}`
+        : operation
+      : maxLength > 1
+        ? "compare"
+        : "single";
   const selectedOption = options.find(
-    (option) =>
-      option.value ===
-      (dimension === dimensionName
-        ? operation
-        : maxLength > 1
-          ? "compare"
-          : "single"),
+    (option) => option.value === selectedValue,
   );
 
   // Set the initial max length in the parent component.
@@ -88,14 +115,18 @@ export function SelectionModeDropdown({
     setMaxLength(selectedOption?.maxLength || 1);
   }, []);
 
-  const setSelectedOption = (value) => {
+  const setSelectedOption = (value: string) => {
     const newSelectedOption = options.find((option) => option.value === value);
     setMaxLength(newSelectedOption?.maxLength || 1);
     if (["single", "compare"].includes(value)) {
       if (analysis?.dimension === dimensionName)
         setAnalysis({ operation: "single", dimension: "" });
-    } else {
-      setAnalysis({ operation: value, dimension: dimensionName });
+    } else if (newSelectedOption?.analysisName) {
+      setAnalysis({
+        operation: newSelectedOption.analysisName,
+        dimension: dimensionName,
+        order: newSelectedOption.order,
+      });
     }
   };
 

@@ -3,6 +3,7 @@ import {
   catalogQueriesAtom,
   requestedTimeValuesAtom,
   setSelectedFilterChoicesAtom,
+  structureAtom,
 } from "@/helpers/state";
 import { parseDate } from "@/helpers/utils";
 
@@ -29,6 +30,7 @@ export default function TimeSelect({
 }) {
   const setSelectedFilterChoices = useSetAtom(setSelectedFilterChoicesAtom);
   const catalogQueries = useAtomValue(catalogQueriesAtom);
+  const structure = useAtomValue(structureAtom);
   const mapCatalogQuery = catalogQueries.getMapCatalogQuery();
   const timeDimension = catalogQueries.getTimeDimension();
   const [selected, setSelected] = useAtom(requestedTimeValuesAtom);
@@ -56,6 +58,17 @@ export default function TimeSelect({
   const values = selected.map((value) => choices.indexOf(value));
   const label = timeDimension ? timeDimension?.label : "Value";
   const editLabel = `Edit ${label.toLowerCase()}`;
+
+  // Whether the "concatenate" analysis applies to the currently viewed
+  // variable, per its catalog `variables` field (the same check
+  // `visualization-select.tsx` uses for `Visualization.variables`).
+  const concatenateAnalysis = structure?.analysesMap["concatenate"];
+  const variableName = mapCatalogQuery?.dataset?.variable?.name || "";
+  const supportsConcatenate = Boolean(
+    concatenateAnalysis &&
+      (concatenateAnalysis.variables === null ||
+        concatenateAnalysis.variables.includes(variableName)),
+  );
 
   return (
     <>
@@ -153,9 +166,7 @@ export default function TimeSelect({
               setSelectedWithDebounce([choices[values[0]]], false);
             }
           }}
-          supportsConcatenate={
-            mapCatalogQuery?.dataset?.variable?.name === "lnd_type"
-          }
+          supportsConcatenate={supportsConcatenate}
           supportsSubtract={true}
         />
       )}

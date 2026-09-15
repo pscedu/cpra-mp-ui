@@ -234,8 +234,18 @@ export class Dataset {
     return `${dataBaseUrl}/datasets/${this.variable.name}/${this.time_unit}/${this.grid.name}`;
   }
 
-  getDataUrl(params: [string, any][], format: string) {
-    return `${this.getBaseUrl()}/data.${format}${makeQueryString(params)}`;
+  // `analysisName` routes through the named-analysis data endpoint
+  // (`/analyses/{name}/data.{format}`) instead of the plain data endpoint,
+  // mirroring the dataset-scoped visualization route.
+  getDataUrl(
+    params: [string, any][],
+    format: string,
+    analysisName: string | null = null,
+  ) {
+    const basePath = analysisName
+      ? `${this.getBaseUrl()}/analyses/${analysisName}/data`
+      : `${this.getBaseUrl()}/data`;
+    return `${basePath}.${format}${makeQueryString(params)}`;
   }
 
   getTileUrl(params: [string, any][]) {
@@ -301,6 +311,30 @@ export class Visualization {
   }
 }
 
+export class Analysis {
+  name: string;
+  label: string;
+  type: string;
+  variables: string[] | null;
+
+  constructor({
+    name,
+    label,
+    type,
+    variables,
+  }: {
+    name: string;
+    label: string;
+    type: string;
+    variables: string[] | null;
+  }) {
+    this.name = name;
+    this.label = label;
+    this.type = type;
+    this.variables = variables;
+  }
+}
+
 export class Structure {
   datasets: Dataset[];
   dimensions: Dimension<string | number>[];
@@ -313,8 +347,18 @@ export class Structure {
   legendsMap: { [key: string]: Legend };
   visualizations: Visualization[];
   visualizationsMap: { [key: string]: Visualization };
+  analyses: Analysis[];
+  analysesMap: { [key: string]: Analysis };
 
-  constructor(datasets, dimensions, variables, grids, legends, visualizations) {
+  constructor(
+    datasets,
+    dimensions,
+    variables,
+    grids,
+    legends,
+    visualizations,
+    analyses,
+  ) {
     this.dimensions = dimensions.map((dimension) => new Dimension(dimension));
     this.dimensionsMap = makeMap(this.dimensions);
 
@@ -328,6 +372,9 @@ export class Structure {
       (visualization) => new Visualization(visualization),
     );
     this.visualizationsMap = makeMap(this.visualizations);
+
+    this.analyses = analyses.map((analysis) => new Analysis(analysis));
+    this.analysesMap = makeMap(this.analyses);
 
     this.variables = variables.map(
       (variable) =>
@@ -438,9 +485,11 @@ export async function getStructure() {
     "grids",
     "legends",
     "visualizations",
+    "analyses",
   ].map((endpoint) => getJson(`${dataBaseUrl}/${endpoint}.json`));
   return new Structure(
     ...((await Promise.all([datasetsData, ...staticData])) as [
+      object,
       object,
       object,
       object,
