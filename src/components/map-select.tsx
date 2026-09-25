@@ -1,7 +1,8 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import {
-  analysisAtom,
   catalogQueriesAtom,
+  derivedAnalysisAtom,
+  modeAtom,
   setRequestedDatasetsAtom,
   setSelectedFilterChoicesAtom,
   structureAtom,
@@ -19,19 +20,23 @@ export default function MapSelect() {
   const catalogQueries = useAtomValue(catalogQueriesAtom);
   const datasets = catalogQueries.datasets;
   const setRequestedDatasets = useSetAtom(setRequestedDatasetsAtom);
-  const analysis = useAtomValue(analysisAtom);
+  const mode = useAtomValue(modeAtom);
+  const derivedAnalysis = useAtomValue(derivedAnalysisAtom);
   const setSelectedFilterChoices = useSetAtom(setSelectedFilterChoicesAtom);
 
   const allValues = {
     dataset: catalogQueries?.datasets,
     ...catalogQueries?.combinedFilters,
   };
-  // Remove the analysis dimnension, if applicable.
-  if (analysis?.dimension) delete allValues[analysis?.dimension];
-  // Also remove the model group dimnesion if we are doing a three-image
-  // concatenate for land type.
+  // Remove the mode's own dimension, if applicable.
+  if (mode?.dimension) delete allValues[mode?.dimension];
+  // Also remove any dimensions the selected derived variable already
+  // subsumes (§4.4), and the model group dimension specifically if we are
+  // doing a three-image `land-change`.
+  for (const dim of structure?.subsumedFor(derivedAnalysis) ?? [])
+    delete allValues[dim];
   if (
-    analysis?.operation === "concatenate" &&
+    derivedAnalysis === "land-change" &&
     catalogQueries?.combinedFilters.model_group_id?.length == 2
   )
     delete allValues["model_group_id"];

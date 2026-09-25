@@ -220,7 +220,18 @@ export const Menu = (props: MenuProps<OptionType>) => {
 };
 
 export const MenuList = (props: MenuListProps<OptionType>) => {
-  const { children, maxHeight } = props;
+  const { children, maxHeight, options } = props;
+
+  // Grouped options (e.g. "Variables" / "Derived Variables") render as one
+  // top-level child per group -- a heading plus all of that group's options --
+  // rather than one child per option. The row-based virtualization below
+  // assumes a flat list of same-height option rows, so it would squash each
+  // multi-option group into a single row and overlap it with the next.
+  // Groups are always short lists, so just skip virtualization for them.
+  const isGrouped = options?.some(
+    (option) => "options" in option && Array.isArray(option.options),
+  );
+  if (isGrouped) return <components.MenuList {...props} />;
 
   const childrenArray = React.Children.toArray(children);
 

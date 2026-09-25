@@ -1,5 +1,5 @@
 import { useAtom, useAtomValue } from "jotai";
-import { analysisAtom, structureAtom } from "@/helpers/state";
+import { modeAtom, structureAtom } from "@/helpers/state";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +12,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Ampersand,
   CircleQuestionMark,
   Square,
   SquareStack,
@@ -40,11 +39,10 @@ export function SelectionModeDropdown({
   optionsLength,
   setMaxLength,
   supportsSubtract,
-  supportsConcatenate,
 }) {
-  const [analysis, setAnalysis] = useAtom(analysisAtom);
+  const [mode, setMode] = useAtom(modeAtom);
   const structure = useAtomValue(structureAtom);
-  const { operation, dimension, order } = analysis;
+  const { operation, dimension, order } = mode;
 
   const options: SelectionOption[] = [
     {
@@ -61,11 +59,13 @@ export function SelectionModeDropdown({
     },
   ];
 
-  // "difference" and "concatenate" are registered analyses (`/v1/analyses.json`);
-  // if the API's catalog doesn't have one, don't offer it. "single" and
-  // "compare" above are pure client-side view state and are never looked up
-  // there.
-  const difference = structure?.analysesMap["difference"];
+  // "difference" is the one `kind === "dimension"` registered analysis
+  // (`/v1/analyses.json`); if the API's catalog doesn't have one, don't offer
+  // it. It applies unrestricted to any non-subsumed dimension (§4.2), for
+  // either a plain or a derived variable, so there's nothing further to gate
+  // here. "single" and "compare" above are pure client-side view state and
+  // are never looked up there.
+  const difference = structure?.analyses.find((a) => a.kind === "dimension");
   if (supportsSubtract && difference)
     options.push(
       {
@@ -86,17 +86,6 @@ export function SelectionModeDropdown({
         order: "desc",
       },
     );
-
-  const concatenate = structure?.analysesMap["concatenate"];
-  if (supportsConcatenate && concatenate)
-    options.push({
-      value: "concatenate",
-      label: concatenate.label,
-      icon: Ampersand,
-      maxLength: 2,
-      analysisName: concatenate.name,
-      order: null,
-    });
 
   const selectedValue =
     dimension === dimensionName
@@ -119,10 +108,10 @@ export function SelectionModeDropdown({
     const newSelectedOption = options.find((option) => option.value === value);
     setMaxLength(newSelectedOption?.maxLength || 1);
     if (["single", "compare"].includes(value)) {
-      if (analysis?.dimension === dimensionName)
-        setAnalysis({ operation: "single", dimension: "" });
+      if (mode?.dimension === dimensionName)
+        setMode({ operation: "single", dimension: "" });
     } else if (newSelectedOption?.analysisName) {
-      setAnalysis({
+      setMode({
         operation: newSelectedOption.analysisName,
         dimension: dimensionName,
         order: newSelectedOption.order,

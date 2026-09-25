@@ -3,8 +3,38 @@ import { useHydrateAtoms } from "jotai/utils";
 import { camelToSnake } from "./utils";
 import { atomEffect } from "jotai-effect";
 
-export const getHashParams = () =>
-  new URLSearchParams(window.location.hash.replace(/^#/, ""));
+// Before this feature, "analysis" always meant the selection-mode value
+// ("single", "compare", "difference[:dim[:order]]", or "concatenate:dim");
+// it's now renamed to "mode", freeing "analysis" to mean the selected
+// derived variable. No `kind === "variable"` analysis is ever named one of
+// these four operations, so the two vocabularies never collide -- this is a
+// one-time, unconditional rewrite rather than anything version-tagged. Run
+// ahead of every hash-backed atom's own decoder so none of them need to know
+// the legacy format exists.
+const LEGACY_MODE_OPERATIONS = ["single", "compare", "difference", "concatenate"];
+
+export const migrateLegacyAnalysisKey = (params: URLSearchParams): void => {
+  const value = params.get("analysis");
+  if (value == null) return;
+  const [operation] = value.split(":");
+  if (!LEGACY_MODE_OPERATIONS.includes(operation)) return; // new-format already
+
+  params.delete("analysis");
+  if (operation === "concatenate") {
+    // `land-change` no longer takes a dimension parameter -- "concatenate"
+    // never had an `order` field, so there's nothing else to carry over.
+    params.set("analysis", "land-change");
+    params.set("mode", "single");
+  } else {
+    params.set("mode", value);
+  }
+};
+
+export const getHashParams = () => {
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  migrateLegacyAnalysisKey(params);
+  return params;
+};
 
 export const getHashString = (params: URLSearchParams) => {
   params.sort();

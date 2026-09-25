@@ -1,8 +1,9 @@
 import {
-  analysisAtom,
   catalogQueriesAtom,
   chartImageFormatAtom,
+  derivedAnalysisAtom,
   geometryDataFormatAtom,
+  modeAtom,
   selectedGeographiesAtom,
   tabularDataFormatAtom,
 } from "@/helpers/state";
@@ -81,7 +82,8 @@ export default function DownloadDropdown() {
   const geometryDataFormat = useAtomValue(geometryDataFormatAtom);
   const tabularDataFormat = useAtomValue(tabularDataFormatAtom);
 
-  const analysis = useAtomValue(analysisAtom);
+  const analysis = useAtomValue(modeAtom);
+  const derivedAnalysis = useAtomValue(derivedAnalysisAtom);
   const selectedGeographies = useAtomValue(selectedGeographiesAtom);
   const catalogQueries = useAtomValue(catalogQueriesAtom);
 
@@ -132,6 +134,7 @@ export default function DownloadDropdown() {
                 <LinkMenuItem
                   href={mapCatalogQuery.getDataDownloadUrl({
                     analysis,
+                    derivedAnalysis,
                     format,
                     geographies:
                       downloadType === "time" ? selectedGeographies : null,

@@ -1,9 +1,10 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
-  analysisAtom,
   catalogQueriesAtom,
+  derivedAnalysisAtom,
   mapPositionAtom,
   mapTilesLoadingAtom,
+  modeAtom,
   selectedGeographiesAtom,
   mapOptionsAtom,
   maxSelectedGeographiesAtom,
@@ -22,7 +23,8 @@ export default function Map({
   styleParams?: [string, any][];
 }) {
   const maxSelectedGeographies = useAtomValue(maxSelectedGeographiesAtom);
-  const analysis = useAtomValue(analysisAtom);
+  const analysis = useAtomValue(modeAtom);
+  const derivedAnalysis = useAtomValue(derivedAnalysisAtom);
   const mapCatalogQuery = useAtomValue(catalogQueriesAtom).getMapCatalogQuery();
   const [selectedGeographies, setSelectedGeographies] = useAtom(
     selectedGeographiesAtom,
@@ -33,6 +35,7 @@ export default function Map({
 
   const styleUrl = mapCatalogQuery.getMapStyleUrl({
     analysis,
+    derivedAnalysis,
     mapOptions,
     extraParams: styleParams,
   });

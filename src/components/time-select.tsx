@@ -1,9 +1,9 @@
 import { useAtomValue, useAtom, useSetAtom } from "jotai";
 import {
   catalogQueriesAtom,
+  derivedAnalysisAtom,
   requestedTimeValuesAtom,
   setSelectedFilterChoicesAtom,
-  structureAtom,
 } from "@/helpers/state";
 import { parseDate } from "@/helpers/utils";
 
@@ -30,13 +30,19 @@ export default function TimeSelect({
 }) {
   const setSelectedFilterChoices = useSetAtom(setSelectedFilterChoicesAtom);
   const catalogQueries = useAtomValue(catalogQueriesAtom);
-  const structure = useAtomValue(structureAtom);
-  const mapCatalogQuery = catalogQueries.getMapCatalogQuery();
+  const derivedAnalysis = useAtomValue(derivedAnalysisAtom);
   const timeDimension = catalogQueries.getTimeDimension();
   const [selected, setSelected] = useAtom(requestedTimeValuesAtom);
   const choices = catalogQueries.getTimeChoices();
 
   if (!choices.length || !selected.length) return;
+
+  // `land-change`'s target year is a single required parameter, not a
+  // comparison dimension (its baseline year is derived server-side from
+  // `model_group_id` instead) -- unlike a plain variable's calendar
+  // dimension, it never supports "Compare"/"Subtract" here (§4.1).
+  const yearIsSingleValued =
+    derivedAnalysis === "land-change" && timeDimension?.name === "calendar_year";
 
   const setSelectedWithDebounce = (values, useTimeout = true) => {
     setSelected(values);
@@ -58,17 +64,6 @@ export default function TimeSelect({
   const values = selected.map((value) => choices.indexOf(value));
   const label = timeDimension ? timeDimension?.label : "Value";
   const editLabel = `Edit ${label.toLowerCase()}`;
-
-  // Whether the "concatenate" analysis applies to the currently viewed
-  // variable, per its catalog `variables` field (the same check
-  // `visualization-select.tsx` uses for `Visualization.variables`).
-  const concatenateAnalysis = structure?.analysesMap["concatenate"];
-  const variableName = mapCatalogQuery?.dataset?.variable?.name || "";
-  const supportsConcatenate = Boolean(
-    concatenateAnalysis &&
-      (concatenateAnalysis.variables === null ||
-        concatenateAnalysis.variables.includes(variableName)),
-  );
 
   return (
     <>
@@ -146,7 +141,7 @@ export default function TimeSelect({
           }
         />
       </div>
-      {showSelectionMode && (
+      {showSelectionMode && !yearIsSingleValued && (
         <SelectionModeDropdown
           dimensionName={timeDimension?.name}
           dimensionLabel={label}
@@ -166,7 +161,6 @@ export default function TimeSelect({
               setSelectedWithDebounce([choices[values[0]]], false);
             }
           }}
-          supportsConcatenate={supportsConcatenate}
           supportsSubtract={true}
         />
       )}

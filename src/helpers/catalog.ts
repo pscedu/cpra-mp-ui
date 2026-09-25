@@ -60,8 +60,8 @@ export class CatalogQuery {
   // the analysis rather than a boolean so callers keep TypeScript's narrowing
   // of its nullable fields. Everything that names an analysis to the API goes
   // through here, so the query parameters and the data-download ROUTE
-  // (`/analyses/{name}/data.csv`, via `getAnalysisName`) can never disagree
-  // about whether one is in play -- picking the route while dropping the
+  // (`/analyses/{name}/data.csv`, via `getAnalysisChainName`) can never
+  // disagree about whether one is in play -- picking the route while dropping the
   // parameters is its own 400.
   getApplicableAnalysis(analysis?: Analysis | null): Analysis | null {
     if (!analysis?.dimension) return null;
@@ -71,11 +71,21 @@ export class CatalogQuery {
       : null;
   }
 
-  // The name of the registered analysis to request, or null when the selection
-  // can't support one -- including when `analysis` is "single"/"compare", which
-  // is client-side view state with no `dimension` and is never sent to the API.
-  getAnalysisName(analysis?: Analysis | null): string | null {
-    return this.getApplicableAnalysis(analysis)?.operation ?? null;
+  // The comma-joined chain of registered analysis names to request (e.g.
+  // "land-type-confidence,difference"), or null when neither a derived
+  // variable nor an applicable mode is selected. `mode` is "single"/"compare"
+  // as often as not, which is client-side view state with no `dimension` and
+  // contributes nothing to the chain. This one string serves both forms the
+  // API accepts an analysis name in: a path segment
+  // (`/analyses/{name}/data.csv`, via `Dataset.getDataUrl`'s 3rd argument) and
+  // the `analysis=` query parameter on a visualization-spec request (via
+  // `Visualization.getSpecUrl`) -- both split it on "," server-side.
+  getAnalysisChainName(
+    derivedAnalysis?: string | null,
+    mode?: Analysis | null,
+  ): string | null {
+    const modeName = this.getApplicableAnalysis(mode)?.operation ?? null;
+    return [derivedAnalysis, modeName].filter(Boolean).join(",") || null;
   }
 
   getRequestPath() {
@@ -93,12 +103,14 @@ export class CatalogQuery {
   getQueryParams(
     {
       analysis,
+      derivedAnalysis,
       geographies,
       includeTimeDimension,
       maxGridCells,
       maxValues,
     }: QueryOptions = {
       analysis: null,
+      derivedAnalysis: null,
       geographies: null,
       includeTimeDimension: true,
       maxGridCells: null,
@@ -109,11 +121,29 @@ export class CatalogQuery {
       this.dataset,
     ]);
 
+    // A selected derived variable subsumes some dimensions, but "subsumed"
+    // means two different things depending on the dimension's filterType.
+    // For a `select` dimension (e.g. `land-type-confidence`'s `scenario_id`)
+    // the analysis fixes it server-side and REJECTS a caller-supplied value
+    // outright, so it must be hidden from `dimensions-select.tsx` (§4.4) and
+    // never sent. For the `time` dimension (e.g. `land-change`'s
+    // `calendar_year`) subsumption instead means "this is no longer an
+    // ordinary comparable dimension" -- the analysis still requires exactly
+    // one caller-selected value (the comparison year) and rides the normal
+    // time-filter plumbing (`includeTimeDimension`) unchanged.
+    const subsumedDimensions = this.structure.subsumedFor(
+      derivedAnalysis ?? null,
+    );
+
     // TODO: Select the filters based on user input. For now, we select the first
     // value for each dimension.
     const selectedFilters: Record<string, unknown[]> = {};
     for (const dimension of requiredDimensions)
-      if (dimension.filterType !== "time" || includeTimeDimension)
+      if (
+        dimension.filterType === "time"
+          ? includeTimeDimension
+          : !subsumedDimensions.includes(dimension.name)
+      )
         selectedFilters[dimension.name] = this.response.results[dimension.name];
 
     // An analysis the selection can't support is not sent at all, and its
@@ -131,16 +161,14 @@ export class CatalogQuery {
 
     const modelGroupValues = selectedFilters.model_group_id || [];
     // Dimensions whose selected values must survive `maxValues` truncation:
-    // the analysis's own dimension, and (for a three-image concatenate)
-    // `model_group_id`, since the API derives two-image vs. three-image from
-    // how many `model_group_id` values are in the request's filters.
+    // the mode's own dimension, and (for `land-change`'s three-image
+    // variant) `model_group_id`, since the API derives two-image vs.
+    // three-image from how many `model_group_id` values are in the request's
+    // filters.
     const analysisDimensions = [];
     if (appliedAnalysis?.dimension)
       analysisDimensions.push(appliedAnalysis.dimension);
-    if (
-      appliedAnalysis?.operation === "concatenate" &&
-      modelGroupValues.length === 2
-    )
+    if (derivedAnalysis === "land-change" && modelGroupValues.length === 2)
       analysisDimensions.push("model_group_id");
 
     const params = getFilterParams(
@@ -150,10 +178,14 @@ export class CatalogQuery {
       analysisDimensions,
     );
 
-    // Named analyses are otherwise resolved and validated server-side; the UI
-    // only names the analysis and forwards its parameters.
+    // The analysis NAME is sent separately -- as a path segment
+    // (`Dataset.getDataUrl`) or as the `analysis=` query parameter
+    // (`Visualization.getSpecUrl`), via `getAnalysisChainName` -- never as a
+    // flat query key pushed from here, since a path-based route 400s on a
+    // redundant `analysis=` alongside its path segment. `dimension`/`order`
+    // are the mode's own declared parameters and are always query params,
+    // regardless of route.
     if (appliedAnalysis?.dimension) {
-      params.push(["analysis", appliedAnalysis.operation]);
       params.push(["dimension", appliedAnalysis.dimension]);
       if (appliedAnalysis.operation === "difference" && appliedAnalysis.order)
         params.push(["order", appliedAnalysis.order]);
@@ -179,11 +211,13 @@ export class CatalogQuery {
 
   getDataDownloadUrl({
     analysis,
+    derivedAnalysis,
     format,
     geographies,
     includeTimeDimension,
   }: {
     analysis: Analysis;
+    derivedAnalysis?: string | null;
     format: string;
     geographies?: Geography[] | null;
     includeTimeDimension?: boolean;
@@ -191,20 +225,23 @@ export class CatalogQuery {
     return this.dataset.getDataUrl(
       this.getQueryParams({
         analysis,
+        derivedAnalysis,
         geographies,
         includeTimeDimension,
       }),
       format,
-      this.getAnalysisName(analysis),
+      this.getAnalysisChainName(derivedAnalysis, analysis),
     );
   }
 
   getMapStyleUrl({
     analysis,
+    derivedAnalysis,
     mapOptions,
     extraParams = [],
   }: {
     analysis: Analysis;
+    derivedAnalysis?: string | null;
     mapOptions: Record<string, any>;
     extraParams?: [string, any][];
   }) {
@@ -212,6 +249,7 @@ export class CatalogQuery {
       this,
       {
         analysis,
+        derivedAnalysis,
         includeTimeDimension: true,
       },
       [
@@ -228,7 +266,12 @@ export class CatalogQuery {
     return (this?.response.results?.model_group_id || [-1])[0];
   }
 
-  getVisualizationUrl({ visualizationType, selectedGeographies, analysis }) {
+  getVisualizationUrl({
+    visualizationType,
+    selectedGeographies,
+    analysis,
+    derivedAnalysis,
+  }) {
     return visualizationType &&
       selectedGeographies &&
       selectedGeographies.length
@@ -236,6 +279,7 @@ export class CatalogQuery {
           analysis: analysis.dimension?.startsWith("calendar_")
             ? null
             : analysis,
+          derivedAnalysis,
           geographies: selectedGeographies,
         })
       : null;

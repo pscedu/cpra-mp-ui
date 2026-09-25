@@ -294,12 +294,21 @@ export class Visualization {
     options: QueryOptions,
     specParams: [string, any][] = [],
   ) {
+    // A visualization-spec request is always query-param-based (never a
+    // path-based analysis route -- see `Dataset.getDataUrl`'s separate
+    // path-segment mechanism for that), so the chain name belongs here as a
+    // flat `analysis=` key rather than in `getQueryParams`.
+    const chainName = catalogQuery.getAnalysisChainName(
+      options.derivedAnalysis,
+      options.analysis,
+    );
     const params = [
       ...catalogQuery.getQueryParams({
         ...options,
         includeTimeDimension: !options.geographies,
         maxGridCells: this.max_grid_cells,
       }),
+      ...(chainName ? ([["analysis", chainName]] as [string, any][]) : []),
       ...specParams,
     ];
 
@@ -316,22 +325,80 @@ export class Analysis {
   label: string;
   type: string;
   variables: string[] | null;
+  // "variable" (a derived variable, selected from the Variable dropdown, e.g.
+  // `land-type-confidence`) or "dimension" (a chainable operation applied on
+  // top of whatever's selected, e.g. `difference`); `null` for an analysis
+  // this portal doesn't surface as either (e.g. `salinity-veg-investigation`).
+  kind: string | null;
+  // Dimensions this analysis already collapses/fixes, so a picker offering
+  // dimensions to filter or difference over should not offer these.
+  subsumed_dimensions: string[];
 
   constructor({
     name,
     label,
     type,
     variables,
+    kind = null,
+    subsumed_dimensions = [],
   }: {
     name: string;
     label: string;
     type: string;
     variables: string[] | null;
+    kind?: string | null;
+    subsumed_dimensions?: string[];
   }) {
     this.name = name;
     this.label = label;
     this.type = type;
     this.variables = variables;
+    this.kind = kind;
+    this.subsumed_dimensions = subsumed_dimensions;
+  }
+
+  // Whether this analysis is meaningful for the given variable, per its
+  // catalog `variables` restriction (`null` means it applies to any
+  // variable).
+  appliesTo(variableName: string): boolean {
+    return this.variables === null || this.variables.includes(variableName);
+  }
+}
+
+// A `kind === "variable"` analysis has no dataset of its own to key its
+// options off of when `variables` is `null` -- its inputs are fixed
+// server-side (e.g. `lnd-type-plus`'s three-input join across two grids), so
+// there's no single variable/grid/time_unit that "matching the request"
+// would mean. Cataloging it in the Variable dropdown still needs one to
+// stand in for, hardcoded here since nothing in the catalog says which.
+const CANONICAL_DERIVED_DATASETS: {
+  [analysisName: string]: { variable: string; grid: string; time_unit: string };
+} = {
+  "lnd-type-plus": {
+    variable: "stg",
+    grid: "hydro_compartment_v002",
+    time_unit: "annual",
+  },
+};
+
+// Pairs a `kind === "variable"` analysis with one of the real datasets it
+// applies to, so it can be offered in the Variable dropdown alongside plain
+// datasets (§4.1).
+export class DerivedDataset {
+  analysis: Analysis;
+  dataset: Dataset;
+
+  constructor(analysis: Analysis, dataset: Dataset) {
+    this.analysis = analysis;
+    this.dataset = dataset;
+  }
+
+  get name() {
+    return this.analysis.name;
+  }
+
+  get label() {
+    return this.analysis.label;
   }
 }
 
@@ -349,6 +416,8 @@ export class Structure {
   visualizationsMap: { [key: string]: Visualization };
   analyses: Analysis[];
   analysesMap: { [key: string]: Analysis };
+  derivedDatasets: DerivedDataset[];
+  derivedDatasetsMap: { [key: string]: DerivedDataset };
 
   constructor(
     datasets,
@@ -416,6 +485,37 @@ export class Structure {
       })
       .filter((dataset) => dataset !== undefined)
       .sort((a, b) => (a.variable.label < b.variable.label ? -1 : 1));
+
+    this.derivedDatasets = this.analyses
+      .filter((analysis) => analysis.kind === "variable")
+      .flatMap((analysis) => {
+        if (analysis.variables === null) {
+          const canonical = CANONICAL_DERIVED_DATASETS[analysis.name];
+          const dataset = canonical
+            ? this.datasets.find(
+                (ds) =>
+                  ds.variable.name === canonical.variable &&
+                  ds.grid.name === canonical.grid &&
+                  ds.time_unit === canonical.time_unit,
+              )
+            : null;
+          return dataset ? [new DerivedDataset(analysis, dataset)] : [];
+        }
+        return this.datasets
+          .filter((ds) => analysis.appliesTo(ds.variable.name))
+          .map((ds) => new DerivedDataset(analysis, ds));
+      });
+    this.derivedDatasetsMap = makeMap(this.derivedDatasets);
+  }
+
+  // Dimensions a selected derived variable already subsumes and so should
+  // neither be offered for selection nor sent as a filter (§4.4). `null`
+  // when no derived variable is selected.
+  subsumedFor(analysisName: string | null): string[] {
+    return analysisName
+      ? (this.derivedDatasetsMap[analysisName]?.analysis.subsumed_dimensions ??
+          [])
+      : [];
   }
 
   getRequiredDimensions(

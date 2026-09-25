@@ -131,13 +131,18 @@ export const useHydrateCatalogQueries = () => {
   );
 };
 
-export const analysisAtom = hashAtom<Analysis>(
+// The selection mode -- "single"/"compare", or a `kind === "dimension"`
+// registered analysis (currently only "difference") applied over whatever
+// variable is selected. Renamed from "analysis" to "mode" so that key can be
+// reused for the selected DERIVED VARIABLE below; see `migrateLegacyAnalysisKey`
+// for the one-time decode of old links still using "analysis" for this.
+export const modeAtom = hashAtom<Analysis>(
   {
     operation: "single",
     dimension: null,
   },
   {
-    key: "analysis",
+    key: "mode",
     encoder: ({ operation, dimension, order }) => {
       let valueStr = operation;
       if (dimension) valueStr += `:${dimension}`;
@@ -155,6 +160,12 @@ export const analysisAtom = hashAtom<Analysis>(
   },
 );
 
+// The selected `kind === "variable"` derived variable's name (e.g.
+// "land-type-confidence", "land-change"), or `null` for a plain variable.
+export const derivedAnalysisAtom = hashAtom<string | null>(null, {
+  key: "analysis",
+});
+
 export const setRequestedDatasetsAtom = atom(
   null,
   (
@@ -169,7 +180,8 @@ export const setRequestedDatasetsAtom = atom(
       grid: ds.grid.name,
       time_unit: ds.time_unit,
     }));
-    const analysis = get(analysisAtom);
+    const mode = get(modeAtom);
+    const derivedAnalysis = get(derivedAnalysisAtom);
 
     // Update dataset requests.
     set(requestedDatasetsAtom, newRequests);
@@ -182,19 +194,23 @@ export const setRequestedDatasetsAtom = atom(
         get(selectedGeographiesAtom).filter(isCoordinate),
       );
 
-    // Reset the analysis if it no longer applies to the new variable, per its
-    // catalog `variables` restriction (`null` means it applies to any
-    // variable). "single"/"compare" are not registered analyses, so this is a
-    // no-op for them.
+    // Reset the mode/derived variable if either no longer applies to the new
+    // variable, per its catalog `variables` restriction (`null` means it
+    // applies to any variable). "single"/"compare" are not registered
+    // analyses, so the mode check is a no-op for them.
     const structurePromise = get(structureAtom);
     (async () => {
       const structure = await structurePromise;
-      const selectedAnalysis = structure.analysesMap[analysis.operation];
+      const selectedMode = structure.analysesMap[mode.operation];
+      if (selectedMode && !selectedMode.appliesTo(newRequests[0].variable))
+        set(modeAtom, { operation: "single", dimension: null });
       if (
-        selectedAnalysis?.variables &&
-        !selectedAnalysis.variables.includes(newRequests[0].variable)
+        derivedAnalysis &&
+        !structure.analysesMap[derivedAnalysis]?.appliesTo(
+          newRequests[0].variable,
+        )
       )
-        set(analysisAtom, { operation: "single", dimension: null });
+        set(derivedAnalysisAtom, null);
     })();
   },
 );
@@ -484,15 +500,15 @@ export const setExecutedCatalogQueriesAtom = atom(
       requestedTimeValuesAtom,
       cqs.queries[0].response.results[cqs.getTimeDimension().name],
     );
-    // Update the analysis dimension if needed.
-    const analysis = get(analysisAtom);
+    // Update the mode's dimension if needed.
+    const mode = get(modeAtom);
     const timeDimName = cqs.getTimeDimension().name;
     if (
-      analysis.dimension &&
-      ["calendar_day", "calendar_year"].includes(analysis.dimension) &&
-      analysis.dimension !== timeDimName
+      mode.dimension &&
+      ["calendar_day", "calendar_year"].includes(mode.dimension) &&
+      mode.dimension !== timeDimName
     )
-      set(analysisAtom, { ...analysis, dimension: timeDimName });
+      set(modeAtom, { ...mode, dimension: timeDimName });
   },
 );
 
