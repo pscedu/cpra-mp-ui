@@ -132,7 +132,7 @@ export const useHydrateCatalogQueries = () => {
 };
 
 // The selection mode -- "single"/"compare", or a `kind === "dimension"`
-// registered analysis (currently only "difference") applied over whatever
+// registered analysis (currently only "diff") applied over whatever
 // variable is selected. Renamed from "analysis" to "mode" so that key can be
 // reused for the selected DERIVED VARIABLE below; see `migrateLegacyAnalysisKey`
 // for the one-time decode of old links still using "analysis" for this.
@@ -161,7 +161,7 @@ export const modeAtom = hashAtom<Analysis>(
 );
 
 // The selected `kind === "variable"` derived variable's name (e.g.
-// "land-type-confidence", "land-change"), or `null` for a plain variable.
+// "lnd_conf", "lnd_chng"), or `null` for a plain variable.
 export const derivedAnalysisAtom = hashAtom<string | null>(null, {
   key: "analysis",
 });
@@ -180,9 +180,6 @@ export const setRequestedDatasetsAtom = atom(
       grid: ds.grid.name,
       time_unit: ds.time_unit,
     }));
-    const mode = get(modeAtom);
-    const derivedAnalysis = get(derivedAnalysisAtom);
-
     // Update dataset requests.
     set(requestedDatasetsAtom, newRequests);
 
@@ -198,9 +195,22 @@ export const setRequestedDatasetsAtom = atom(
     // variable, per its catalog `variables` restriction (`null` means it
     // applies to any variable). "single"/"compare" are not registered
     // analyses, so the mode check is a no-op for them.
+    //
+    // `mode`/`derivedAnalysis` are read HERE, after the await, not captured
+    // above alongside `prevRequests`. A caller that switches variable and
+    // derived analysis together sets them in two statements (see
+    // `dataset-select.tsx`'s `setVariable`), and this check resumes after both
+    // have run. Reading them up front would test the OUTGOING selection
+    // against the INCOMING variable and then clobber the incoming one: picking
+    // "Land Type Plus" while "Land Confidence" was selected reset
+    // `derivedAnalysisAtom` to null, because `lnd_conf` doesn't apply to
+    // `lnd_type_plus`'s stand-in `stg` dataset -- so the Variable menu
+    // silently fell back to showing plain "Stage (Water Level)".
     const structurePromise = get(structureAtom);
     (async () => {
       const structure = await structurePromise;
+      const mode = get(modeAtom);
+      const derivedAnalysis = get(derivedAnalysisAtom);
       const selectedMode = structure.analysesMap[mode.operation];
       if (selectedMode && !selectedMode.appliesTo(newRequests[0].variable))
         set(modeAtom, { operation: "single", dimension: null });

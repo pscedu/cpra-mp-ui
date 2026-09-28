@@ -326,9 +326,9 @@ export class Analysis {
   type: string;
   variables: string[] | null;
   // "variable" (a derived variable, selected from the Variable dropdown, e.g.
-  // `land-type-confidence`) or "dimension" (a chainable operation applied on
-  // top of whatever's selected, e.g. `difference`); `null` for an analysis
-  // this portal doesn't surface as either (e.g. `salinity-veg-investigation`).
+  // `lnd_conf`) or "dimension" (a chainable operation applied on
+  // top of whatever's selected, e.g. `diff`); `null` for an analysis
+  // this portal doesn't surface as either (e.g. `sal_veg_investigation`).
   kind: string | null;
   // Dimensions this analysis already collapses/fixes, so a picker offering
   // dimensions to filter or difference over should not offer these.
@@ -367,14 +367,14 @@ export class Analysis {
 
 // A `kind === "variable"` analysis has no dataset of its own to key its
 // options off of when `variables` is `null` -- its inputs are fixed
-// server-side (e.g. `lnd-type-plus`'s three-input join across two grids), so
+// server-side (e.g. `lnd_type_plus`'s three-input join across two grids), so
 // there's no single variable/grid/time_unit that "matching the request"
 // would mean. Cataloging it in the Variable dropdown still needs one to
 // stand in for, hardcoded here since nothing in the catalog says which.
 const CANONICAL_DERIVED_DATASETS: {
   [analysisName: string]: { variable: string; grid: string; time_unit: string };
 } = {
-  "lnd-type-plus": {
+  lnd_type_plus: {
     variable: "stg",
     grid: "hydro_compartment_v002",
     time_unit: "annual",

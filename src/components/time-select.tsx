@@ -37,12 +37,12 @@ export default function TimeSelect({
 
   if (!choices.length || !selected.length) return;
 
-  // `land-change`'s target year is a single required parameter, not a
+  // `lnd_chng`'s target year is a single required parameter, not a
   // comparison dimension (its baseline year is derived server-side from
   // `model_group_id` instead) -- unlike a plain variable's calendar
   // dimension, it never supports "Compare"/"Subtract" here (§4.1).
   const yearIsSingleValued =
-    derivedAnalysis === "land-change" && timeDimension?.name === "calendar_year";
+    derivedAnalysis === "lnd_chng" && timeDimension?.name === "calendar_year";
 
   const setSelectedWithDebounce = (values, useTimeout = true) => {
     setSelected(values);

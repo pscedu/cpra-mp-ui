@@ -21,11 +21,18 @@ export const migrateLegacyAnalysisKey = (params: URLSearchParams): void => {
 
   params.delete("analysis");
   if (operation === "concatenate") {
-    // `land-change` no longer takes a dimension parameter -- "concatenate"
+    // `lnd_chng` no longer takes a dimension parameter -- "concatenate"
     // never had an `order` field, so there's nothing else to carry over.
-    params.set("analysis", "land-change");
+    params.set("analysis", "lnd_chng");
     params.set("mode", "single");
+  } else if (operation === "difference") {
+    // The registered analysis this operation names is now `diff`, and `mode`'s
+    // operation is that registry name verbatim. The rest of the value (":dim"
+    // and an optional ":order") is unchanged, so only the head is rewritten.
+    params.set("mode", `diff${value.slice(operation.length)}`);
   } else {
+    // "single"/"compare" are pure client-side view state, not registry names,
+    // so they pass through as they always have.
     params.set("mode", value);
   }
 };

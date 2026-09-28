@@ -59,7 +59,7 @@ export function SelectionModeDropdown({
     },
   ];
 
-  // "difference" is the one `kind === "dimension"` registered analysis
+  // "diff" is the one `kind === "dimension"` registered analysis
   // (`/v1/analyses.json`); if the API's catalog doesn't have one, don't offer
   // it. It applies unrestricted to any non-subsumed dimension (§4.2), for
   // either a plain or a derived variable, so there's nothing further to gate
@@ -67,9 +67,15 @@ export function SelectionModeDropdown({
   // are never looked up there.
   const difference = structure?.analyses.find((a) => a.kind === "dimension");
   if (supportsSubtract && difference)
+    // `value` has to be built from `difference.name`, not hardcoded: `mode`'s
+    // `operation` is set from it below, and `selectedValue` is
+    // `${operation}-${order}`. A literal here desyncs from the catalog the
+    // moment the analysis is renamed server-side, and the symptom is silent --
+    // `selectedOption` just goes undefined, so the trigger falls back to the
+    // question-mark icon and no radio item reads as selected.
     options.push(
       {
-        value: "difference-asc",
+        value: `${difference.name}-asc`,
         label: `${difference.label}: A - B`,
         icon: SquaresSubtract,
         maxLength: 2,
@@ -77,7 +83,7 @@ export function SelectionModeDropdown({
         order: "asc",
       },
       {
-        value: "difference-desc",
+        value: `${difference.name}-desc`,
         label: `${difference.label}: B - A`,
         icon: SquaresSubtract,
         className: "rotate-180",

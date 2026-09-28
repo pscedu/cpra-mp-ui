@@ -1,10 +1,10 @@
 export type Analysis = {
   // "single" and "compare" are local selection-mode view state; any other
-  // value is the name of a registered analysis (e.g. "difference",
+  // value is the name of a registered analysis (e.g. "diff",
   // "concatenate") from the `/v1/analyses.json` catalog.
   operation: string;
   dimension: string | null;
-  // Only meaningful for the "difference" analysis.
+  // Only meaningful for the "diff" analysis.
   order?: "asc" | "desc" | null;
 };
 

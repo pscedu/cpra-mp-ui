@@ -13,7 +13,7 @@ import {
 } from "./utils";
 
 // Every registered analysis compares exactly two values of its `dimension`
-// ("difference" subtracts one from the other; "concatenate" puts one beside
+// ("diff" subtracts one from the other; "concatenate" puts one beside
 // the other), so a selection with any other number of values has nothing for
 // it to operate on and the API rejects it outright. The reader can leave the
 // menu on "Subtract A - B" while narrowing the dimension back down to one
@@ -72,7 +72,7 @@ export class CatalogQuery {
   }
 
   // The comma-joined chain of registered analysis names to request (e.g.
-  // "land-type-confidence,difference"), or null when neither a derived
+  // "lnd_conf,diff"), or null when neither a derived
   // variable nor an applicable mode is selected. `mode` is "single"/"compare"
   // as often as not, which is client-side view state with no `dimension` and
   // contributes nothing to the chain. This one string serves both forms the
@@ -123,10 +123,10 @@ export class CatalogQuery {
 
     // A selected derived variable subsumes some dimensions, but "subsumed"
     // means two different things depending on the dimension's filterType.
-    // For a `select` dimension (e.g. `land-type-confidence`'s `scenario_id`)
+    // For a `select` dimension (e.g. `lnd_conf`'s `scenario_id`)
     // the analysis fixes it server-side and REJECTS a caller-supplied value
     // outright, so it must be hidden from `dimensions-select.tsx` (§4.4) and
-    // never sent. For the `time` dimension (e.g. `land-change`'s
+    // never sent. For the `time` dimension (e.g. `lnd_chng`'s
     // `calendar_year`) subsumption instead means "this is no longer an
     // ordinary comparable dimension" -- the analysis still requires exactly
     // one caller-selected value (the comparison year) and rides the normal
@@ -161,14 +161,14 @@ export class CatalogQuery {
 
     const modelGroupValues = selectedFilters.model_group_id || [];
     // Dimensions whose selected values must survive `maxValues` truncation:
-    // the mode's own dimension, and (for `land-change`'s three-image
+    // the mode's own dimension, and (for `lnd_chng`'s three-image
     // variant) `model_group_id`, since the API derives two-image vs.
     // three-image from how many `model_group_id` values are in the request's
     // filters.
     const analysisDimensions = [];
     if (appliedAnalysis?.dimension)
       analysisDimensions.push(appliedAnalysis.dimension);
-    if (derivedAnalysis === "land-change" && modelGroupValues.length === 2)
+    if (derivedAnalysis === "lnd_chng" && modelGroupValues.length === 2)
       analysisDimensions.push("model_group_id");
 
     const params = getFilterParams(
@@ -187,7 +187,7 @@ export class CatalogQuery {
     // regardless of route.
     if (appliedAnalysis?.dimension) {
       params.push(["dimension", appliedAnalysis.dimension]);
-      if (appliedAnalysis.operation === "difference" && appliedAnalysis.order)
+      if (appliedAnalysis.operation === "diff" && appliedAnalysis.order)
         params.push(["order", appliedAnalysis.order]);
     }
 

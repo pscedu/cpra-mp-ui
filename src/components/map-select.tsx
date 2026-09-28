@@ -32,11 +32,11 @@ export default function MapSelect() {
   if (mode?.dimension) delete allValues[mode?.dimension];
   // Also remove any dimensions the selected derived variable already
   // subsumes (§4.4), and the model group dimension specifically if we are
-  // doing a three-image `land-change`.
+  // doing a three-image `lnd_chng`.
   for (const dim of structure?.subsumedFor(derivedAnalysis) ?? [])
     delete allValues[dim];
   if (
-    derivedAnalysis === "land-change" &&
+    derivedAnalysis === "lnd_chng" &&
     catalogQueries?.combinedFilters.model_group_id?.length == 2
   )
     delete allValues["model_group_id"];
