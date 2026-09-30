@@ -22,28 +22,7 @@ const GEOGRAPHIES = [[-92.21787, 29.71833]] as any;
 
 let failures = 0;
 
-// A KNOWN gap, reported but not counted, so the exit code stays a regression
-// signal rather than a permanent red.
-//
-// The `sediment-dynamics` chart fixes its own analysis (`sediment_dynamics`,
-// `kind="internal"`). Selecting a derived analysis on top makes the chain
-// `sediment_dynamics,<other>`, and the server allows only a `kind="dimension"`
-// analysis after the first stage -- `diff` is the only one -- so `lnd_chng` and
-// `lnd_conf` come back 400. `Structure.offeredVisualizations` cannot filter this
-// out: nothing in `/v1/visualizations.json` says which analysis a visualization
-// implies, and inferring it by un-hyphenating the name would be a coincidence,
-// not a contract. The fix is an `analysis` field on the visualization catalog
-// entry; until then the picker offers a combination the server refuses.
-const isKnownChainGap = (
-  structure: Structure,
-  visualizationName: string,
-  derivedAnalysis: string | null,
-) =>
-  visualizationName === "sediment-dynamics" &&
-  derivedAnalysis !== null &&
-  structure.analysesMap[derivedAnalysis]?.kind !== "dimension";
-
-const check = async (what: string, url: string | null, known = false) => {
+const check = async (what: string, url: string | null) => {
   if (!url) {
     console.log(`  FAIL ${what}: no URL built`);
     failures++;
@@ -52,9 +31,10 @@ const check = async (what: string, url: string | null, known = false) => {
   const response = await fetch(url, { headers: { accept: "*/*" } });
   const ok = response.status >= 200 && response.status < 300;
   const body = ok ? "" : (await response.text()).slice(0, 200);
-  if (!ok && !known) failures++;
-  const tag = ok ? "ok  " : known ? "KNOWN" : "FAIL";
-  console.log(`  ${tag} ${what} [${response.status}]${ok ? "" : ` :: ${body}`}`);
+  if (!ok) failures++;
+  console.log(
+    `  ${ok ? "ok  " : "FAIL"} ${what} [${response.status}]${ok ? "" : ` :: ${body}`}`,
+  );
   console.log(`       ${url}`);
 };
 
@@ -100,8 +80,12 @@ const exercise = async (
   );
 
   // Every chart a reader could actually pick here, asked of the picker's own
-  // function. An empty list is itself the interesting answer for an analysis
-  // whose result has no time column, so it is reported rather than skipped.
+  // function -- so every URL below is one the UI would really issue, and a 4xx
+  // among them is a combination the portal offers and the server refuses. The
+  // list itself is logged because which charts are offered is half the answer:
+  // `sediment-dynamics` dropping out under a derived analysis is the point of
+  // the `analysis` field, and an empty list is the honest result for a selection
+  // with nothing chartable left.
   const offered = structure.offeredVisualizations(
     derivedAnalysis,
     dataset.variable.name,
@@ -118,7 +102,6 @@ const exercise = async (
         analysis: SINGLE,
         derivedAnalysis,
       }),
-      isKnownChainGap(structure, visualization.name, derivedAnalysis),
     );
   }
 };

@@ -247,6 +247,13 @@ export class Visualization {
   // combination outright (`DatasetVisualization.validate_time_axis` -> 400); this is
   // what stops the portal asking.
   time_axis: boolean;
+  // The named analysis this chart IS the presentation of, or null. Set only for
+  // `sediment-dynamics` today. The server puts it at the head of the chain, so a
+  // reader's own analysis lands in a later stage -- and only a `kind === "dimension"`
+  // analysis may go there. This field is read rather than the name un-hyphenated,
+  // because `sediment-dynamics` -> `sediment_dynamics` is a coincidence and the next
+  // such chart need not repeat it.
+  analysis: string | null;
 
   constructor({
     name,
@@ -255,6 +262,7 @@ export class Visualization {
     max_grid_cells,
     variables,
     time_axis,
+    analysis,
   }: {
     name: string;
     label: string;
@@ -262,6 +270,7 @@ export class Visualization {
     max_grid_cells: number;
     variables: string[] | null;
     time_axis: boolean;
+    analysis: string | null;
   }) {
     this.name = name;
     this.label = label;
@@ -269,6 +278,7 @@ export class Visualization {
     this.max_grid_cells = max_grid_cells;
     this.variables = variables;
     this.time_axis = time_axis;
+    this.analysis = analysis;
   }
 
   getSpecUrl(
@@ -603,12 +613,13 @@ export class Structure {
   // copy of the predicate there would drift from the component the moment either
   // moved, which is the failure `probe.ts`'s own header warns about.
   //
-  // Three exclusions, each from a different source: `map` is not this control's
+  // Four exclusions, each from a different source: `map` is not this control's
   // to pick (the map is always drawn, and is chosen by `MapSelect`); a chart that
   // plots time cannot present an analysis that folds the axis away
-  // (`collapsesTime` above); and a chart declaring `variables` draws only those
+  // (`collapsesTime` above); a chart declaring `variables` draws only those
   // (`species-stacked-bar` breaks down `veg_species` and 400s on anything else,
-  // which `SpeciesStackedBar.validate` enforces server-side).
+  // which `SpeciesStackedBar.validate` enforces server-side); and a chart that IS
+  // the presentation of an analysis cannot also carry the reader's, below.
   //
   // `variable` is undefined for an analysis that folds several variables into one
   // result and so has no single presentation variable -- such a selection is
@@ -618,10 +629,22 @@ export class Structure {
     variable: string | undefined,
   ): Visualization[] {
     const collapsesTime = this.collapsesTime(analysisName);
+    // Mirrors `analyses.resolve_analysis_chain`: the chart's own analysis leads, so
+    // the reader's is a later stage, and only `kind === "dimension"` may go there.
+    // `analysisName` is `derivedAnalysisAtom`, which holds a `kind === "variable"`
+    // analysis or nothing, so today this reduces to "any analysis at all hides the
+    // chart" -- the `kind` test is what keeps that true if that atom ever widens,
+    // and is why `sediment_dynamics,diff` (which the server does accept) is not
+    // excluded here.
+    const chartCarriesAnalysis = (visualization: Visualization) =>
+      visualization.analysis !== null &&
+      analysisName != null &&
+      this.analysesMap[analysisName]?.kind !== "dimension";
     return this.visualizations.filter(
       (visualization) =>
         visualization.name !== "map" &&
         !(visualization.time_axis && collapsesTime) &&
+        !chartCarriesAnalysis(visualization) &&
         (visualization.variables === null ||
           (variable !== undefined && visualization.variables.includes(variable))),
     );
