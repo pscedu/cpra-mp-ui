@@ -20,7 +20,8 @@
     "build": "vite build",
     "build-library": "vite build --mode=library",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "probe": "vite-node -c vite.probe.config.ts probe.ts"
   },
   "dependencies": {
     "@gravatar-com/quick-editor": "^0.8.0",

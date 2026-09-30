@@ -37,10 +37,15 @@ export default function TimeSelect({
 
   if (!choices.length || !selected.length) return;
 
-  // `lnd_chng`'s target year is a single required parameter, not a
-  // comparison dimension (its baseline year is derived server-side from
-  // `model_group_id` instead) -- unlike a plain variable's calendar
-  // dimension, it never supports "Compare"/"Subtract" here (§4.1).
+  // `lnd_chng` already compares each selected year against a baseline derived
+  // server-side from `model_group_id`, so comparing two of them here would be a
+  // comparison of comparisons -- and the map it feeds draws one image, which
+  // holds one year (the API 400s on more). It never offers
+  // "Compare"/"Subtract" for the calendar dimension (§4.1).
+  //
+  // This bounds the MAP only. A chart names geographies, so `getSpecUrl` sends
+  // no `calendar_year` at all and gets every year against the baseline back --
+  // the land-change series -- regardless of what this control is set to.
   const yearIsSingleValued =
     derivedAnalysis === "lnd_chng" && timeDimension?.name === "calendar_year";
 

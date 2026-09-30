@@ -239,6 +239,14 @@ export class Visualization {
   type: string;
   max_grid_cells: number;
   variables: string[] | null;
+  // Whether this visualization plots the time dimension as an axis, and so cannot present
+  // an analysis that collapses it (`api.models.Visualization`). True for every chart,
+  // false for the map alone. `Structure.collapsesTime` is the other half of the pair --
+  // together they are what keeps a chart from being offered, or requested, for an
+  // analysis with no year column left to plot against. The server rejects the
+  // combination outright (`DatasetVisualization.validate_time_axis` -> 400); this is
+  // what stops the portal asking.
+  time_axis: boolean;
 
   constructor({
     name,
@@ -246,18 +254,21 @@ export class Visualization {
     type,
     max_grid_cells,
     variables,
+    time_axis,
   }: {
     name: string;
     label: string;
     type: string;
     max_grid_cells: number;
     variables: string[] | null;
+    time_axis: boolean;
   }) {
     this.name = name;
     this.label = label;
     this.type = type;
     this.max_grid_cells = max_grid_cells;
     this.variables = variables;
+    this.time_axis = time_axis;
   }
 
   getSpecUrl(
@@ -560,6 +571,60 @@ export class Structure {
   fixesOwnInputs(analysisName: string | null | undefined): boolean {
     if (!analysisName) return false;
     return this.analysesMap[analysisName]?.output != null;
+  }
+
+  // Whether the named derived analysis folds the TIME dimension away, leaving a
+  // result with no time column to plot against -- a chart with a time axis would
+  // have nothing to draw, and the server rejects the pair outright
+  // (`DatasetVisualization.validate_time_axis` -> 400). `Visualization.time_axis`
+  // is the other half -- see `VisualizationSelect`, which stops offering the
+  // chart, and `getVisualizationUrl`, which stops requesting it for an old
+  // permalink that names one anyway.
+  //
+  // Built on `subsumedFor` and the dimension's own `filterType` rather than on a
+  // list of analysis names, because subsumption means two different things by
+  // filterType and only the `time` one collapses an axis (see `getQueryParams`):
+  // `lnd_conf` subsumes `scenario_id`, a `select` dimension, and charts fine.
+  // That is also why this returns false for every analysis shipping today --
+  // `lnd_chng` was the one time case and now keeps its year column, comparing each
+  // selected year against a derived baseline. The question is asked of the catalog
+  // rather than of a name here, so the next one needs no change on this side.
+  collapsesTime(analysisName: string | null | undefined): boolean {
+    const subsumed = this.subsumedFor(analysisName ?? null);
+    return this.dimensions.some(
+      (dimension) =>
+        dimension.filterType === "time" && subsumed.includes(dimension.name),
+    );
+  }
+
+  // The charts a reader may pick for this selection -- `VisualizationSelect`'s
+  // whole answer, lifted out of the component so it has exactly one definition.
+  // `probe.ts` asks the same question to decide which spec URLs to fetch, and a
+  // copy of the predicate there would drift from the component the moment either
+  // moved, which is the failure `probe.ts`'s own header warns about.
+  //
+  // Three exclusions, each from a different source: `map` is not this control's
+  // to pick (the map is always drawn, and is chosen by `MapSelect`); a chart that
+  // plots time cannot present an analysis that folds the axis away
+  // (`collapsesTime` above); and a chart declaring `variables` draws only those
+  // (`species-stacked-bar` breaks down `veg_species` and 400s on anything else,
+  // which `SpeciesStackedBar.validate` enforces server-side).
+  //
+  // `variable` is undefined for an analysis that folds several variables into one
+  // result and so has no single presentation variable -- such a selection is
+  // offered only the charts that name no `variables` at all.
+  offeredVisualizations(
+    analysisName: string | null | undefined,
+    variable: string | undefined,
+  ): Visualization[] {
+    const collapsesTime = this.collapsesTime(analysisName);
+    return this.visualizations.filter(
+      (visualization) =>
+        visualization.name !== "map" &&
+        !(visualization.time_axis && collapsesTime) &&
+        (visualization.variables === null ||
+          (variable !== undefined && visualization.variables.includes(variable))),
+    );
   }
 
   getRequiredDimensions(

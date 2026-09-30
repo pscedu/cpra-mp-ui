@@ -174,11 +174,11 @@ export class CatalogQuery {
     // For a `select` dimension (e.g. `lnd_conf`'s `scenario_id`)
     // the analysis fixes it server-side and REJECTS a caller-supplied value
     // outright, so it must be hidden from `dimensions-select.tsx` (§4.4) and
-    // never sent. For the `time` dimension (e.g. `lnd_chng`'s
-    // `calendar_year`) subsumption instead means "this is no longer an
-    // ordinary comparable dimension" -- the analysis still requires exactly
-    // one caller-selected value (the comparison year) and rides the normal
-    // time-filter plumbing (`includeTimeDimension`) unchanged.
+    // never sent. For a `time` dimension subsumption instead means "this is no
+    // longer an ordinary comparable dimension" -- the caller still selects it
+    // and it rides the normal time-filter plumbing (`includeTimeDimension`)
+    // unchanged. No analysis subsumes a time dimension today; `lnd_chng` did
+    // until it was rewritten to keep its year column (see `collapsesTime`).
     const subsumedDimensions = this.structure.subsumedFor(
       derivedAnalysis ?? null,
     );
@@ -322,10 +322,20 @@ export class CatalogQuery {
     analysis,
     derivedAnalysis,
   }) {
-    return visualizationType &&
-      selectedGeographies &&
-      selectedGeographies.length
-      ? this.structure.visualizationsMap[visualizationType].getSpecUrl(this, {
+    // A chart for an analysis that collapses the time column is not a request worth
+    // making: the result has no year in it to plot against, and the spec route answers
+    // 400 (`DatasetVisualization.validate_time_axis`).
+    // `VisualizationSelect` stops offering the combination, but the chart type lives in
+    // the hash, so an old permalink can still arrive naming one -- this is what keeps
+    // that from becoming the error rather than an empty chart panel.
+    const visualization = visualizationType
+      ? this.structure.visualizationsMap[visualizationType]
+      : null;
+    if (visualization?.time_axis && this.structure.collapsesTime(derivedAnalysis))
+      return null;
+
+    return visualization && selectedGeographies && selectedGeographies.length
+      ? visualization.getSpecUrl(this, {
           analysis: analysis.dimension?.startsWith("calendar_")
             ? null
             : analysis,
