@@ -1,5 +1,5 @@
 import { CatalogQuery } from "./catalog";
-import { dataBaseUrl, staticTilesBaseUrl } from "./config";
+import { dataBaseUrl } from "./config";
 import { QueryOptions } from "./query";
 import { formatGeography } from "./selection";
 import { Coordinate, Geography } from "./types";
@@ -170,10 +170,6 @@ export class Grid {
     return this.grid_type === "vector";
   }
 
-  getTileUrl() {
-    return this.isVector() ? `${staticTilesBaseUrl}/${this.name}` : null;
-  }
-
   // The crosswalk URL that resolves coordinates to the geographies of this grid
   // containing them, each reported as a `dst_id` alongside the `src_lng`/`src_lat`
   // of the coordinate it answers for.
@@ -230,31 +226,6 @@ export class Dataset {
     this.time_unit = time_unit;
   }
 
-  getBaseUrl() {
-    return `${dataBaseUrl}/datasets/${this.variable.name}/${this.time_unit}/${this.grid.name}`;
-  }
-
-  // `analysisName` routes through the named-analysis data endpoint
-  // (`/analyses/{name}/data.{format}`) instead of the plain data endpoint,
-  // mirroring the dataset-scoped visualization route.
-  getDataUrl(
-    params: [string, any][],
-    format: string,
-    analysisName: string | null = null,
-  ) {
-    const basePath = analysisName
-      ? `${this.getBaseUrl()}/analyses/${analysisName}/data`
-      : `${this.getBaseUrl()}/data`;
-    return `${basePath}.${format}${makeQueryString(params)}`;
-  }
-
-  getTileUrl(params: [string, any][]) {
-    return (
-      this.grid.getTileUrl() ||
-      `${this.getBaseUrl()}/data/{z}/{x}/{y}.png${makeQueryString(params)}`
-    );
-  }
-
   getTimeColumn() {
     return ["annual", "decadal"].includes(this.time_unit)
       ? "calendar_year"
@@ -294,15 +265,16 @@ export class Visualization {
     options: QueryOptions,
     specParams: [string, any][] = [],
   ) {
-    // A visualization-spec request is always query-param-based (never a
-    // path-based analysis route -- see `Dataset.getDataUrl`'s separate
-    // path-segment mechanism for that), so the chain name belongs here as a
-    // flat `analysis=` key rather than in `getQueryParams`.
+    // Everything the request names -- the dataset it reads, the analysis chain
+    // applied to it, the filters -- is a query parameter; the path carries only
+    // the visualization's own name. `getDatasetParams` decides whether the
+    // dataset triple belongs in the request at all.
     const chainName = catalogQuery.getAnalysisChainName(
       options.derivedAnalysis,
       options.analysis,
     );
     const params = [
+      ...catalogQuery.getDatasetParams(),
       ...catalogQuery.getQueryParams({
         ...options,
         includeTimeDimension: !options.geographies,
@@ -312,19 +284,35 @@ export class Visualization {
       ...specParams,
     ];
 
-    const baseUrl =
-      this.type === "dataset"
-        ? `${catalogQuery.dataset.getBaseUrl()}/visualization`
-        : `${dataBaseUrl}/visualizations`;
-    return `${baseUrl}/${this.name}.json${makeQueryString(params)}`;
+    return `${dataBaseUrl}/visualizations/${this.name}.json${makeQueryString(params)}`;
   }
 }
+
+// What a request PRODUCES, as the API reports it -- `api/models.py`'s
+// `CatalogOutput`. It arrives in two places, computed by one function server-side
+// (`api/catalog.py::output_body`): on every `/v1/catalog.json` response, for the
+// request that was actually sent, and on an `/v1/analyses.json` entry whose
+// analysis fixes its own inputs, where it is a fact about the analysis and needs
+// no request at all. Only the fields the portal reads are declared.
+export type CatalogOutput = {
+  grid: string;
+  grid_type: string;
+  time_unit: string;
+  label: string | null;
+  legend: string | null;
+  result_kind: string;
+  collapsed_dimensions: string[];
+};
 
 export class Analysis {
   name: string;
   label: string;
-  type: string;
   variables: string[] | null;
+  // What this analysis produces, for one that fixes its own inputs; `null` for
+  // one that reads the caller's dataset, whose output depends on a dataset
+  // nobody has named yet. See `Structure.fixesOwnInputs` and the
+  // `DerivedDataset` built from this in `Structure`'s constructor.
+  output: CatalogOutput | null;
   // "variable" (a derived variable, selected from the Variable dropdown, e.g.
   // `lnd_conf`) or "dimension" (a chainable operation applied on
   // top of whatever's selected, e.g. `diff`); `null` for an analysis
@@ -337,24 +325,24 @@ export class Analysis {
   constructor({
     name,
     label,
-    type,
     variables,
     kind = null,
     subsumed_dimensions = [],
+    output = null,
   }: {
     name: string;
     label: string;
-    type: string;
     variables: string[] | null;
     kind?: string | null;
     subsumed_dimensions?: string[];
+    output?: CatalogOutput | null;
   }) {
     this.name = name;
     this.label = label;
-    this.type = type;
     this.variables = variables;
     this.kind = kind;
     this.subsumed_dimensions = subsumed_dimensions;
+    this.output = output;
   }
 
   // Whether this analysis is meaningful for the given variable, per its
@@ -365,25 +353,10 @@ export class Analysis {
   }
 }
 
-// A `kind === "variable"` analysis has no dataset of its own to key its
-// options off of when `variables` is `null` -- its inputs are fixed
-// server-side (e.g. `lnd_type_plus`'s three-input join across two grids), so
-// there's no single variable/grid/time_unit that "matching the request"
-// would mean. Cataloging it in the Variable dropdown still needs one to
-// stand in for, hardcoded here since nothing in the catalog says which.
-const CANONICAL_DERIVED_DATASETS: {
-  [analysisName: string]: { variable: string; grid: string; time_unit: string };
-} = {
-  lnd_type_plus: {
-    variable: "stg",
-    grid: "hydro_compartment_v002",
-    time_unit: "annual",
-  },
-};
-
-// Pairs a `kind === "variable"` analysis with one of the real datasets it
-// applies to, so it can be offered in the Variable dropdown alongside plain
-// datasets (§4.1).
+// Pairs a `kind === "variable"` analysis with the dataset it is offered under
+// in the Variable dropdown (§4.1) -- one of the real datasets it applies to,
+// or, for an analysis that fixes its own inputs, the synthetic one
+// `Structure.outputDataset` builds from what the API says it produces.
 export class DerivedDataset {
   analysis: Analysis;
   dataset: Dataset;
@@ -489,16 +462,13 @@ export class Structure {
     this.derivedDatasets = this.analyses
       .filter((analysis) => analysis.kind === "variable")
       .flatMap((analysis) => {
-        if (analysis.variables === null) {
-          const canonical = CANONICAL_DERIVED_DATASETS[analysis.name];
-          const dataset = canonical
-            ? this.datasets.find(
-                (ds) =>
-                  ds.variable.name === canonical.variable &&
-                  ds.grid.name === canonical.grid &&
-                  ds.time_unit === canonical.time_unit,
-              )
-            : null;
+        // Same field `fixesOwnInputs` keys on, and for the same reason: an entry
+        // carrying an `output` is one the server resolved with no dataset at
+        // all, so there is no caller-chosen dataset to pair it with -- its own
+        // result is the dataset. Everything else is offered once per real
+        // dataset it applies to.
+        if (analysis.output) {
+          const dataset = this.outputDataset(analysis);
           return dataset ? [new DerivedDataset(analysis, dataset)] : [];
         }
         return this.datasets
@@ -506,6 +476,62 @@ export class Structure {
           .map((ds) => new DerivedDataset(analysis, ds));
       });
     this.derivedDatasetsMap = makeMap(this.derivedDatasets);
+  }
+
+  // The dataset an input-fixing analysis is offered under, built from what the
+  // API says it PRODUCES (`/v1/analyses.json`'s `output`). `null` if the entry
+  // carries no output or names a grid this structure doesn't know, which is an
+  // analysis the dropdown then simply doesn't list.
+  //
+  // This replaces a hardcoded table (`CANONICAL_DERIVED_DATASETS`) that named
+  // one of the analysis's INPUTS as a stand-in, because nothing in the catalog
+  // said what it output. Picking an input was never safe and the table carried a
+  // long comment saying so: of `lnd_type_plus`'s three, `stg` is on a VECTOR
+  // grid, so the map would have asked for polygon tiles of a raster result, and
+  // `elev` is stored in millimetres, whose display scale factor would have
+  // divided every legend break by 1000. Only `lnd_type` happened to agree with
+  // the output, and only by hand.
+  //
+  // The variable is synthetic and deliberately so: the output of such an
+  // analysis is not any registered variable (the server reports `variables:
+  // [null]` for its one value column), and the presentation facts a `Variable`
+  // exists to carry -- the label and the legend -- are the analysis's OWN, which
+  // is exactly what `output` resolved them to. The display_*/unit fields stay
+  // null because there is no stored unit to convert from; anything the API
+  // renders itself (legend breaks, chart axes) already has them applied.
+  outputDataset(analysis: Analysis): Dataset | null {
+    const output = analysis.output;
+    const grid = output && this.gridsMap[output.grid];
+    if (!output || !grid) return null;
+    return new Dataset({
+      variable: new Variable(
+        {
+          name: analysis.name,
+          label: output.label ?? analysis.label,
+          dtype: null,
+          model: null,
+          subroutine: null,
+          unit: null,
+          display_unit: null,
+          display_scale_factor: null,
+          display_number_format: null,
+          float_precision: null,
+          legend: output.legend ? this.legendsMap[output.legend] : null,
+          geographic_units: [grid.name],
+          time_units: [output.time_unit],
+          // None of its own: what a caller may still steer is the union its
+          // inputs require, which is what `getRequiredDimensions` derives from
+          // the globally-required dimensions and the output's time unit. A
+          // dimension the analysis has already fixed is reported separately, as
+          // `subsumed_dimensions`.
+          required_dimensions: [],
+          difference_legend_limit: null,
+        },
+        this,
+      ),
+      grid,
+      time_unit: output.time_unit,
+    });
   }
 
   // Dimensions a selected derived variable already subsumes and so should
@@ -516,6 +542,24 @@ export class Structure {
       ? (this.derivedDatasetsMap[analysisName]?.analysis.subsumed_dimensions ??
           [])
       : [];
+  }
+
+  // Whether the named analysis supplies its OWN inputs rather than reading the
+  // caller's dataset (e.g. `lnd_type_plus`, whose three inputs are fixed
+  // server-side across two grids). A request naming such an analysis must NOT
+  // carry a variable/time_unit/grid triple: `api/unified.py::_dataset_ref` 400s
+  // on one it has no use for. Every URL builder asks through
+  // `CatalogQuery.getDatasetParams` rather than repeating the predicate.
+  //
+  // `output != null` is not a proxy for the question -- it IS the answer, and
+  // the server's own. `/v1/analyses.json` fills that field by resolving the
+  // analysis with no dataset, no selection and no parameters and reporting what
+  // came out, so an entry has one exactly when the resolve did not object to
+  // being handed nothing. Reading `kind`/`variables` instead would be the
+  // portal re-deriving from two fields what one field already states.
+  fixesOwnInputs(analysisName: string | null | undefined): boolean {
+    if (!analysisName) return false;
+    return this.analysesMap[analysisName]?.output != null;
   }
 
   getRequiredDimensions(
@@ -530,10 +574,14 @@ export class Structure {
       )
         return false;
       for (let dataset of datasets) {
-        let variable = this.variablesMap[dataset.variable.name];
+        // `dataset.variable` directly, not `variablesMap[...]`: a `Dataset` is
+        // built holding the mapped `Variable` instance, so the lookup only ever
+        // returned what it was handed -- and it returned `undefined` for the
+        // synthetic variable an input-fixing analysis's dataset carries
+        // (`outputDataset`), which is not in the map and has no reason to be.
         if (
           dimension.required ||
-          (variable.required_dimensions || []).includes(dimension)
+          (dataset.variable.required_dimensions || []).includes(dimension)
         )
           return true;
         if (

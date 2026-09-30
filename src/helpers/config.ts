@@ -8,9 +8,6 @@ export const portalBaseUrl =
 export const spritesBaseUrl =
   import.meta.env.VITE_SPRITES_BASE_URL ||
   "https://api.mpdp.coastal.la.gov/sprites";
-export const staticTilesBaseUrl =
-  import.meta.env.VITE_STATIC_TILES_BASE_URL ||
-  "https://api.mpdp.coastal.la.gov/tiles";
 export const managementBaseUrl =
   import.meta.env.VITE_MANAGEMENT_BASE_URL ||
   "https://api.mpdp.coastal.la.gov/v1/management";

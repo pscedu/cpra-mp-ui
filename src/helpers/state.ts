@@ -89,7 +89,15 @@ export const catalogQueriesAtom = hashAtom<
       params: URLSearchParams,
       cqs: CatalogQueries | Promise<CatalogQueries>,
     ) => {
-      if ("datasets" in cqs)
+      // Not for an input-fixing analysis: its `datasets` is the one synthetic
+      // stand-in built from the analysis's own output, whose "variable" is the
+      // analysis name. Writing that triple would put a variable that exists on
+      // no grid into the permalink, and `analysis=` already says everything
+      // needed to rebuild the selection (`queryCatlogEffect`).
+      if (
+        "datasets" in cqs &&
+        !cqs.structure.fixesOwnInputs(cqs.derivedAnalysis)
+      )
         for (const { variable, grid, time_unit } of cqs.datasets) {
           params.append("variable", variable.name);
           params.append("grid", grid.name);
@@ -203,9 +211,9 @@ export const setRequestedDatasetsAtom = atom(
     // have run. Reading them up front would test the OUTGOING selection
     // against the INCOMING variable and then clobber the incoming one: picking
     // "Land Type Plus" while "Land Confidence" was selected reset
-    // `derivedAnalysisAtom` to null, because `lnd_conf` doesn't apply to
-    // `lnd_type_plus`'s stand-in `stg` dataset -- so the Variable menu
-    // silently fell back to showing plain "Stage (Water Level)".
+    // `derivedAnalysisAtom` to null, because `lnd_conf` does not apply to the
+    // dataset `lnd_type_plus` is offered under -- so the Variable menu
+    // silently fell back to showing that dataset's plain variable instead.
     const structurePromise = get(structureAtom);
     (async () => {
       const structure = await structurePromise;
@@ -550,23 +558,39 @@ export const dataPermalinkAtom = atom((get) => {
 export const queryCatlogEffect = atomEffect((get, set) => {
   const requestedDatasets = get(requestedDatasetsAtom);
   const requestedFilters = get(requestedFiltersAtom);
+  const derivedAnalysis = get(derivedAnalysisAtom);
   // Effects run before the atoms have been hydrated, so we need to check
   // to make sure we have requested datasets.
   if (requestedDatasets.length)
     (async () => {
       const structure = await get(structureAtom);
 
+      // An input-fixing analysis has no requested dataset to match, and never
+      // really had one: its dataset is the synthetic stand-in `Structure`
+      // built from what the API says the analysis outputs, and the triple in
+      // the hash beside it is whatever the reader last had selected. Take the
+      // analysis's own dataset and ignore the triple rather than filtering
+      // `structure.datasets` for a variable named after an analysis, which
+      // matches nothing and leaves the map with no query at all.
       const dsrSet = new Set(
         requestedDatasets.map(
           (dsr) => `${dsr.variable}|${dsr.grid}|${dsr.time_unit}`,
         ),
       );
+      const ownDataset = structure.fixesOwnInputs(derivedAnalysis)
+        ? structure.derivedDatasetsMap[derivedAnalysis]?.dataset
+        : null;
+      const datasets = ownDataset
+        ? [ownDataset]
+        : structure.datasets.filter((ds) =>
+            dsrSet.has(`${ds.variable.name}|${ds.grid.name}|${ds.time_unit}`),
+          );
+
       const cqs = new CatalogQueries(
-        structure.datasets.filter((ds) =>
-          dsrSet.has(`${ds.variable.name}|${ds.grid.name}|${ds.time_unit}`),
-        ),
+        datasets,
         requestedFilters,
         structure,
+        derivedAnalysis,
       );
       const prevCqs = get(catalogQueriesAtom);
       if ("equals" in prevCqs && prevCqs.equals(cqs)) return;

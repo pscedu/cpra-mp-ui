@@ -26,13 +26,26 @@ export class CatalogQuery {
   dataset: Dataset;
   filters: any;
   structure: Structure;
+  // The derived variable selected when this query was built, if any. A field
+  // and not a per-call argument because `getRequestPath` runs in the
+  // constructor: the catalog request itself has to know whether the dataset is
+  // a real one or the stand-in `Structure.outputDataset` synthesized, and a
+  // builder that answered that question differently from the request whose
+  // `results` it then filters by would be asking about two different datasets.
+  derivedAnalysis: string | null;
   requestPath: string;
   response: any;
 
-  constructor(dataset: Dataset, filters: any, structure: Structure) {
+  constructor(
+    dataset: Dataset,
+    filters: any,
+    structure: Structure,
+    derivedAnalysis: string | null = null,
+  ) {
     this.dataset = dataset;
     this.filters = filters;
     this.structure = structure;
+    this.derivedAnalysis = derivedAnalysis;
     this.requestPath = this.getRequestPath();
     this.response = null;
   }
@@ -59,10 +72,10 @@ export class CatalogQuery {
   // `analysis` when the selection can actually support it, else null. Returns
   // the analysis rather than a boolean so callers keep TypeScript's narrowing
   // of its nullable fields. Everything that names an analysis to the API goes
-  // through here, so the query parameters and the data-download ROUTE
-  // (`/analyses/{name}/data.csv`, via `getAnalysisChainName`) can never
-  // disagree about whether one is in play -- picking the route while dropping the
-  // parameters is its own 400.
+  // through here, so the `analysis=` parameter (via `getAnalysisChainName`)
+  // and the `dimension`/`order` parameters it needs alongside it can never
+  // disagree about whether one is in play -- sending the name while dropping
+  // the parameters is its own 400.
   getApplicableAnalysis(analysis?: Analysis | null): Analysis | null {
     if (!analysis?.dimension) return null;
     return this.getAnalysisDimensionValues(analysis).length ===
@@ -71,15 +84,34 @@ export class CatalogQuery {
       : null;
   }
 
+  // The dataset the request reads, as the `variable`/`time_unit`/`grid` triple
+  // every unified route takes -- or nothing at all when the selected derived
+  // analysis supplies its own inputs, since `api/unified.py::_dataset_ref`
+  // rejects a triple it has no use for (and rejects a partial one besides, so
+  // this is all three or none). Callers splat this ahead of `getQueryParams`.
+  //
+  // No argument: it reads `this.derivedAnalysis`, so the triple is present or
+  // absent the same way for every URL this query builds, including the catalog
+  // request the constructor sends. `this.dataset` for an input-fixing analysis
+  // is the synthetic one, whose "variable" is the analysis's own name and names
+  // nothing on disk -- sending it would be a 404 even where a triple were
+  // allowed.
+  getDatasetParams(): [string, any][] {
+    if (this.structure.fixesOwnInputs(this.derivedAnalysis)) return [];
+    const { variable, grid, time_unit } = this.dataset;
+    return [
+      ["variable", variable.name],
+      ["time_unit", time_unit],
+      ["grid", grid.name],
+    ];
+  }
+
   // The comma-joined chain of registered analysis names to request (e.g.
-  // "lnd_conf,diff"), or null when neither a derived
-  // variable nor an applicable mode is selected. `mode` is "single"/"compare"
-  // as often as not, which is client-side view state with no `dimension` and
-  // contributes nothing to the chain. This one string serves both forms the
-  // API accepts an analysis name in: a path segment
-  // (`/analyses/{name}/data.csv`, via `Dataset.getDataUrl`'s 3rd argument) and
-  // the `analysis=` query parameter on a visualization-spec request (via
-  // `Visualization.getSpecUrl`) -- both split it on "," server-side.
+  // "lnd_conf,diff"), or null when neither a derived variable nor an
+  // applicable mode is selected. `mode` is "single"/"compare" as often as not,
+  // which is client-side view state with no `dimension` and contributes
+  // nothing to the chain. Every route takes this as the flat `analysis=` query
+  // parameter and splits it on "," server-side.
   getAnalysisChainName(
     derivedAnalysis?: string | null,
     mode?: Analysis | null,
@@ -88,16 +120,32 @@ export class CatalogQuery {
     return [derivedAnalysis, modeName].filter(Boolean).join(",") || null;
   }
 
+  // What the reader may still choose, for whatever this query is about. For a
+  // plain or applies-to-a-dataset derived variable that is the dataset triple,
+  // as before. For an input-fixing analysis it is the ANALYSIS NAME instead and
+  // no triple at all: the question is which dimension values its three fixed
+  // inputs all have, and only the server can answer that -- it resolves the
+  // pipeline and intersects the inputs' catalogs (`api/catalog.py`). This is
+  // the request that stopped being expressible when the catalog was keyed on a
+  // path triple, which is why the portal used to guess a stand-in dataset and
+  // ask about that one instead.
+  //
+  // Only the derived analysis goes on: the comparison mode (`diff`) narrows
+  // nothing about which values EXIST, and its `dimension`/`order` parameters
+  // belong to the data request `getQueryParams` builds from these results.
   getRequestPath() {
-    const { variable, grid, time_unit } = this.dataset;
     const requiredDimensions = this.structure.getRequiredDimensions([
       this.dataset,
     ]);
+    const datasetParams = this.getDatasetParams();
 
-    const qs = makeQueryString(
-      getFilterParams(requiredDimensions, this.filters),
-    );
-    return `${dataBaseUrl}/datasets/${variable.name}/${time_unit}/${grid.name}/catalog.json${qs}`;
+    const qs = makeQueryString([
+      ...(datasetParams.length
+        ? datasetParams
+        : ([["analysis", this.derivedAnalysis]] as [string, any][])),
+      ...getFilterParams(requiredDimensions, this.filters),
+    ]);
+    return `${dataBaseUrl}/catalog.json${qs}`;
   }
 
   getQueryParams(
@@ -178,13 +226,13 @@ export class CatalogQuery {
       analysisDimensions,
     );
 
-    // The analysis NAME is sent separately -- as a path segment
-    // (`Dataset.getDataUrl`) or as the `analysis=` query parameter
-    // (`Visualization.getSpecUrl`), via `getAnalysisChainName` -- never as a
-    // flat query key pushed from here, since a path-based route 400s on a
-    // redundant `analysis=` alongside its path segment. `dimension`/`order`
-    // are the mode's own declared parameters and are always query params,
-    // regardless of route.
+    // The analysis NAME is sent separately, by each builder, via
+    // `getAnalysisChainName` -- not pushed from here, because the chain a
+    // builder sends is its own decision (`getVisualizationUrl` drops a
+    // calendar-dimension mode, for instance) and `getFilterParams` below has
+    // no say in it. `dimension`/`order` ARE pushed from here: they are the
+    // mode's own declared parameters, meaningful only alongside the filters
+    // this function selects.
     if (appliedAnalysis?.dimension) {
       params.push(["dimension", appliedAnalysis.dimension]);
       if (appliedAnalysis.operation === "diff" && appliedAnalysis.order)
@@ -222,16 +270,18 @@ export class CatalogQuery {
     geographies?: Geography[] | null;
     includeTimeDimension?: boolean;
   }) {
-    return this.dataset.getDataUrl(
-      this.getQueryParams({
+    const chainName = this.getAnalysisChainName(derivedAnalysis, analysis);
+    const params = [
+      ...this.getDatasetParams(),
+      ...this.getQueryParams({
         analysis,
         derivedAnalysis,
         geographies,
         includeTimeDimension,
       }),
-      format,
-      this.getAnalysisChainName(derivedAnalysis, analysis),
-    );
+      ...(chainName ? ([["analysis", chainName]] as [string, any][]) : []),
+    ];
+    return `${dataBaseUrl}/data.${format}${makeQueryString(params)}`;
   }
 
   getMapStyleUrl({
@@ -299,19 +349,27 @@ export class CatalogQueries {
   datasets: Dataset[];
   filters: any;
   structure: Structure;
+  derivedAnalysis: string | null;
   queries: CatalogQuery[];
 
   combinedFilters: any;
   combinedChoices: any;
   activeDimensions: Dimension[];
 
-  constructor(datasets: Dataset[], filters: any, structure: Structure) {
+  constructor(
+    datasets: Dataset[],
+    filters: any,
+    structure: Structure,
+    derivedAnalysis: string | null = null,
+  ) {
     this.datasets = datasets;
     this.filters = filters;
     this.reconcileFilters();
     this.structure = structure;
+    this.derivedAnalysis = derivedAnalysis;
     this.queries = datasets.map(
-      (dataset) => new CatalogQuery(dataset, this.filters, structure),
+      (dataset) =>
+        new CatalogQuery(dataset, this.filters, structure, derivedAnalysis),
     );
     this.combinedFilters = null;
     this.combinedChoices = null;

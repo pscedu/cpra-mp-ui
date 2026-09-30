@@ -1,0 +1,123 @@
+// Live round-trip for the route consolidation (group E). Drives the portal's
+// REAL helpers -- `getStructure`, `CatalogQuery`, `Visualization.getSpecUrl` --
+// against a running API, then fetches every URL they build and reports the
+// status. The point is that no URL in here is written by hand: a builder that
+// disagrees with the routes shows up as a 4xx rather than as a passing
+// re-implementation of what the builder was supposed to do.
+//
+// Run with the server from the plan's Verification section on port 8877:
+//   VITE_DATA_BASE_URL=http://127.0.0.1:8877/v1 \
+//     npx vite-node -c vite.probe.config.ts probe.ts
+import { CatalogQuery } from "./src/helpers/catalog";
+import { getStructure, Structure } from "./src/helpers/structure";
+
+const SINGLE = { operation: "single", dimension: null } as any;
+
+let failures = 0;
+
+const check = async (what: string, url: string | null) => {
+  if (!url) {
+    console.log(`  FAIL ${what}: no URL built`);
+    failures++;
+    return;
+  }
+  const response = await fetch(url, { headers: { accept: "*/*" } });
+  const ok = response.status >= 200 && response.status < 300;
+  if (!ok) failures++;
+  const detail = ok ? "" : ` :: ${(await response.text()).slice(0, 200)}`;
+  console.log(`  ${ok ? "ok  " : "FAIL"} ${what} [${response.status}]${detail}`);
+  console.log(`       ${url}`);
+};
+
+// Everything a selection drives, built the way `state.ts` builds it.
+const exercise = async (
+  structure: Structure,
+  label: string,
+  dataset: any,
+  derivedAnalysis: string | null,
+  format: string,
+) => {
+  console.log(`\n== ${label}`);
+  const query = new CatalogQuery(dataset, {}, structure, derivedAnalysis);
+  console.log(`  catalog: ${query.requestPath}`);
+  await query.execute();
+  if (query.response?.error) {
+    console.log(`  FAIL catalog request: ${JSON.stringify(query.response)}`);
+    failures++;
+    return;
+  }
+  console.log(
+    `  output: grid=${query.response.output.grid}` +
+      ` time_unit=${query.response.output.time_unit}` +
+      ` legend=${query.response.output.legend}`,
+  );
+
+  await check(
+    `${format} download`,
+    query.getDataDownloadUrl({
+      analysis: SINGLE,
+      derivedAnalysis,
+      format,
+      includeTimeDimension: true,
+    }),
+  );
+  await check(
+    "map style",
+    query.getMapStyleUrl({
+      analysis: SINGLE,
+      derivedAnalysis,
+      mapOptions: { isOverlay: true, showWater: false },
+    }),
+  );
+};
+
+const structure = await getStructure();
+console.log(
+  `structure: ${structure.datasets.length} datasets,` +
+    ` ${structure.derivedDatasets.length} derived`,
+);
+
+// A plain dataset: the triple still goes on every URL.
+const plain = structure.datasets.find(
+  (ds) =>
+    ds.variable.name === "lnd_type" &&
+    ds.time_unit === "annual" &&
+    ds.grid.name === "morph_pixel_v002",
+);
+await exercise(structure, "plain lnd_type/annual/morph_pixel_v002", plain, null, "tif");
+
+// The input-fixing analysis: no triple anywhere, `analysis=` instead, and a
+// dataset that only exists because `/v1/analyses.json` said what it outputs.
+const derived = structure.derivedDatasetsMap["lnd_type_plus"];
+if (!derived) {
+  console.log("\nFAIL no DerivedDataset for lnd_type_plus");
+  failures++;
+} else {
+  const { dataset } = derived;
+  console.log(
+    `\nsynthetic dataset: variable=${dataset.variable.name}` +
+      ` grid=${dataset.grid.name} (${dataset.grid.grid_type})` +
+      ` time_unit=${dataset.time_unit}` +
+      ` legend=${dataset.variable.legend?.name ?? null}` +
+      ` isRaster=${dataset.grid.isRaster()}`,
+  );
+  await exercise(structure, "derived lnd_type_plus", dataset, "lnd_type_plus", "tif");
+}
+
+// The old-permalink shape: `analysis=lnd_type_plus` alongside the legacy
+// triple the portal used to invent. The triple must not reach the request.
+const stale = structure.datasets.find((ds) => ds.variable.name === "stg");
+const staleQuery = new CatalogQuery(
+  derived ? derived.dataset : stale,
+  { variable: ["stg"], grid: ["hydro_compartment_v002"], time_unit: ["annual"] },
+  structure,
+  "lnd_type_plus",
+);
+const carriesTriple = /[?&](variable|grid|time_unit)=/.test(staleQuery.requestPath);
+console.log(`\n== old permalink (analysis + legacy triple)`);
+console.log(`  ${carriesTriple ? "FAIL" : "ok  "} triple kept out of the request`);
+if (carriesTriple) failures++;
+await check("catalog", staleQuery.requestPath);
+
+console.log(failures ? `\n${failures} FAILURE(S)` : "\nall probes passed");
+process.exit(failures ? 1 : 0);
