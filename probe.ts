@@ -43,21 +43,7 @@ const isKnownChainGap = (
   derivedAnalysis !== null &&
   structure.analysesMap[derivedAnalysis]?.kind !== "dimension";
 
-// The other KNOWN condition, and this one is about the fixtures rather than the
-// code: `data-long` carries no raster crosswalk rasters at all, so any request
-// that has to reproject between grids 404s naming the file it wanted.
-// `lnd_type_plus` reads three variables across grids, so its download is the one
-// that hits it. Matched on the message rather than on the status, because a bare
-// 404 is exactly what a genuine routing regression would also look like.
-const MISSING_FIXTURE = /no raster crosswalk from/;
-
-// `known` is `true` for a gap this probe knows about regardless of the response,
-// or a pattern that must match the error body for the miss to be excused.
-const check = async (
-  what: string,
-  url: string | null,
-  known: boolean | RegExp = false,
-) => {
+const check = async (what: string, url: string | null, known = false) => {
   if (!url) {
     console.log(`  FAIL ${what}: no URL built`);
     failures++;
@@ -66,9 +52,8 @@ const check = async (
   const response = await fetch(url, { headers: { accept: "*/*" } });
   const ok = response.status >= 200 && response.status < 300;
   const body = ok ? "" : (await response.text()).slice(0, 200);
-  const excused = known instanceof RegExp ? known.test(body) : known;
-  if (!ok && !excused) failures++;
-  const tag = ok ? "ok  " : excused ? "KNOWN" : "FAIL";
+  if (!ok && !known) failures++;
+  const tag = ok ? "ok  " : known ? "KNOWN" : "FAIL";
   console.log(`  ${tag} ${what} [${response.status}]${ok ? "" : ` :: ${body}`}`);
   console.log(`       ${url}`);
 };
@@ -104,10 +89,6 @@ const exercise = async (
       format,
       includeTimeDimension: true,
     }),
-    // Excused at every call site rather than just the one that trips it today,
-    // because the pattern names the fixture that is missing -- a routing bug
-    // would 404 with something else.
-    MISSING_FIXTURE,
   );
   await check(
     "map style",
