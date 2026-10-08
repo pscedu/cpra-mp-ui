@@ -2,10 +2,11 @@ import { useAtom, useAtomValue } from "jotai";
 import { ReactNode } from "react";
 import {
   catalogQueriesAtom,
+  derivedAnalysisAtom,
   endDateAtom,
   startDateAtom,
   selectedGeographiesAtom,
-  analysisAtom,
+  modeAtom,
   visualizationTypeAtom,
 } from "@/helpers/state";
 import { useTheme } from "@/components/theme-provider";
@@ -22,7 +23,8 @@ export default function Chart({
   padding?: number;
 }) {
   const mapCatalogQuery = useAtomValue(catalogQueriesAtom).getMapCatalogQuery();
-  const analysis = useAtomValue(analysisAtom);
+  const analysis = useAtomValue(modeAtom);
+  const derivedAnalysis = useAtomValue(derivedAnalysisAtom);
   const selectedGeographies = useAtomValue(selectedGeographiesAtom);
   const visualizationType = useAtomValue(visualizationTypeAtom);
 
@@ -33,6 +35,7 @@ export default function Chart({
 
   const visualizationSpecUrl = mapCatalogQuery.getVisualizationUrl({
     analysis,
+    derivedAnalysis,
     selectedGeographies,
     visualizationType,
   });

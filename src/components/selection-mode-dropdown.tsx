@@ -1,5 +1,5 @@
-import { useAtom } from "jotai";
-import { analysisAtom } from "@/helpers/state";
+import { useAtom, useAtomValue } from "jotai";
+import { modeAtom, structureAtom } from "@/helpers/state";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,13 +12,24 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Ampersand,
   CircleQuestionMark,
   Square,
   SquareStack,
   SquaresSubtract,
 } from "lucide-react";
 import { useEffect } from "react";
+
+type SelectionOption = {
+  value: string;
+  label: string;
+  icon: typeof Square;
+  maxLength: number;
+  className?: string;
+  // Only set for options backed by a registered analysis (i.e. not
+  // "single"/"compare").
+  analysisName?: string;
+  order?: "asc" | "desc" | null;
+};
 
 export function SelectionModeDropdown({
   className,
@@ -28,12 +39,12 @@ export function SelectionModeDropdown({
   optionsLength,
   setMaxLength,
   supportsSubtract,
-  supportsConcatenate,
 }) {
-  const [analysis, setAnalysis] = useAtom(analysisAtom);
-  const { operation, dimension } = analysis;
+  const [mode, setMode] = useAtom(modeAtom);
+  const structure = useAtomValue(structureAtom);
+  const { operation, dimension, order } = mode;
 
-  const options = [
+  const options: SelectionOption[] = [
     {
       value: "single",
       label: "View Single",
@@ -48,39 +59,50 @@ export function SelectionModeDropdown({
     },
   ];
 
-  if (supportsSubtract)
+  // "diff" is the one `kind === "dimension"` registered analysis
+  // (`/v1/analyses.json`); if the API's catalog doesn't have one, don't offer
+  // it. It applies unrestricted to any non-subsumed dimension (§4.2), for
+  // either a plain or a derived variable, so there's nothing further to gate
+  // here. "single" and "compare" above are pure client-side view state and
+  // are never looked up there.
+  const difference = structure?.analyses.find((a) => a.kind === "dimension");
+  if (supportsSubtract && difference)
+    // `value` has to be built from `difference.name`, not hardcoded: `mode`'s
+    // `operation` is set from it below, and `selectedValue` is
+    // `${operation}-${order}`. A literal here desyncs from the catalog the
+    // moment the analysis is renamed server-side, and the symptom is silent --
+    // `selectedOption` just goes undefined, so the trigger falls back to the
+    // question-mark icon and no radio item reads as selected.
     options.push(
       {
-        value: "subtract-asc",
-        label: "Subtract: A - B",
+        value: `${difference.name}-asc`,
+        label: `${difference.label}: A - B`,
         icon: SquaresSubtract,
         maxLength: 2,
+        analysisName: difference.name,
+        order: "asc",
       },
       {
-        value: "subtract-desc",
-        label: "Subtract: B - A",
+        value: `${difference.name}-desc`,
+        label: `${difference.label}: B - A`,
         icon: SquaresSubtract,
         className: "rotate-180",
         maxLength: 2,
+        analysisName: difference.name,
+        order: "desc",
       },
     );
 
-  if (supportsConcatenate)
-    options.push({
-      value: "concatenate",
-      label: "Concatenate",
-      icon: Ampersand,
-      maxLength: 2,
-    });
-
+  const selectedValue =
+    dimension === dimensionName
+      ? order
+        ? `${operation}-${order}`
+        : operation
+      : maxLength > 1
+        ? "compare"
+        : "single";
   const selectedOption = options.find(
-    (option) =>
-      option.value ===
-      (dimension === dimensionName
-        ? operation
-        : maxLength > 1
-          ? "compare"
-          : "single"),
+    (option) => option.value === selectedValue,
   );
 
   // Set the initial max length in the parent component.
@@ -88,14 +110,18 @@ export function SelectionModeDropdown({
     setMaxLength(selectedOption?.maxLength || 1);
   }, []);
 
-  const setSelectedOption = (value) => {
+  const setSelectedOption = (value: string) => {
     const newSelectedOption = options.find((option) => option.value === value);
     setMaxLength(newSelectedOption?.maxLength || 1);
     if (["single", "compare"].includes(value)) {
-      if (analysis?.dimension === dimensionName)
-        setAnalysis({ operation: "single", dimension: "" });
-    } else {
-      setAnalysis({ operation: value, dimension: dimensionName });
+      if (mode?.dimension === dimensionName)
+        setMode({ operation: "single", dimension: "" });
+    } else if (newSelectedOption?.analysisName) {
+      setMode({
+        operation: newSelectedOption.analysisName,
+        dimension: dimensionName,
+        order: newSelectedOption.order,
+      });
     }
   };
 

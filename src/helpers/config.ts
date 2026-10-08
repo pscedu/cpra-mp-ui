@@ -2,9 +2,6 @@ export const dataBaseUrl =
   import.meta.env.VITE_DATA_BASE_URL || "https://api.mpdp.coastal.la.gov/v1";
 export const portalBaseUrl =
   import.meta.env.PORTAL_BASE_URL || "https://mpdp.coastal.la.gov";
-export const staticTilesBaseUrl =
-  import.meta.env.VITE_STATIC_TILES_BASE_URL ||
-  "https://api.mpdp.coastal.la.gov/tiles";
 export const managementBaseUrl =
   import.meta.env.VITE_MANAGEMENT_BASE_URL ||
   "https://api.mpdp.coastal.la.gov/v1/management";

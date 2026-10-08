@@ -1,17 +1,18 @@
-import { useHydrateHashAtoms } from "@/helpers/hash";
+import { migrateLegacyAnalysisKey, useHydrateHashAtoms } from "@/helpers/hash";
 import { ReactNode } from "react";
 
 import { ScopeProvider } from "jotai-scope";
 import {
-  analysisAtom,
   catalogQueriesAtom,
   dataPermalinkAtom,
+  derivedAnalysisAtom,
   endDateAtom,
   initialCatalogQueriesAtom,
   mapOptionsAtom,
   mapPositionAtom,
   mapTilesLoadingAtom,
   maxSelectedGeographiesAtom,
+  modeAtom,
   requestedDatasetsAtom,
   requestedFiltersAtom,
   requestedTimeValuesAtom,
@@ -27,6 +28,7 @@ import DataProviderEffects from "@/components/data-provider-effects";
 
 export function ScopeHydrate({ children, ...props }: { children: ReactNode }) {
   const params = new URLSearchParams(props);
+  migrateLegacyAnalysisKey(params);
   useHydrateHashAtoms(params);
   useHydrateCatalogQueries();
   return children;
@@ -41,8 +43,9 @@ export default function ScopeDataProvider({
   return (
     <ScopeProvider
       atoms={[
-        analysisAtom,
         catalogQueriesAtom,
+        derivedAnalysisAtom,
+        modeAtom,
         dataPermalinkAtom,
         endDateAtom,
         initialCatalogQueriesAtom,

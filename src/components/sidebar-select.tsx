@@ -10,11 +10,19 @@ export default function SidebarSelect({
   label,
   onChange,
   options,
+  // Pre-grouped alternative to `options` (e.g. plain variables alongside a
+  // "Derived Variables" group in the Variable dropdown, §4.1). When given,
+  // `options` is ignored for rendering/lookup purposes -- the flattened
+  // union of every group's options is used instead.
+  optionGroups,
   showSelectionMode = true,
   supportsSubtract = false,
   value: explicitValue,
   ...rest
 }) {
+  const flatOptions = optionGroups
+    ? optionGroups.flatMap((group) => group.options)
+    : options;
   const valueOrValues = explicitValue;
   const supportsMulti = Array.isArray(valueOrValues);
   const values = supportsMulti ? valueOrValues : [valueOrValues];
@@ -34,7 +42,7 @@ export default function SidebarSelect({
     <div className="flex" title={label}>
       <RSelect
         className={cn(`w-84 mb-2 ${className}`)}
-        isDisabled={options.length === 1}
+        isDisabled={flatOptions.length === 1}
         inputId={id}
         isClearable={false}
         isMulti={isMulti}
@@ -50,12 +58,12 @@ export default function SidebarSelect({
               : selectedValues[0],
           );
         }}
-        options={[{ label, options }]}
+        options={optionGroups ?? [{ label, options }]}
         placeholder={`Select ${label.toLowerCase()}...`}
         value={
           isMulti
-            ? options.filter((option) => values.includes(option.value))
-            : options.find((option) => option.value === values[0])
+            ? flatOptions.filter((option) => values.includes(option.value))
+            : flatOptions.find((option) => option.value === values[0])
         }
         {...rest}
       />
@@ -65,10 +73,9 @@ export default function SidebarSelect({
           dimensionLabel={label}
           dimensionName={id}
           maxLength={maxLength}
-          optionsLength={options.length}
+          optionsLength={flatOptions.length}
           setMaxLength={setMaxLength}
           supportsSubtract={supportsSubtract}
-          supportsConcatenate={false}
         />
       )}
     </div>

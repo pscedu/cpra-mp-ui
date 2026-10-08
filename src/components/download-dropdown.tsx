@@ -1,11 +1,11 @@
 import {
-  analysisAtom,
   catalogQueriesAtom,
   chartImageFormatAtom,
+  derivedAnalysisAtom,
   geometryDataFormatAtom,
+  modeAtom,
   selectedGeographiesAtom,
   tabularDataFormatAtom,
-  tabularDataShapeAtom,
 } from "@/helpers/state";
 import { Atom, useAtom, useAtomValue } from "jotai";
 
@@ -36,10 +36,6 @@ const tabularDataFormatOptions = [
   { value: "csv", label: "CSV" },
   { value: "ndjson", label: "Newline Delimited JSON" },
   { value: "parquet", label: "Parquet" },
-];
-const tabularDataShapeOptions = [
-  { value: "long", label: "Long" },
-  { value: "wide", label: "Wide" },
 ];
 
 function downloadChart(type: string, filename: string, id: string = "default") {
@@ -85,9 +81,9 @@ export default function DownloadDropdown() {
   const chartImageFormat = useAtomValue(chartImageFormatAtom);
   const geometryDataFormat = useAtomValue(geometryDataFormatAtom);
   const tabularDataFormat = useAtomValue(tabularDataFormatAtom);
-  const tabularDataShape = useAtomValue(tabularDataShapeAtom);
 
-  const analysis = useAtomValue(analysisAtom);
+  const analysis = useAtomValue(modeAtom);
+  const derivedAnalysis = useAtomValue(derivedAnalysisAtom);
   const selectedGeographies = useAtomValue(selectedGeographiesAtom);
   const catalogQueries = useAtomValue(catalogQueriesAtom);
 
@@ -138,11 +134,11 @@ export default function DownloadDropdown() {
                 <LinkMenuItem
                   href={mapCatalogQuery.getDataDownloadUrl({
                     analysis,
+                    derivedAnalysis,
                     format,
                     geographies:
                       downloadType === "time" ? selectedGeographies : null,
                     includeTimeDimension: downloadType === "geography",
-                    unpivot: !isRaster && tabularDataShape === "long",
                   })}
                 >
                   {label} (
@@ -182,12 +178,6 @@ export default function DownloadDropdown() {
             atom={tabularDataFormatAtom}
             label="Tabular Data Format"
             options={tabularDataFormatOptions}
-          />
-          <DropdownMenuSeparator />
-          <DownloadSettingGroup
-            atom={tabularDataShapeAtom}
-            label="Tabular Data Shape"
-            options={tabularDataShapeOptions}
           />
           <DropdownMenuSeparator />
           <DownloadSettingGroup

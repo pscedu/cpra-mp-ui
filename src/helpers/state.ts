@@ -38,7 +38,7 @@ export const defaultDatasets = [
   {
     variable: "sal",
     grid: "hydro_compartment_v001",
-    time_unit: "annual",
+    time_unit: "daily",
   },
 ];
 export const requestedDatasetsAtom = hashAtom<DatasetRequest[]>(
@@ -89,7 +89,15 @@ export const catalogQueriesAtom = hashAtom<
       params: URLSearchParams,
       cqs: CatalogQueries | Promise<CatalogQueries>,
     ) => {
-      if ("datasets" in cqs)
+      // Not for an input-fixing analysis: its `datasets` is the one synthetic
+      // stand-in built from the analysis's own output, whose "variable" is the
+      // analysis name. Writing that triple would put a variable that exists on
+      // no grid into the permalink, and `analysis=` already says everything
+      // needed to rebuild the selection (`queryCatlogEffect`).
+      if (
+        "datasets" in cqs &&
+        !cqs.structure.fixesOwnInputs(cqs.derivedAnalysis)
+      )
         for (const { variable, grid, time_unit } of cqs.datasets) {
           params.append("variable", variable.name);
           params.append("grid", grid.name);
@@ -108,7 +116,10 @@ export const catalogQueriesAtom = hashAtom<
 // than sharing the module-level placeholder above across all instances.
 export const useHydrateCatalogQueries = () => {
   const pendingRef = useRef<
-    | { promise: Promise<CatalogQueries>; resolve: (cqs: CatalogQueries) => void }
+    | {
+        promise: Promise<CatalogQueries>;
+        resolve: (cqs: CatalogQueries) => void;
+      }
     | undefined
   >(undefined);
   if (!pendingRef.current) {
@@ -118,33 +129,50 @@ export const useHydrateCatalogQueries = () => {
   }
 
   useHydrateAtoms(
-    new Map<typeof catalogQueriesAtom | typeof initialCatalogQueriesAtom, unknown>(
-      [
-        [catalogQueriesAtom, pendingRef.current.promise],
-        [initialCatalogQueriesAtom, { resolve: pendingRef.current.resolve }],
-      ],
-    ),
+    new Map<
+      typeof catalogQueriesAtom | typeof initialCatalogQueriesAtom,
+      unknown
+    >([
+      [catalogQueriesAtom, pendingRef.current.promise],
+      [initialCatalogQueriesAtom, { resolve: pendingRef.current.resolve }],
+    ]),
   );
 };
 
-export const analysisAtom = hashAtom<Analysis>(
+// The selection mode -- "single"/"compare", or a `kind === "dimension"`
+// registered analysis (currently only "diff") applied over whatever
+// variable is selected. Renamed from "analysis" to "mode" so that key can be
+// reused for the selected DERIVED VARIABLE below; see `migrateLegacyAnalysisKey`
+// for the one-time decode of old links still using "analysis" for this.
+export const modeAtom = hashAtom<Analysis>(
   {
     operation: "single",
     dimension: null,
   },
   {
-    key: "analysis",
-    encoder: ({ operation, dimension }) => {
+    key: "mode",
+    encoder: ({ operation, dimension, order }) => {
       let valueStr = operation;
       if (dimension) valueStr += `:${dimension}`;
+      if (order) valueStr += `:${order}`;
       return valueStr;
     },
     decoder: (valueStr) => {
-      const parts = valueStr.split(":");
-      return { operation: parts[0], dimension: parts[1] || null };
+      const [operation, dimension, order] = valueStr.split(":");
+      return {
+        operation,
+        dimension: dimension || null,
+        order: (order as "asc" | "desc") || null,
+      };
     },
   },
 );
+
+// The selected `kind === "variable"` derived variable's name (e.g.
+// "lnd_conf", "lnd_chng"), or `null` for a plain variable.
+export const derivedAnalysisAtom = hashAtom<string | null>(null, {
+  key: "analysis",
+});
 
 export const setRequestedDatasetsAtom = atom(
   null,
@@ -160,8 +188,6 @@ export const setRequestedDatasetsAtom = atom(
       grid: ds.grid.name,
       time_unit: ds.time_unit,
     }));
-    const analysis = get(analysisAtom);
-
     // Update dataset requests.
     set(requestedDatasetsAtom, newRequests);
 
@@ -173,12 +199,37 @@ export const setRequestedDatasetsAtom = atom(
         get(selectedGeographiesAtom).filter(isCoordinate),
       );
 
-    // Reset analysis when the variable changes.
-    if (
-      analysis.operation === "concatenate" &&
-      newRequests[0].variable !== "lnd_type"
-    )
-      set(analysisAtom, { operation: "single", dimension: null });
+    // Reset the mode/derived variable if either no longer applies to the new
+    // variable, per its catalog `variables` restriction (`null` means it
+    // applies to any variable). "single"/"compare" are not registered
+    // analyses, so the mode check is a no-op for them.
+    //
+    // `mode`/`derivedAnalysis` are read HERE, after the await, not captured
+    // above alongside `prevRequests`. A caller that switches variable and
+    // derived analysis together sets them in two statements (see
+    // `dataset-select.tsx`'s `setVariable`), and this check resumes after both
+    // have run. Reading them up front would test the OUTGOING selection
+    // against the INCOMING variable and then clobber the incoming one: picking
+    // "Land Type Plus" while "Land Confidence" was selected reset
+    // `derivedAnalysisAtom` to null, because `lnd_conf` does not apply to the
+    // dataset `lnd_type_plus` is offered under -- so the Variable menu
+    // silently fell back to showing that dataset's plain variable instead.
+    const structurePromise = get(structureAtom);
+    (async () => {
+      const structure = await structurePromise;
+      const mode = get(modeAtom);
+      const derivedAnalysis = get(derivedAnalysisAtom);
+      const selectedMode = structure.analysesMap[mode.operation];
+      if (selectedMode && !selectedMode.appliesTo(newRequests[0].variable))
+        set(modeAtom, { operation: "single", dimension: null });
+      if (
+        derivedAnalysis &&
+        !structure.analysesMap[derivedAnalysis]?.appliesTo(
+          newRequests[0].variable,
+        )
+      )
+        set(derivedAnalysisAtom, null);
+    })();
   },
 );
 
@@ -467,15 +518,15 @@ export const setExecutedCatalogQueriesAtom = atom(
       requestedTimeValuesAtom,
       cqs.queries[0].response.results[cqs.getTimeDimension().name],
     );
-    // Update the analysis dimension if needed.
-    const analysis = get(analysisAtom);
+    // Update the mode's dimension if needed.
+    const mode = get(modeAtom);
     const timeDimName = cqs.getTimeDimension().name;
     if (
-      analysis.dimension &&
-      ["calendar_day", "calendar_year"].includes(analysis.dimension) &&
-      analysis.dimension !== timeDimName
+      mode.dimension &&
+      ["calendar_day", "calendar_year"].includes(mode.dimension) &&
+      mode.dimension !== timeDimName
     )
-      set(analysisAtom, { ...analysis, dimension: timeDimName });
+      set(modeAtom, { ...mode, dimension: timeDimName });
   },
 );
 
@@ -493,10 +544,6 @@ export const tabularDataFormatAtom = downloadSettingsAtom(
   "tabular-data-format",
   "csv",
 );
-export const tabularDataShapeAtom = downloadSettingsAtom(
-  "tabular-data-shape",
-  "long",
-);
 
 export const dataPermalinkAtom = atom((get) => {
   const hashString = getHashStringFromAtoms(get, {
@@ -511,23 +558,39 @@ export const dataPermalinkAtom = atom((get) => {
 export const queryCatlogEffect = atomEffect((get, set) => {
   const requestedDatasets = get(requestedDatasetsAtom);
   const requestedFilters = get(requestedFiltersAtom);
+  const derivedAnalysis = get(derivedAnalysisAtom);
   // Effects run before the atoms have been hydrated, so we need to check
   // to make sure we have requested datasets.
   if (requestedDatasets.length)
     (async () => {
       const structure = await get(structureAtom);
 
+      // An input-fixing analysis has no requested dataset to match, and never
+      // really had one: its dataset is the synthetic stand-in `Structure`
+      // built from what the API says the analysis outputs, and the triple in
+      // the hash beside it is whatever the reader last had selected. Take the
+      // analysis's own dataset and ignore the triple rather than filtering
+      // `structure.datasets` for a variable named after an analysis, which
+      // matches nothing and leaves the map with no query at all.
       const dsrSet = new Set(
         requestedDatasets.map(
           (dsr) => `${dsr.variable}|${dsr.grid}|${dsr.time_unit}`,
         ),
       );
+      const ownDataset = structure.fixesOwnInputs(derivedAnalysis)
+        ? structure.derivedDatasetsMap[derivedAnalysis]?.dataset
+        : null;
+      const datasets = ownDataset
+        ? [ownDataset]
+        : structure.datasets.filter((ds) =>
+            dsrSet.has(`${ds.variable.name}|${ds.grid.name}|${ds.time_unit}`),
+          );
+
       const cqs = new CatalogQueries(
-        structure.datasets.filter((ds) =>
-          dsrSet.has(`${ds.variable.name}|${ds.grid.name}|${ds.time_unit}`),
-        ),
+        datasets,
         requestedFilters,
         structure,
+        derivedAnalysis,
       );
       const prevCqs = get(catalogQueriesAtom);
       if ("equals" in prevCqs && prevCqs.equals(cqs)) return;
@@ -541,7 +604,7 @@ export const updateMaxSelectedGeographiesEffect = atomEffect((get, set) => {
   const visualizationPromise = get(visualizationAtom);
   (async () => {
     const visualization = await visualizationPromise;
-    set(maxSelectedGeographiesAtom, visualization.max_geographies);
+    set(maxSelectedGeographiesAtom, visualization.max_grid_cells);
   })();
 });
 

@@ -1,5 +1,5 @@
 import { CatalogQuery } from "./catalog";
-import { dataBaseUrl, staticTilesBaseUrl } from "./config";
+import { dataBaseUrl } from "./config";
 import { QueryOptions } from "./query";
 import { formatGeography } from "./selection";
 import { Coordinate, Geography } from "./types";
@@ -72,11 +72,11 @@ export class Variable {
   model: string;
   subroutine: string;
   // `unit` describes the values as stored; the display_* fields describe how they are
-  // shown, which differs when a variable is stored in a finer unit than it is read in.
-  // `display_scale_factor` is the divisor taking a stored value to a displayed one, and no
-  // variable currently sets it — storage and display units are the same throughout. The
-  // API already applies all three to everything it renders (chart specs, map legends), so
-  // these are only for a client that formats raw dataset values itself.
+  // shown, which differs when a variable is stored in a finer unit than it is read in
+  // (elev: stored as int32 millimeters, shown as meters). `display_scale_factor` is the
+  // divisor taking a stored value to a displayed one. The API already applies all three to
+  // everything it renders (chart specs, map legends), so these are only for a client that
+  // formats raw dataset values itself.
   unit: string | null;
   display_unit: string | null;
   display_scale_factor: number | null;
@@ -170,10 +170,6 @@ export class Grid {
     return this.grid_type === "vector";
   }
 
-  getTileUrl() {
-    return this.isVector() ? `${staticTilesBaseUrl}/${this.name}` : null;
-  }
-
   // The crosswalk URL that resolves coordinates to the geographies of this grid
   // containing them, each reported as a `dst_id` alongside the `src_lng`/`src_lat`
   // of the coordinate it answers for.
@@ -182,7 +178,7 @@ export class Grid {
     // themselves, so that every coordinate gets a row of its own and gets it from
     // the same polygons the data API selects data with.
     const params: [string, string][] = [
-      ["geography", coordinates.flat().join(",")],
+      ["grid_cell", coordinates.flat().join(",")],
       ["to_grid", this.name],
     ];
     return `${dataBaseUrl}/grids/wgs84/crosswalk.ndjson${makeQueryString(params)}`;
@@ -230,21 +226,6 @@ export class Dataset {
     this.time_unit = time_unit;
   }
 
-  getBaseUrl() {
-    return `${dataBaseUrl}/datasets/${this.variable.name}/${this.grid.name}/${this.time_unit}`;
-  }
-
-  getDataUrl(params: [string, any][], format: string) {
-    return `${this.getBaseUrl()}/data.${format}${makeQueryString(params)}`;
-  }
-
-  getTileUrl(params: [string, any][]) {
-    return (
-      this.grid.getTileUrl() ||
-      `${this.getBaseUrl()}/data/{z}/{x}/{y}.png${makeQueryString(params)}`
-    );
-  }
-
   getTimeColumn() {
     return ["annual", "decadal"].includes(this.time_unit)
       ? "calendar_year"
@@ -256,27 +237,48 @@ export class Visualization {
   name: string;
   label: string;
   type: string;
-  max_geographies: number;
+  max_grid_cells: number;
   variables: string[] | null;
+  // Whether this visualization plots the time dimension as an axis, and so cannot present
+  // an analysis that collapses it (`api.models.Visualization`). True for every chart,
+  // false for the map alone. `Structure.collapsesTime` is the other half of the pair --
+  // together they are what keeps a chart from being offered, or requested, for an
+  // analysis with no year column left to plot against. The server rejects the
+  // combination outright (`DatasetVisualization.validate_time_axis` -> 400); this is
+  // what stops the portal asking.
+  time_axis: boolean;
+  // The named analysis this chart IS the presentation of, or null. Set only for
+  // `sediment-dynamics` today. The server puts it at the head of the chain, so a
+  // reader's own analysis lands in a later stage -- and only a `kind === "dimension"`
+  // analysis may go there. This field is read rather than the name un-hyphenated,
+  // because `sediment-dynamics` -> `sediment_dynamics` is a coincidence and the next
+  // such chart need not repeat it.
+  analysis: string | null;
 
   constructor({
     name,
     label,
     type,
-    max_geographies,
+    max_grid_cells,
     variables,
+    time_axis,
+    analysis,
   }: {
     name: string;
     label: string;
     type: string;
-    max_geographies: number;
+    max_grid_cells: number;
     variables: string[] | null;
+    time_axis: boolean;
+    analysis: string | null;
   }) {
     this.name = name;
     this.label = label;
     this.type = type;
-    this.max_geographies = max_geographies;
+    this.max_grid_cells = max_grid_cells;
     this.variables = variables;
+    this.time_axis = time_axis;
+    this.analysis = analysis;
   }
 
   getSpecUrl(
@@ -284,20 +286,113 @@ export class Visualization {
     options: QueryOptions,
     specParams: [string, any][] = [],
   ) {
+    // Everything the request names -- the dataset it reads, the analysis chain
+    // applied to it, the filters -- is a query parameter; the path carries only
+    // the visualization's own name. `getDatasetParams` decides whether the
+    // dataset triple belongs in the request at all.
+    const chainName = catalogQuery.getAnalysisChainName(
+      options.derivedAnalysis,
+      options.analysis,
+    );
     const params = [
+      ...catalogQuery.getDatasetParams(),
       ...catalogQuery.getQueryParams({
         ...options,
         includeTimeDimension: !options.geographies,
-        maxGeographies: this.max_geographies,
+        maxGridCells: this.max_grid_cells,
       }),
+      ...(chainName ? ([["analysis", chainName]] as [string, any][]) : []),
       ...specParams,
     ];
 
-    const baseUrl =
-      this.type === "dataset"
-        ? `${catalogQuery.dataset.getBaseUrl()}/visualization`
-        : `${dataBaseUrl}/visualizations`;
-    return `${baseUrl}/${this.name}.json${makeQueryString(params)}`;
+    return `${dataBaseUrl}/visualizations/${this.name}.json${makeQueryString(params)}`;
+  }
+}
+
+// What a request PRODUCES, as the API reports it -- `api/models.py`'s
+// `CatalogOutput`. It arrives in two places, computed by one function server-side
+// (`api/catalog.py::output_body`): on every `/v1/catalog.json` response, for the
+// request that was actually sent, and on an `/v1/analyses.json` entry whose
+// analysis fixes its own inputs, where it is a fact about the analysis and needs
+// no request at all. Only the fields the portal reads are declared.
+export type CatalogOutput = {
+  grid: string;
+  grid_type: string;
+  time_unit: string;
+  label: string | null;
+  legend: string | null;
+  result_kind: string;
+  collapsed_dimensions: string[];
+};
+
+export class Analysis {
+  name: string;
+  label: string;
+  variables: string[] | null;
+  // What this analysis produces, for one that fixes its own inputs; `null` for
+  // one that reads the caller's dataset, whose output depends on a dataset
+  // nobody has named yet. See `Structure.fixesOwnInputs` and the
+  // `DerivedDataset` built from this in `Structure`'s constructor.
+  output: CatalogOutput | null;
+  // "variable" (a derived variable, selected from the Variable dropdown, e.g.
+  // `lnd_conf`) or "dimension" (a chainable operation applied on
+  // top of whatever's selected, e.g. `diff`); `null` for an analysis
+  // this portal doesn't surface as either (e.g. `sal_veg_investigation`).
+  kind: string | null;
+  // Dimensions this analysis already collapses/fixes, so a picker offering
+  // dimensions to filter or difference over should not offer these.
+  subsumed_dimensions: string[];
+
+  constructor({
+    name,
+    label,
+    variables,
+    kind = null,
+    subsumed_dimensions = [],
+    output = null,
+  }: {
+    name: string;
+    label: string;
+    variables: string[] | null;
+    kind?: string | null;
+    subsumed_dimensions?: string[];
+    output?: CatalogOutput | null;
+  }) {
+    this.name = name;
+    this.label = label;
+    this.variables = variables;
+    this.kind = kind;
+    this.subsumed_dimensions = subsumed_dimensions;
+    this.output = output;
+  }
+
+  // Whether this analysis is meaningful for the given variable, per its
+  // catalog `variables` restriction (`null` means it applies to any
+  // variable).
+  appliesTo(variableName: string): boolean {
+    return this.variables === null || this.variables.includes(variableName);
+  }
+}
+
+// Pairs a `kind === "variable"` analysis with the dataset it is offered under
+// in the Variable dropdown (§4.1) -- one of the real datasets it applies to,
+// or, for an analysis that fixes its own inputs, the synthetic one
+// `Structure.outputDataset` builds from what the API says it produces.
+export class DerivedDataset {
+  analysis: Analysis;
+  dataset: Dataset;
+
+  constructor(analysis: Analysis, dataset: Dataset) {
+    this.analysis = analysis;
+    this.dataset = dataset;
+  }
+
+  get name() {
+    return this.analysis.name;
+  }
+
+  get label() {
+    return this.analysis.label;
   }
 }
 
@@ -313,8 +408,20 @@ export class Structure {
   legendsMap: { [key: string]: Legend };
   visualizations: Visualization[];
   visualizationsMap: { [key: string]: Visualization };
+  analyses: Analysis[];
+  analysesMap: { [key: string]: Analysis };
+  derivedDatasets: DerivedDataset[];
+  derivedDatasetsMap: { [key: string]: DerivedDataset };
 
-  constructor(datasets, dimensions, variables, grids, legends, visualizations) {
+  constructor(
+    datasets,
+    dimensions,
+    variables,
+    grids,
+    legends,
+    visualizations,
+    analyses,
+  ) {
     this.dimensions = dimensions.map((dimension) => new Dimension(dimension));
     this.dimensionsMap = makeMap(this.dimensions);
 
@@ -328,6 +435,9 @@ export class Structure {
       (visualization) => new Visualization(visualization),
     );
     this.visualizationsMap = makeMap(this.visualizations);
+
+    this.analyses = analyses.map((analysis) => new Analysis(analysis));
+    this.analysesMap = makeMap(this.analyses);
 
     this.variables = variables.map(
       (variable) =>
@@ -369,6 +479,175 @@ export class Structure {
       })
       .filter((dataset) => dataset !== undefined)
       .sort((a, b) => (a.variable.label < b.variable.label ? -1 : 1));
+
+    this.derivedDatasets = this.analyses
+      .filter((analysis) => analysis.kind === "variable")
+      .flatMap((analysis) => {
+        // Same field `fixesOwnInputs` keys on, and for the same reason: an entry
+        // carrying an `output` is one the server resolved with no dataset at
+        // all, so there is no caller-chosen dataset to pair it with -- its own
+        // result is the dataset. Everything else is offered once per real
+        // dataset it applies to.
+        if (analysis.output) {
+          const dataset = this.outputDataset(analysis);
+          return dataset ? [new DerivedDataset(analysis, dataset)] : [];
+        }
+        return this.datasets
+          .filter((ds) => analysis.appliesTo(ds.variable.name))
+          .map((ds) => new DerivedDataset(analysis, ds));
+      });
+    this.derivedDatasetsMap = makeMap(this.derivedDatasets);
+  }
+
+  // The dataset an input-fixing analysis is offered under, built from what the
+  // API says it PRODUCES (`/v1/analyses.json`'s `output`). `null` if the entry
+  // carries no output or names a grid this structure doesn't know, which is an
+  // analysis the dropdown then simply doesn't list.
+  //
+  // This replaces a hardcoded table (`CANONICAL_DERIVED_DATASETS`) that named
+  // one of the analysis's INPUTS as a stand-in, because nothing in the catalog
+  // said what it output. Picking an input was never safe and the table carried a
+  // long comment saying so: of `lnd_type_plus`'s three, `stg` is on a VECTOR
+  // grid, so the map would have asked for polygon tiles of a raster result, and
+  // `elev` is stored in millimetres, whose display scale factor would have
+  // divided every legend break by 1000. Only `lnd_type` happened to agree with
+  // the output, and only by hand.
+  //
+  // The variable is synthetic and deliberately so: the output of such an
+  // analysis is not any registered variable (the server reports `variables:
+  // [null]` for its one value column), and the presentation facts a `Variable`
+  // exists to carry -- the label and the legend -- are the analysis's OWN, which
+  // is exactly what `output` resolved them to. The display_*/unit fields stay
+  // null because there is no stored unit to convert from; anything the API
+  // renders itself (legend breaks, chart axes) already has them applied.
+  outputDataset(analysis: Analysis): Dataset | null {
+    const output = analysis.output;
+    const grid = output && this.gridsMap[output.grid];
+    if (!output || !grid) return null;
+    return new Dataset({
+      variable: new Variable(
+        {
+          name: analysis.name,
+          label: output.label ?? analysis.label,
+          dtype: null,
+          model: null,
+          subroutine: null,
+          unit: null,
+          display_unit: null,
+          display_scale_factor: null,
+          display_number_format: null,
+          float_precision: null,
+          legend: output.legend ? this.legendsMap[output.legend] : null,
+          geographic_units: [grid.name],
+          time_units: [output.time_unit],
+          // None of its own: what a caller may still steer is the union its
+          // inputs require, which is what `getRequiredDimensions` derives from
+          // the globally-required dimensions and the output's time unit. A
+          // dimension the analysis has already fixed is reported separately, as
+          // `subsumed_dimensions`.
+          required_dimensions: [],
+          difference_legend_limit: null,
+        },
+        this,
+      ),
+      grid,
+      time_unit: output.time_unit,
+    });
+  }
+
+  // Dimensions a selected derived variable already subsumes and so should
+  // neither be offered for selection nor sent as a filter (§4.4). `null`
+  // when no derived variable is selected.
+  subsumedFor(analysisName: string | null): string[] {
+    return analysisName
+      ? (this.derivedDatasetsMap[analysisName]?.analysis.subsumed_dimensions ??
+          [])
+      : [];
+  }
+
+  // Whether the named analysis supplies its OWN inputs rather than reading the
+  // caller's dataset (e.g. `lnd_type_plus`, whose three inputs are fixed
+  // server-side across two grids). A request naming such an analysis must NOT
+  // carry a variable/time_unit/grid triple: `api/unified.py::_dataset_ref` 400s
+  // on one it has no use for. Every URL builder asks through
+  // `CatalogQuery.getDatasetParams` rather than repeating the predicate.
+  //
+  // `output != null` is not a proxy for the question -- it IS the answer, and
+  // the server's own. `/v1/analyses.json` fills that field by resolving the
+  // analysis with no dataset, no selection and no parameters and reporting what
+  // came out, so an entry has one exactly when the resolve did not object to
+  // being handed nothing. Reading `kind`/`variables` instead would be the
+  // portal re-deriving from two fields what one field already states.
+  fixesOwnInputs(analysisName: string | null | undefined): boolean {
+    if (!analysisName) return false;
+    return this.analysesMap[analysisName]?.output != null;
+  }
+
+  // Whether the named derived analysis folds the TIME dimension away, leaving a
+  // result with no time column to plot against -- a chart with a time axis would
+  // have nothing to draw, and the server rejects the pair outright
+  // (`DatasetVisualization.validate_time_axis` -> 400). `Visualization.time_axis`
+  // is the other half -- see `VisualizationSelect`, which stops offering the
+  // chart, and `getVisualizationUrl`, which stops requesting it for an old
+  // permalink that names one anyway.
+  //
+  // Built on `subsumedFor` and the dimension's own `filterType` rather than on a
+  // list of analysis names, because subsumption means two different things by
+  // filterType and only the `time` one collapses an axis (see `getQueryParams`):
+  // `lnd_conf` subsumes `scenario_id`, a `select` dimension, and charts fine.
+  // That is also why this returns false for every analysis shipping today --
+  // `lnd_chng` was the one time case and now keeps its year column, comparing each
+  // selected year against a derived baseline. The question is asked of the catalog
+  // rather than of a name here, so the next one needs no change on this side.
+  collapsesTime(analysisName: string | null | undefined): boolean {
+    const subsumed = this.subsumedFor(analysisName ?? null);
+    return this.dimensions.some(
+      (dimension) =>
+        dimension.filterType === "time" && subsumed.includes(dimension.name),
+    );
+  }
+
+  // The charts a reader may pick for this selection -- `VisualizationSelect`'s
+  // whole answer, lifted out of the component so it has exactly one definition.
+  // `probe.ts` asks the same question to decide which spec URLs to fetch, and a
+  // copy of the predicate there would drift from the component the moment either
+  // moved, which is the failure `probe.ts`'s own header warns about.
+  //
+  // Four exclusions, each from a different source: `map` is not this control's
+  // to pick (the map is always drawn, and is chosen by `MapSelect`); a chart that
+  // plots time cannot present an analysis that folds the axis away
+  // (`collapsesTime` above); a chart declaring `variables` draws only those
+  // (`species-stacked-bar` breaks down `veg_species` and 400s on anything else,
+  // which `SpeciesStackedBar.validate` enforces server-side); and a chart that IS
+  // the presentation of an analysis cannot also carry the reader's, below.
+  //
+  // `variable` is undefined for an analysis that folds several variables into one
+  // result and so has no single presentation variable -- such a selection is
+  // offered only the charts that name no `variables` at all.
+  offeredVisualizations(
+    analysisName: string | null | undefined,
+    variable: string | undefined,
+  ): Visualization[] {
+    const collapsesTime = this.collapsesTime(analysisName);
+    // Mirrors `analyses.resolve_analysis_chain`: the chart's own analysis leads, so
+    // the reader's is a later stage, and only `kind === "dimension"` may go there.
+    // `analysisName` is `derivedAnalysisAtom`, which holds a `kind === "variable"`
+    // analysis or nothing, so today this reduces to "any analysis at all hides the
+    // chart" -- the `kind` test is what keeps that true if that atom ever widens,
+    // and is why `sediment_dynamics,diff` (which the server does accept) is not
+    // excluded here.
+    const chartCarriesAnalysis = (visualization: Visualization) =>
+      visualization.analysis !== null &&
+      analysisName != null &&
+      this.analysesMap[analysisName]?.kind !== "dimension";
+    return this.visualizations.filter(
+      (visualization) =>
+        visualization.name !== "map" &&
+        !(visualization.time_axis && collapsesTime) &&
+        !chartCarriesAnalysis(visualization) &&
+        (visualization.variables === null ||
+          (variable !== undefined && visualization.variables.includes(variable))),
+    );
   }
 
   getRequiredDimensions(
@@ -383,10 +662,14 @@ export class Structure {
       )
         return false;
       for (let dataset of datasets) {
-        let variable = this.variablesMap[dataset.variable.name];
+        // `dataset.variable` directly, not `variablesMap[...]`: a `Dataset` is
+        // built holding the mapped `Variable` instance, so the lookup only ever
+        // returned what it was handed -- and it returned `undefined` for the
+        // synthetic variable an input-fixing analysis's dataset carries
+        // (`outputDataset`), which is not in the map and has no reason to be.
         if (
           dimension.required ||
-          (variable.required_dimensions || []).includes(dimension)
+          (dataset.variable.required_dimensions || []).includes(dimension)
         )
           return true;
         if (
@@ -438,9 +721,11 @@ export async function getStructure() {
     "grids",
     "legends",
     "visualizations",
+    "analyses",
   ].map((endpoint) => getJson(`${dataBaseUrl}/${endpoint}.json`));
   return new Structure(
     ...((await Promise.all([datasetsData, ...staticData])) as [
+      object,
       object,
       object,
       object,

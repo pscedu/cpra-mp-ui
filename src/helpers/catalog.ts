@@ -10,20 +10,42 @@ import {
   makeQueryString,
   mergeOr,
   sortConsistent,
-  sqlValue,
 } from "./utils";
+
+// Every registered analysis compares exactly two values of its `dimension`
+// ("diff" subtracts one from the other; "concatenate" puts one beside
+// the other), so a selection with any other number of values has nothing for
+// it to operate on and the API rejects it outright. The reader can leave the
+// menu on "Subtract A - B" while narrowing the dimension back down to one
+// value, which is a perfectly reasonable thing to do and used to produce a
+// 400 -- so the number of selected values, not the menu alone, decides
+// whether the analysis is actually sent.
+const ANALYSIS_DIMENSION_VALUE_COUNT = 2;
 
 export class CatalogQuery {
   dataset: Dataset;
   filters: any;
   structure: Structure;
+  // The derived variable selected when this query was built, if any. A field
+  // and not a per-call argument because `getRequestPath` runs in the
+  // constructor: the catalog request itself has to know whether the dataset is
+  // a real one or the stand-in `Structure.outputDataset` synthesized, and a
+  // builder that answered that question differently from the request whose
+  // `results` it then filters by would be asking about two different datasets.
+  derivedAnalysis: string | null;
   requestPath: string;
   response: any;
 
-  constructor(dataset: Dataset, filters: any, structure: Structure) {
+  constructor(
+    dataset: Dataset,
+    filters: any,
+    structure: Structure,
+    derivedAnalysis: string | null = null,
+  ) {
     this.dataset = dataset;
     this.filters = filters;
     this.structure = structure;
+    this.derivedAnalysis = derivedAnalysis;
     this.requestPath = this.getRequestPath();
     this.response = null;
   }
@@ -39,50 +61,162 @@ export class CatalogQuery {
     return this.requestPath === other.requestPath;
   }
 
-  getRequestPath() {
+  // The values currently selected for an analysis's own dimension, deduplicated
+  // the way the API counts them (it compares DISTINCT values, so a repeated one
+  // must not look like a second).
+  getAnalysisDimensionValues(analysis?: Analysis | null): unknown[] {
+    if (!analysis?.dimension) return [];
+    return [...new Set(this.response?.results?.[analysis.dimension] || [])];
+  }
+
+  // `analysis` when the selection can actually support it, else null. Returns
+  // the analysis rather than a boolean so callers keep TypeScript's narrowing
+  // of its nullable fields. Everything that names an analysis to the API goes
+  // through here, so the `analysis=` parameter (via `getAnalysisChainName`)
+  // and the `dimension`/`order` parameters it needs alongside it can never
+  // disagree about whether one is in play -- sending the name while dropping
+  // the parameters is its own 400.
+  getApplicableAnalysis(analysis?: Analysis | null): Analysis | null {
+    if (!analysis?.dimension) return null;
+    return this.getAnalysisDimensionValues(analysis).length ===
+      ANALYSIS_DIMENSION_VALUE_COUNT
+      ? analysis
+      : null;
+  }
+
+  // The dataset the request reads, as the `variable`/`time_unit`/`grid` triple
+  // every unified route takes -- or nothing at all when the selected derived
+  // analysis supplies its own inputs, since `api/unified.py::_dataset_ref`
+  // rejects a triple it has no use for (and rejects a partial one besides, so
+  // this is all three or none). Callers splat this ahead of `getQueryParams`.
+  //
+  // No argument: it reads `this.derivedAnalysis`, so the triple is present or
+  // absent the same way for every URL this query builds, including the catalog
+  // request the constructor sends. `this.dataset` for an input-fixing analysis
+  // is the synthetic one, whose "variable" is the analysis's own name and names
+  // nothing on disk -- sending it would be a 404 even where a triple were
+  // allowed.
+  getDatasetParams(): [string, any][] {
+    if (this.structure.fixesOwnInputs(this.derivedAnalysis)) return [];
     const { variable, grid, time_unit } = this.dataset;
+    return [
+      ["variable", variable.name],
+      ["time_unit", time_unit],
+      ["grid", grid.name],
+    ];
+  }
+
+  // The comma-joined chain of registered analysis names to request (e.g.
+  // "lnd_conf,diff"), or null when neither a derived variable nor an
+  // applicable mode is selected. `mode` is "single"/"compare" as often as not,
+  // which is client-side view state with no `dimension` and contributes
+  // nothing to the chain. Every route takes this as the flat `analysis=` query
+  // parameter and splits it on "," server-side.
+  getAnalysisChainName(
+    derivedAnalysis?: string | null,
+    mode?: Analysis | null,
+  ): string | null {
+    const modeName = this.getApplicableAnalysis(mode)?.operation ?? null;
+    return [derivedAnalysis, modeName].filter(Boolean).join(",") || null;
+  }
+
+  // What the reader may still choose, for whatever this query is about. For a
+  // plain or applies-to-a-dataset derived variable that is the dataset triple,
+  // as before. For an input-fixing analysis it is the ANALYSIS NAME instead and
+  // no triple at all: the question is which dimension values its three fixed
+  // inputs all have, and only the server can answer that -- it resolves the
+  // pipeline and intersects the inputs' catalogs (`api/catalog.py`). This is
+  // the request that stopped being expressible when the catalog was keyed on a
+  // path triple, which is why the portal used to guess a stand-in dataset and
+  // ask about that one instead.
+  //
+  // Only the derived analysis goes on: the comparison mode (`diff`) narrows
+  // nothing about which values EXIST, and its `dimension`/`order` parameters
+  // belong to the data request `getQueryParams` builds from these results.
+  getRequestPath() {
     const requiredDimensions = this.structure.getRequiredDimensions([
       this.dataset,
     ]);
+    const datasetParams = this.getDatasetParams();
 
-    const qs = makeQueryString(
-      getFilterParams(requiredDimensions, this.filters),
-    );
-    return `${dataBaseUrl}/datasets/${variable.name}/${grid.name}/${time_unit}/catalog.json${qs}`;
+    const qs = makeQueryString([
+      ...(datasetParams.length
+        ? datasetParams
+        : ([["analysis", this.derivedAnalysis]] as [string, any][])),
+      ...getFilterParams(requiredDimensions, this.filters),
+    ]);
+    return `${dataBaseUrl}/catalog.json${qs}`;
   }
 
   getQueryParams(
     {
       analysis,
+      derivedAnalysis,
       geographies,
       includeTimeDimension,
-      maxGeographies,
+      maxGridCells,
       maxValues,
-      unpivot,
     }: QueryOptions = {
       analysis: null,
+      derivedAnalysis: null,
       geographies: null,
       includeTimeDimension: true,
-      maxGeographies: null,
+      maxGridCells: null,
       maxValues: null,
-      unpivot: false,
     },
   ): [string, any][] {
     const requiredDimensions = this.structure.getRequiredDimensions([
       this.dataset,
     ]);
 
+    // A selected derived variable subsumes some dimensions, but "subsumed"
+    // means two different things depending on the dimension's filterType.
+    // For a `select` dimension (e.g. `lnd_conf`'s `scenario_id`)
+    // the analysis fixes it server-side and REJECTS a caller-supplied value
+    // outright, so it must be hidden from `dimensions-select.tsx` (§4.4) and
+    // never sent. For a `time` dimension subsumption instead means "this is no
+    // longer an ordinary comparable dimension" -- the caller still selects it
+    // and it rides the normal time-filter plumbing (`includeTimeDimension`)
+    // unchanged. No analysis subsumes a time dimension today; `lnd_chng` did
+    // until it was rewritten to keep its year column (see `collapsesTime`).
+    const subsumedDimensions = this.structure.subsumedFor(
+      derivedAnalysis ?? null,
+    );
+
     // TODO: Select the filters based on user input. For now, we select the first
     // value for each dimension.
-    const selectedFilters = {};
+    const selectedFilters: Record<string, unknown[]> = {};
     for (const dimension of requiredDimensions)
-      if (dimension.filterType !== "time" || includeTimeDimension)
+      if (
+        dimension.filterType === "time"
+          ? includeTimeDimension
+          : !subsumedDimensions.includes(dimension.name)
+      )
         selectedFilters[dimension.name] = this.response.results[dimension.name];
 
+    // An analysis the selection can't support is not sent at all, and its
+    // dimension falls back to a single value -- the plain unanalyzed
+    // visualization of the first thing the reader selected, which is the
+    // sensible view of a comparison with nothing to compare against. The
+    // fallback has to be explicit rather than left to `maxValues` below:
+    // `getSpecUrl` passes no `maxValues`, so nothing would otherwise narrow a
+    // three-value selection down, and the request would 400 just the same.
+    const appliedAnalysis = this.getApplicableAnalysis(analysis);
+    if (analysis?.dimension && !appliedAnalysis)
+      selectedFilters[analysis.dimension] = this.getAnalysisDimensionValues(
+        analysis,
+      ).slice(0, 1);
+
     const modelGroupValues = selectedFilters.model_group_id || [];
+    // Dimensions whose selected values must survive `maxValues` truncation:
+    // the mode's own dimension, and (for `lnd_chng`'s three-image
+    // variant) `model_group_id`, since the API derives two-image vs.
+    // three-image from how many `model_group_id` values are in the request's
+    // filters.
     const analysisDimensions = [];
-    if (analysis?.dimension) analysisDimensions.push(analysis.dimension);
-    if (analysis?.operation === "concatenate" && modelGroupValues.length === 2)
+    if (appliedAnalysis?.dimension)
+      analysisDimensions.push(appliedAnalysis.dimension);
+    if (derivedAnalysis === "lnd_chng" && modelGroupValues.length === 2)
       analysisDimensions.push("model_group_id");
 
     const params = getFilterParams(
@@ -92,58 +226,24 @@ export class CatalogQuery {
       analysisDimensions,
     );
 
-    if (analysis) {
-      const { operation, dimension } = analysis;
-      if (dimension) {
-        let groupByNames = requiredDimensions
-          .map(({ name }) => name)
-          .filter((name) => name !== dimension);
-        const values = [...this.response.results[dimension]];
-        values.sort((a, b) => (a < b ? -1 : 1));
-        if (operation.startsWith("subtract-")) {
-          if (values && values.length === 2) {
-            const negateValue = values[operation.endsWith("asc") ? 1 : 0];
-            params.push([
-              "negate",
-              `${dimension}=${sqlValue(negateValue, dimension)}`,
-            ]);
-            params.push(["group_by", groupByNames]);
-            params.push(["group_aggregate", "sum"]);
-          }
-        } else if (operation === "concatenate") {
-          const timeValues = values;
-          modelGroupValues.sort();
-          const threeImage = modelGroupValues.length === 2;
-          params.push([
-            threeImage ? "multiply100" : "multiply10",
-            `${dimension}=${sqlValue(timeValues[0], dimension)}`,
-          ]);
-          if (threeImage) {
-            params.push([
-              "multiply10",
-              `model_group_id=${sqlValue(modelGroupValues[0])} and ${dimension}=${sqlValue(timeValues[1], dimension)}`,
-            ]);
-            params.push([
-              "where",
-              `not (model_group_id=${sqlValue(modelGroupValues[1])} and ${dimension}=${sqlValue(timeValues[0], dimension)})`,
-            ]);
-            groupByNames = groupByNames.filter(
-              (name) => name !== "model_group_id",
-            );
-          }
-          params.push(["group_by", groupByNames]);
-          params.push(["group_aggregate", "sum"]);
-        }
-      }
+    // The analysis NAME is sent separately, by each builder, via
+    // `getAnalysisChainName` -- not pushed from here, because the chain a
+    // builder sends is its own decision (`getVisualizationUrl` drops a
+    // calendar-dimension mode, for instance) and `getFilterParams` below has
+    // no say in it. `dimension`/`order` ARE pushed from here: they are the
+    // mode's own declared parameters, meaningful only alongside the filters
+    // this function selects.
+    if (appliedAnalysis?.dimension) {
+      params.push(["dimension", appliedAnalysis.dimension]);
+      if (appliedAnalysis.operation === "diff" && appliedAnalysis.order)
+        params.push(["order", appliedAnalysis.order]);
     }
 
     if (geographies)
       params.push([
-        "geography",
-        maxGeographies ? geographies.slice(0, maxGeographies) : geographies,
+        "grid_cell",
+        maxGridCells ? geographies.slice(0, maxGridCells) : geographies,
       ]);
-
-    if (unpivot) params.push(["unpivot", "true"]);
 
     return params;
   }
@@ -159,34 +259,39 @@ export class CatalogQuery {
 
   getDataDownloadUrl({
     analysis,
+    derivedAnalysis,
     format,
     geographies,
     includeTimeDimension,
-    unpivot,
   }: {
     analysis: Analysis;
+    derivedAnalysis?: string | null;
     format: string;
     geographies?: Geography[] | null;
     includeTimeDimension?: boolean;
-    unpivot?: boolean;
   }) {
-    return this.dataset.getDataUrl(
-      this.getQueryParams({
+    const chainName = this.getAnalysisChainName(derivedAnalysis, analysis);
+    const params = [
+      ...this.getDatasetParams(),
+      ...this.getQueryParams({
         analysis,
+        derivedAnalysis,
         geographies,
         includeTimeDimension,
-        unpivot,
       }),
-      format,
-    );
+      ...(chainName ? ([["analysis", chainName]] as [string, any][]) : []),
+    ];
+    return `${dataBaseUrl}/data.${format}${makeQueryString(params)}`;
   }
 
   getMapStyleUrl({
     analysis,
+    derivedAnalysis,
     mapOptions,
     extraParams = [],
   }: {
     analysis: Analysis;
+    derivedAnalysis?: string | null;
     mapOptions: Record<string, any>;
     extraParams?: [string, any][];
   }) {
@@ -194,12 +299,14 @@ export class CatalogQuery {
       this,
       {
         analysis,
+        derivedAnalysis,
         includeTimeDimension: true,
       },
       [
-        ...Object.keys(mapOptions).map(
-          (key): [string, any] => [camelToSnake(key), mapOptions[key]],
-        ),
+        ...Object.keys(mapOptions).map((key): [string, any] => [
+          camelToSnake(key),
+          mapOptions[key],
+        ]),
         ...extraParams,
       ],
     );
@@ -209,14 +316,30 @@ export class CatalogQuery {
     return (this?.response.results?.model_group_id || [-1])[0];
   }
 
-  getVisualizationUrl({ visualizationType, selectedGeographies, analysis }) {
-    return visualizationType &&
-      selectedGeographies &&
-      selectedGeographies.length
-      ? this.structure.visualizationsMap[visualizationType].getSpecUrl(this, {
+  getVisualizationUrl({
+    visualizationType,
+    selectedGeographies,
+    analysis,
+    derivedAnalysis,
+  }) {
+    // A chart for an analysis that collapses the time column is not a request worth
+    // making: the result has no year in it to plot against, and the spec route answers
+    // 400 (`DatasetVisualization.validate_time_axis`).
+    // `VisualizationSelect` stops offering the combination, but the chart type lives in
+    // the hash, so an old permalink can still arrive naming one -- this is what keeps
+    // that from becoming the error rather than an empty chart panel.
+    const visualization = visualizationType
+      ? this.structure.visualizationsMap[visualizationType]
+      : null;
+    if (visualization?.time_axis && this.structure.collapsesTime(derivedAnalysis))
+      return null;
+
+    return visualization && selectedGeographies && selectedGeographies.length
+      ? visualization.getSpecUrl(this, {
           analysis: analysis.dimension?.startsWith("calendar_")
             ? null
             : analysis,
+          derivedAnalysis,
           geographies: selectedGeographies,
         })
       : null;
@@ -236,19 +359,27 @@ export class CatalogQueries {
   datasets: Dataset[];
   filters: any;
   structure: Structure;
+  derivedAnalysis: string | null;
   queries: CatalogQuery[];
 
   combinedFilters: any;
   combinedChoices: any;
   activeDimensions: Dimension[];
 
-  constructor(datasets: Dataset[], filters: any, structure: Structure) {
+  constructor(
+    datasets: Dataset[],
+    filters: any,
+    structure: Structure,
+    derivedAnalysis: string | null = null,
+  ) {
     this.datasets = datasets;
     this.filters = filters;
     this.reconcileFilters();
     this.structure = structure;
+    this.derivedAnalysis = derivedAnalysis;
     this.queries = datasets.map(
-      (dataset) => new CatalogQuery(dataset, this.filters, structure),
+      (dataset) =>
+        new CatalogQuery(dataset, this.filters, structure, derivedAnalysis),
     );
     this.combinedFilters = null;
     this.combinedChoices = null;

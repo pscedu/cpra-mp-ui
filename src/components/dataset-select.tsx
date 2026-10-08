@@ -1,10 +1,12 @@
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   catalogQueriesAtom,
+  derivedAnalysisAtom,
   setRequestedDatasetsAtom,
   structureAtom,
 } from "@/helpers/state";
 import { toTitleCase } from "@/helpers/utils";
+import { DerivedDataset } from "@/helpers/structure";
 
 import SidebarSelect from "@/components/sidebar-select";
 import { BookImage, Calendar, Ruler } from "lucide-react";
@@ -16,6 +18,7 @@ export default function DatasetSelect() {
   const structure = useAtomValue(structureAtom);
   const datasets = useAtomValue(catalogQueriesAtom).datasets;
   const setRequestedDatasets = useSetAtom(setRequestedDatasetsAtom);
+  const [derivedAnalysis, setDerivedAnalysis] = useAtom(derivedAnalysisAtom);
 
   const masterPlan =
     datasets?.length && datasets[0]
@@ -52,6 +55,34 @@ export default function DatasetSelect() {
       label: dataset.variable.label,
       value: dataset,
     }));
+
+  // "Derived Variables" (§4.1): `kind === "variable"` analyses, each paired
+  // with the underlying dataset it runs over, filtered down to the same
+  // master plan / time unit the plain variable list above is.
+  const derivedVariableOptions = structure?.derivedDatasets
+    .filter(
+      (derived) =>
+        getMasterPlan(derived.dataset) === masterPlan &&
+        derived.dataset.time_unit === timeUnit,
+    )
+    .map((derived) => ({
+      label: derived.label,
+      value: derived,
+    }));
+
+  const selectedVariable = derivedAnalysis
+    ? structure?.derivedDatasetsMap[derivedAnalysis]
+    : datasets[0];
+
+  const setVariable = (value: DerivedDataset | (typeof datasets)[number]) => {
+    if (value instanceof DerivedDataset) {
+      setRequestedDatasets([value.dataset]);
+      setDerivedAnalysis(value.name);
+    } else {
+      setRequestedDatasets([value]);
+      setDerivedAnalysis(null);
+    }
+  };
 
   const setMasterPlan = (newMasterPlan) => {
     const candidateDatasets = structure?.datasets.filter(
@@ -102,10 +133,14 @@ export default function DatasetSelect() {
       <SidebarSelect
         icon={Ruler}
         label="Variable"
-        onChange={(value) => setRequestedDatasets([value])}
-        options={variableOptions}
-        value={datasets[0]}
-        supp
+        onChange={setVariable}
+        optionGroups={[
+          { label: "Variables", options: variableOptions || [] },
+          ...(derivedVariableOptions?.length
+            ? [{ label: "Derived Variables", options: derivedVariableOptions }]
+            : []),
+        ]}
+        value={selectedVariable}
       />
     </>
   );

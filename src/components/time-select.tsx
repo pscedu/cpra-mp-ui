@@ -1,6 +1,7 @@
 import { useAtomValue, useAtom, useSetAtom } from "jotai";
 import {
   catalogQueriesAtom,
+  derivedAnalysisAtom,
   requestedTimeValuesAtom,
   setSelectedFilterChoicesAtom,
 } from "@/helpers/state";
@@ -29,12 +30,24 @@ export default function TimeSelect({
 }) {
   const setSelectedFilterChoices = useSetAtom(setSelectedFilterChoicesAtom);
   const catalogQueries = useAtomValue(catalogQueriesAtom);
-  const mapCatalogQuery = catalogQueries.getMapCatalogQuery();
+  const derivedAnalysis = useAtomValue(derivedAnalysisAtom);
   const timeDimension = catalogQueries.getTimeDimension();
   const [selected, setSelected] = useAtom(requestedTimeValuesAtom);
   const choices = catalogQueries.getTimeChoices();
 
   if (!choices.length || !selected.length) return;
+
+  // `lnd_chng` already compares each selected year against a baseline derived
+  // server-side from `model_group_id`, so comparing two of them here would be a
+  // comparison of comparisons -- and the map it feeds draws one image, which
+  // holds one year (the API 400s on more). It never offers
+  // "Compare"/"Subtract" for the calendar dimension (§4.1).
+  //
+  // This bounds the MAP only. A chart names geographies, so `getSpecUrl` sends
+  // no `calendar_year` at all and gets every year against the baseline back --
+  // the land-change series -- regardless of what this control is set to.
+  const yearIsSingleValued =
+    derivedAnalysis === "lnd_chng" && timeDimension?.name === "calendar_year";
 
   const setSelectedWithDebounce = (values, useTimeout = true) => {
     setSelected(values);
@@ -133,7 +146,7 @@ export default function TimeSelect({
           }
         />
       </div>
-      {showSelectionMode && (
+      {showSelectionMode && !yearIsSingleValued && (
         <SelectionModeDropdown
           dimensionName={timeDimension?.name}
           dimensionLabel={label}
@@ -153,9 +166,6 @@ export default function TimeSelect({
               setSelectedWithDebounce([choices[values[0]]], false);
             }
           }}
-          supportsConcatenate={
-            mapCatalogQuery?.dataset?.variable?.name === "lnd_type"
-          }
           supportsSubtract={true}
         />
       )}
