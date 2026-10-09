@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.7.0](https://github.com/pscedu/cpra-mp-ui/compare/v0.6.0...v0.7.0) (2026-10-08)
+
+
+### Features
+
+* add derived variable and dimension analyses ([58a77d8](https://github.com/pscedu/cpra-mp-ui/commit/58a77d8f9dfe9bcbb9bfce05abb1868c16174323))
+
+
+### Bug Fixes
+
+* fix switching between derived variables ([800bd7a](https://github.com/pscedu/cpra-mp-ui/commit/800bd7a5e91bf38466373d1ac35d3b8d1f337efa))
+* fix time series chart for lnd_chng and lnd_type_plus ([5a881bd](https://github.com/pscedu/cpra-mp-ui/commit/5a881bd6d80a70c391fdfd1bce8a3463832de189))
+* remove unused glyph and sprite URL config variables ([440b36d](https://github.com/pscedu/cpra-mp-ui/commit/440b36d23e8378d02df3a72546dfb3cb9b39ccbb))
+* restrict sediment dynamics to related variables ([db260bd](https://github.com/pscedu/cpra-mp-ui/commit/db260bd0133adf6f9629ad7827bf7d18aa963a9d))
+
 ## [0.6.0](https://github.com/pscedu/cpra-mp-ui/compare/v0.5.0...v0.6.0) (2026-08-31)
 
 
