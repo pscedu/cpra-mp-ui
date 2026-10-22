@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/pscedu/cpra-mp-ui/compare/v0.8.0...v0.8.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* add repository URL for publishing ([09c7733](https://github.com/pscedu/cpra-mp-ui/commit/09c7733954e3c65f904a38272d98bde5836c2154))
+
 ## [0.8.0](https://github.com/pscedu/cpra-mp-ui/compare/v0.7.0...v0.8.0) (2026-10-22)
 
 
