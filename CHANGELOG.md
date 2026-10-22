@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/pscedu/cpra-mp-ui/compare/v0.7.0...v0.8.0) (2026-10-22)
+
+
+### Features
+
+* **plugins:** add legend layouts to MapLibre plugin ([88e13c9](https://github.com/pscedu/cpra-mp-ui/commit/88e13c9b528a9832b4568cc72736b95508788b23))
+
 ## [0.7.0](https://github.com/pscedu/cpra-mp-ui/compare/v0.6.0...v0.7.0) (2026-10-08)
 
 
