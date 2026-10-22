@@ -2,6 +2,10 @@
   "name": "@cpra/mp-ui",
   "description": "User interface components for Louisiana's Coastal Master Plan",
   "version": "0.8.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pscedu/cpra-mp-ui.git"
+  },
   "type": "module",
   "files": [
     "dist"
