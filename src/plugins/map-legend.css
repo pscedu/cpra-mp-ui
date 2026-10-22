@@ -41,3 +41,60 @@
 .cpra-map-legend .continuous-ticks .tick .label {
   position: relative;
 }
+.cpra-map-legend .layout-rows {
+  align-items: center;
+  column-gap: 0.5rem;
+  display: grid;
+  grid-template-columns: auto auto auto;
+  row-gap: 0.25rem;
+}
+.cpra-map-legend .layout-label {
+  font-weight: bold;
+}
+.cpra-map-legend .layout-caption {
+  color: #555;
+  font-size: 0.85em;
+}
+.cpra-map-legend .left {
+  text-align: right;
+}
+.cpra-map-legend .right {
+  text-align: left;
+}
+.cpra-map-legend .layout-swatches {
+  display: flex;
+  gap: 3px;
+}
+.cpra-map-legend .layout-symbol {
+  border: 1px solid #ccc;
+  height: 1.25rem;
+  width: 2.5rem;
+}
+.cpra-map-legend .layout-arrows {
+  display: flex;
+  gap: 1.5rem;
+  padding: 0 0.25rem;
+}
+/* A shaft with a triangular head at its outer end: the two arrows point away from each
+   other, toward the high-confidence end of each strip. */
+.cpra-map-legend .layout-arrow {
+  background-color: #555;
+  flex: 1;
+  height: 1px;
+  position: relative;
+}
+.cpra-map-legend .layout-arrow::before {
+  border-bottom: 4px solid transparent;
+  border-top: 4px solid transparent;
+  content: "";
+  position: absolute;
+  top: -4px;
+}
+.cpra-map-legend .layout-arrow.left::before {
+  border-right: 7px solid #555;
+  left: -1px;
+}
+.cpra-map-legend .layout-arrow.right::before {
+  border-left: 7px solid #555;
+  right: -1px;
+}

@@ -1,6 +1,15 @@
 import { ControlPosition, IControl, Map } from "maplibre-gl";
 import { format } from "d3-format";
 
+// A row of a discrete legend's optional `layout`: a strip of swatches between two end
+// labels, or a pair of outward arrows between two captions.
+type LegendLayoutRow = {
+  kind: "swatches" | "arrows";
+  left?: string;
+  right?: string;
+  steps?: { color: string; label: string }[];
+};
+
 export class CPRAMapLegendControl implements IControl {
   _container: HTMLElement | undefined;
   _map: Map | undefined;
@@ -57,7 +66,11 @@ export class CPRAMapLegendControl implements IControl {
             entry.append(title);
           }
 
-          if (spec.type === "discrete")
+          // `layout` is an optional arrangement of a discrete legend's key into labelled
+          // rows; `steps` is always the full list, for a client that ignores `layout`.
+          if (spec.type === "discrete" && spec.layout?.rows)
+            this.addLayoutRows(entry, spec.layout.rows);
+          else if (spec.type === "discrete")
             this.addDiscreteSteps(entry, spec.steps);
           else if (spec.type === "continuous")
             this.addContinuousSteps(entry, spec);
@@ -128,6 +141,49 @@ export class CPRAMapLegendControl implements IControl {
       container.append(symbol, label);
       entry.append(container);
     }
+  }
+
+  addLayoutRows(entry: HTMLElement, rows: LegendLayoutRow[]) {
+    // One three-column grid for every row, so the end labels and the swatch strips line
+    // up across rows.
+    const grid = document.createElement("div");
+    grid.className = "layout-rows";
+
+    for (const row of rows) {
+      const left = document.createElement("span");
+      const right = document.createElement("span");
+      left.innerText = row.left ?? "";
+      right.innerText = row.right ?? "";
+      const middle = document.createElement("div");
+
+      if (row.kind === "arrows") {
+        left.className = "layout-caption left";
+        right.className = "layout-caption right";
+        middle.className = "layout-arrows";
+        for (const direction of ["left", "right"]) {
+          const arrow = document.createElement("div");
+          arrow.className = `layout-arrow ${direction}`;
+          middle.append(arrow);
+        }
+      } else {
+        left.className = "layout-label left";
+        right.className = "layout-label right";
+        middle.className = "layout-swatches";
+        for (const step of row.steps ?? []) {
+          // The strip has no room for each class's label, so it is the swatch's tooltip.
+          const symbol = document.createElement("div");
+          symbol.className = "layout-symbol";
+          symbol.style.backgroundColor = step.color;
+          symbol.title = step.label;
+          symbol.setAttribute("aria-label", step.label);
+          middle.append(symbol);
+        }
+      }
+
+      grid.append(left, middle, right);
+    }
+
+    entry.append(grid);
   }
 
   clearContainer() {
