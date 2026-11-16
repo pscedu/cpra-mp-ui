@@ -36,9 +36,9 @@ export const issueAtom = hashAtom(null, { key: "issue" });
 
 export const defaultDatasets = [
   {
-    variable: "sal",
-    grid: "hydro_compartment_v001",
-    time_unit: "daily",
+    variable: "lnd_type",
+    grid: "morph_pixel_v002",
+    time_unit: "annual",
   },
 ];
 export const requestedDatasetsAtom = hashAtom<DatasetRequest[]>(
