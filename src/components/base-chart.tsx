@@ -4,13 +4,14 @@ import {
   Ref,
   memo,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import useMeasure from "react-use-measure";
 import { useVegaEmbed } from "react-vega";
 import { dark, excel } from "vega-themes";
-import { getJson } from "@/helpers/utils";
+import { getJson, isAbortError } from "@/helpers/utils";
 
 export default memo(
   function BaseChart({
@@ -52,6 +53,13 @@ export default memo(
     const darkTheme = { ...dark, background: "transparent" };
     const lightTheme = { ...excel, background: "transparent" };
 
+    // The data a spec's view loads (its `/v1/data.csv` sources) is fetched under a signal
+    // of its own, aborted as soon as the spec is replaced or the chart unmounted, so a
+    // superseded chart's reads stop rather than run to completion behind the new one.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one controller per spec
+    const dataRequest = useMemo(() => new AbortController(), [specJson]);
+    useEffect(() => () => dataRequest.abort(), [dataRequest]);
+
     const vegaRef = useRef<HTMLDivElement>(null);
     const embed = useVegaEmbed({
       ref: vegaRef,
@@ -60,19 +68,29 @@ export default memo(
         mode: "vega-lite",
         actions,
         config: theme === "dark" ? darkTheme : lightTheme,
+        loader: { http: { signal: dataRequest.signal } },
         padding,
       },
     });
 
     useEffect(() => {
+      // Cancels this spec's fetch when a newer spec (or unmount) supersedes it, so a slow
+      // response can neither keep loading nor land over the newer chart.
+      const controller = new AbortController();
       if (typeof spec === "string") {
         if (height && width) {
           const loadSpecJson = async () => {
             let specUrl = `${spec}${spec.includes("?") ? "" : "?"}&height=${Math.floor(height)}&width=${Math.floor(width)}`;
             if (startDate) specUrl += `&start_date=${startDate}`;
             if (endDate) specUrl += `&end_date=${endDate}`;
-            const json = await getJson(specUrl);
-            setSpecJson(json);
+            try {
+              const json = await getJson(specUrl, {
+                signal: controller.signal,
+              });
+              if (!controller.signal.aborted) setSpecJson(json);
+            } catch (error) {
+              if (!isAbortError(error)) throw error;
+            }
           };
           if (specJson || resizeTimeout.current) {
             setSpecJson(null);
@@ -85,6 +103,7 @@ export default memo(
       } else {
         setSpecJson(spec);
       }
+      return () => controller.abort();
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [spec, isMeasured]);
 

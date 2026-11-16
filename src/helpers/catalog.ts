@@ -50,8 +50,8 @@ export class CatalogQuery {
     this.response = null;
   }
 
-  async execute() {
-    this.response = await getJson(this.requestPath);
+  async execute(signal: AbortSignal | null = null) {
+    this.response = await getJson(this.requestPath, { signal });
     // Sort the filters so that the order of the requested filters is preserved if possible.
     for (const key of Object.keys(this.response.results))
       sortConsistent(this.response.results[key], this.filters[key]);
@@ -393,8 +393,8 @@ export class CatalogQueries {
     );
   }
 
-  async executeAll() {
-    await Promise.all(this.queries.map((query) => query.execute()));
+  async executeAll(signal: AbortSignal | null = null) {
+    await Promise.all(this.queries.map((query) => query.execute(signal)));
     const filterDimensionNames = this.structure.dimensions
       .filter((dim) => dim.isFilter)
       .map((dim) => dim.name);

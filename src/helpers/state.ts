@@ -18,7 +18,7 @@ import {
 } from "./hash";
 import { isCoordinate } from "./selection";
 import { Dataset, getStructure } from "./structure";
-import { getJson, sortConsistent } from "./utils";
+import { getJson, isAbortError, sortConsistent } from "./utils";
 import { NavigateFunction } from "react-router";
 import { CatalogQueries } from "./catalog";
 import { Analysis, DatasetRequest, Geography } from "./types";
@@ -559,6 +559,11 @@ export const queryCatlogEffect = atomEffect((get, set) => {
   const requestedDatasets = get(requestedDatasetsAtom);
   const requestedFilters = get(requestedFiltersAtom);
   const derivedAnalysis = get(derivedAnalysisAtom);
+  // A newer selection re-runs this effect, which first runs the cleanup below: the
+  // catalog requests still in flight for the old one are cancelled, and nothing they
+  // would have resolved to is published over the newer selection's.
+  const controller = new AbortController();
+  const { signal } = controller;
   // Effects run before the atoms have been hydrated, so we need to check
   // to make sure we have requested datasets.
   if (requestedDatasets.length)
@@ -593,10 +598,17 @@ export const queryCatlogEffect = atomEffect((get, set) => {
         derivedAnalysis,
       );
       const prevCqs = get(catalogQueriesAtom);
-      if ("equals" in prevCqs && prevCqs.equals(cqs)) return;
-      await cqs.executeAll();
-      set(setExecutedCatalogQueriesAtom, cqs);
+      if (signal.aborted || ("equals" in prevCqs && prevCqs.equals(cqs)))
+        return;
+      try {
+        await cqs.executeAll(signal);
+      } catch (error) {
+        if (isAbortError(error)) return;
+        throw error;
+      }
+      if (!signal.aborted) set(setExecutedCatalogQueriesAtom, cqs);
     })();
+  return () => controller.abort();
 });
 
 // Update the maximum selected geographies when the visualization changes.

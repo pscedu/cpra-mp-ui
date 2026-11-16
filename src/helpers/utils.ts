@@ -3,14 +3,27 @@ import { Dataset } from "./structure";
 import { Coordinate, Tag } from "./types";
 import { hasLink } from "./markdown";
 
+// An aborted `signal` rejects with the fetch's own `AbortError` rather than resolving to
+// an `{ error }`, so callers that cancel stale requests can tell the two apart.
 export async function getJson(
   absoluteUrl: string,
-  { body = null, headers = {}, method = "GET" } = {},
+  {
+    body = null,
+    headers = {},
+    method = "GET",
+    signal = null,
+  }: {
+    body?: unknown;
+    headers?: Record<string, string>;
+    method?: string;
+    signal?: AbortSignal | null;
+  } = {},
 ) {
   const response = await fetch(absoluteUrl, {
     body: body ? JSON.stringify(body) : null,
     headers: { ...headers, accept: "application/json" },
     method,
+    signal,
   });
   if (response.status < 200 || response.status > 299) {
     return { error: { status: response.status } };
@@ -22,6 +35,9 @@ export async function getJson(
     }
   }
 }
+
+export const isAbortError = (error: unknown) =>
+  error instanceof DOMException && error.name === "AbortError";
 
 export async function getNdJson(
   absoluteUrl: string,

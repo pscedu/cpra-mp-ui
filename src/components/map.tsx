@@ -37,7 +37,10 @@ export default function Map({
     analysis,
     derivedAnalysis,
     mapOptions,
-    extraParams: styleParams,
+    // Vector grid values are joined onto static grid tiles in the browser (`BaseMap`'s
+    // `loadStyle`) rather than into each tile on the server, so a selection change
+    // refetches one table of values instead of every tile.
+    extraParams: [["vector_join", "client"], ...styleParams],
   });
   const gridLabel = mapCatalogQuery.dataset.grid.label.toLowerCase();
   const [z, y, x] = mapPosition;

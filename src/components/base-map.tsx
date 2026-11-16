@@ -2,6 +2,7 @@ import { Ref, useEffect, useRef, useState } from "react";
 import {
   LngLatBounds,
   Map as GLMap,
+  StyleSpecification,
   Marker,
   LngLatLike,
   LngLat,
@@ -9,7 +10,12 @@ import {
   PointLike,
   RasterTileSource,
 } from "maplibre-gl";
-import { getSelectionColor, roundCoordinate, sleep } from "@/helpers/utils";
+import {
+  getSelectionColor,
+  isAbortError,
+  roundCoordinate,
+  sleep,
+} from "@/helpers/utils";
 import { Coordinate, Geography } from "@/helpers/types";
 import { resolveGeographyIds } from "@/helpers/geography";
 import { GeographySelection, isCoordinate } from "@/helpers/selection";
@@ -21,6 +27,56 @@ import "@/plugins/map-legend.css";
 import BaseMapContextMenu, {
   ContextMenuTarget,
 } from "@/components/base-map-context-menu";
+
+// What a style asks the client to join onto its own source: the API's `Map` style names
+// it in `metadata` when a vector grid is drawn with `vector_join=client`.
+type FeatureValuesSpec = { url: string; source: string; source_layer: string };
+type LoadedStyle = {
+  style: StyleSpecification;
+  featureValues: FeatureValuesSpec | null;
+  values: [number, number][];
+};
+
+const EMPTY_STYLE: StyleSpecification = { version: 8, sources: {}, layers: [] };
+
+// `grid_cell,value` rows, skipping cells with no value.
+const parseFeatureValues = (csv: string): [number, number][] => {
+  const [header, ...lines] = csv.split("\n");
+  const columns = header.trim().split(",");
+  const idIdx = columns.indexOf("grid_cell");
+  const valueIdx = columns.indexOf("value");
+  const values: [number, number][] = [];
+  for (const line of lines) {
+    const fields = line.trim().split(",");
+    if (fields[valueIdx] === undefined || fields[valueIdx] === "") continue;
+    values.push([parseInt(fields[idIdx]), parseFloat(fields[valueIdx])]);
+  }
+  return values;
+};
+
+const fetchOk = async (url: string, signal: AbortSignal) => {
+  const response = await fetch(url, { signal });
+  if (!response.ok)
+    throw new Error(`Received status ${response.status} while loading ${url}`);
+  return response;
+};
+
+// Fetch a style and, when it asks for them, the values to join onto it -- both under the
+// one `signal`, so a newer selection cancels the pair together.
+const loadStyle = async (
+  url: string,
+  signal: AbortSignal,
+): Promise<LoadedStyle> => {
+  const style = await (await fetchOk(url, signal)).json();
+  const featureValues: FeatureValuesSpec | null =
+    style.metadata?.["cpra:feature_values"] ?? null;
+  const values = featureValues
+    ? parseFeatureValues(
+        await (await fetchOk(featureValues.url, signal)).text(),
+      )
+    : [];
+  return { style, featureValues, values };
+};
 
 // Map using MapLibre GL.
 export default function BaseMap({
@@ -52,6 +108,14 @@ export default function BaseMap({
 }) {
   const container = useRef(null);
   const map = useRef<GLMap | null>(null);
+  // The style request in flight, if any, and the `style.load` listener waiting to apply
+  // the last style handed to the map. Both belong to exactly one selection, and are
+  // dropped the moment a newer one starts.
+  const styleRequest = useRef<AbortController | null>(null);
+  const pendingApply = useRef<(() => void) | null>(null);
+  // The ids the last applied values set feature state on, so the next apply can null out
+  // the ones it has no value for.
+  const featureStateIds = useRef<Set<number>>(new Set());
   const markers: Ref<Marker[]> = useRef([]);
   const contextMenuTriggerRef = useRef<HTMLDivElement>(null);
 
@@ -127,10 +191,11 @@ export default function BaseMap({
 
   const initMap = () => {
     if (!container.current) return;
+    // The style is fetched by the `styleUrl` effect, alongside the values it joins.
     const glMap = new GLMap({
       container: container.current,
       center,
-      style: styleUrl,
+      style: EMPTY_STYLE,
       zoom,
     });
     glMap.addControl(new CPRAMapLegendControl());
@@ -147,7 +212,11 @@ export default function BaseMap({
       glMap.getCanvas().style.cursor = getCoordinate(e) ? "pointer" : "";
     });
     glMap.on("data", () => setMapLoading(true));
-    glMap.on("idle", () => setMapLoading(false));
+    // A style still being fetched is still loading, even while the map has nothing
+    // left to draw from the one before it.
+    glMap.on("idle", () => {
+      if (!styleRequest.current) setMapLoading(false);
+    });
     glMap.on("moveend", () => {
       const { lng, lat } = glMap.getCenter();
       const zoom = glMap.getZoom();
@@ -238,6 +307,58 @@ export default function BaseMap({
     glMap.setGlobalStateProperty("selectionColors", selectionColors);
   };
 
+  // Hand a fetched style to the map along with its feature values, so that the frame
+  // that first draws the new style is the one that first draws its values.
+  //
+  // A style that changes anything is applied by a synchronous diff when it can be, and
+  // the diff fires `style.load` before returning; one it can't diff is rebuilt from
+  // scratch and fires `style.load` once loaded. Either way the values are set inside
+  // that event, onto the source the new style defines -- never onto the old one, and
+  // never before the source exists. A diff with nothing to change (two styles that
+  // differ only in their `metadata`, i.e. the values URL) fires nothing and leaves the
+  // map's style object as it was, which is how that case is told apart.
+  //
+  // The values are cleared and set in one pass, and feature state is only drawn at the
+  // next render, so a variable change on the same grid -- which keeps the source and
+  // its loaded tiles -- recolors every cell at once rather than cell by cell.
+  const applyStyle = (
+    glMap: GLMap,
+    { style, featureValues, values }: LoadedStyle,
+  ) => {
+    let applied = false;
+    const apply = () => {
+      if (applied) return;
+      applied = true;
+      pendingApply.current = null;
+      if (!featureValues || !glMap.getSource(featureValues.source)) return;
+      const target = {
+        source: featureValues.source,
+        sourceLayer: featureValues.source_layer,
+      };
+      // Overwrite rather than `removeFeatureState` + set: MapLibre (5.24) coalesces a
+      // queued removal after the sets, and keeps a property's removal queued whenever its
+      // new value is falsy -- so every cell whose new value is 0 would lose it. A stale
+      // id is set to null instead, which the fill draws as no data.
+      const ids = new Set<number>();
+      for (const [id, value] of values) {
+        ids.add(id);
+        glMap.setFeatureState({ ...target, id }, { value });
+      }
+      for (const id of featureStateIds.current)
+        if (!ids.has(id))
+          glMap.setFeatureState({ ...target, id }, { value: null });
+      featureStateIds.current = ids;
+    };
+    pendingApply.current = apply;
+    glMap.once("style.load", apply);
+    const prevStyle = glMap.style;
+    glMap.setStyle(style);
+    if (!applied && glMap.style === prevStyle) {
+      glMap.off("style.load", apply);
+      apply();
+    }
+  };
+
   const ensureStyleLoaded = async () => {
     while (!map.current || !map.current.isStyleLoaded()) await sleep(100);
   };
@@ -271,13 +392,40 @@ export default function BaseMap({
     }
   }, [center]);
 
-  // Update the map style.
+  // Update the map style. Not deferred until the current style has loaded: that waits on
+  // every tile of the outgoing selection, which is exactly what a newer one supersedes.
   useEffect(() => {
+    const glMap = map.current;
+    if (!glMap) return;
+    // Supersede whatever the previous selection still has in flight.
+    if (pendingApply.current) glMap.off("style.load", pendingApply.current);
+    pendingApply.current = null;
+    const controller = new AbortController();
+    styleRequest.current = controller;
+    setMapLoading(true);
     (async () => {
-      setMapLoading(true);
-      await ensureStyleLoaded();
-      if (map.current) map.current.setStyle(styleUrl);
+      try {
+        const loaded = await loadStyle(styleUrl, controller.signal);
+        if (controller.signal.aborted || map.current !== glMap) return;
+        styleRequest.current = null;
+        applyStyle(glMap, loaded);
+        glMap.triggerRepaint();
+      } catch (error) {
+        if (isAbortError(error)) return;
+        console.error(error);
+        if (styleRequest.current === controller) {
+          styleRequest.current = null;
+          setMapLoading(false);
+        }
+      }
     })();
+    return () => {
+      controller.abort();
+      if (styleRequest.current === controller) styleRequest.current = null;
+    };
+    // `setMapLoading` defaults to a new function every render; rerunning on it would
+    // cancel the request this effect just started.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [styleUrl]);
 
   // Update the map feature state when new data are loaded or the selection changes.
