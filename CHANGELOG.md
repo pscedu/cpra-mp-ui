@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.2](https://github.com/pscedu/cpra-mp-ui/compare/v0.8.1...v0.8.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **state:** change default dataset to MP29 land type ([da1f3fe](https://github.com/pscedu/cpra-mp-ui/commit/da1f3fe3869758f7e459b8a0d4fe7cca310ac006))
+
+
+### Performance Improvements
+
+* **map:** join vector values server-side ([84b5d64](https://github.com/pscedu/cpra-mp-ui/commit/84b5d64e401ce1ff773c3249d5f49a7abb15a2bf))
+
 ## [0.8.1](https://github.com/pscedu/cpra-mp-ui/compare/v0.8.0...v0.8.1) (2026-10-22)
 
 
