@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.3](https://github.com/pscedu/cpra-mp-ui/compare/v0.8.2...v0.8.3) (2026-11-18)
+
+
+### Bug Fixes
+
+* **dataset-select:** load name for derived variables ([fb35b93](https://github.com/pscedu/cpra-mp-ui/commit/fb35b939734e8f26980fdc608980706a93f20003))
+
 ## [0.8.2](https://github.com/pscedu/cpra-mp-ui/compare/v0.8.1...v0.8.2) (2026-11-16)
 
 
