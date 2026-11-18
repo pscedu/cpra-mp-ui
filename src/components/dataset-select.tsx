@@ -70,9 +70,18 @@ export default function DatasetSelect() {
       value: derived,
     }));
 
+  // Not `derivedDatasetsMap[derivedAnalysis]`: an analysis that runs over the
+  // caller's dataset has one entry per dataset it applies to (every grid and
+  // time unit), and the map keeps only the last, which is generally not among
+  // the options above -- so the select would match nothing and show its
+  // placeholder. The entry wanted is the one paired with the loaded dataset,
+  // which for an input-fixing analysis is its own synthetic one.
   const selectedVariable = derivedAnalysis
-    ? structure?.derivedDatasetsMap[derivedAnalysis]
-    : datasets[0];
+    ? structure?.derivedDatasets.find(
+        (derived) =>
+          derived.name === derivedAnalysis && derived.dataset === datasets?.[0],
+      )
+    : datasets?.[0];
 
   const setVariable = (value: DerivedDataset | (typeof datasets)[number]) => {
     if (value instanceof DerivedDataset) {
