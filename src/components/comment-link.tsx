@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { portalBaseUrl } from "@/helpers/config";
-import { mergeHash } from "@/helpers/hash";
+import { openPortalLink } from "@/helpers/hash";
 
 export default function CommentLink({
   children,
@@ -16,7 +16,7 @@ export default function CommentLink({
       onClick={(e) => {
         if (href.startsWith(portalBaseUrl)) {
           e.preventDefault();
-          mergeHash(href);
+          openPortalLink(href);
         }
       }}
     >

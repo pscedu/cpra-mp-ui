@@ -1,6 +1,6 @@
 import { linkPattern } from "@/helpers/markdown";
 import { portalBaseUrl } from "@/helpers/config";
-import { mergeHash } from "@/helpers/hash";
+import { openPortalLink } from "@/helpers/hash";
 
 export default function Markdown({ text }: { text: string }) {
   return text.split(/\s*\n\s*\n\s*/g).map((markdownText, i) => {
@@ -24,7 +24,7 @@ export default function Markdown({ text }: { text: string }) {
           onClick={(e) => {
             if (url.startsWith(portalBaseUrl)) {
               e.preventDefault();
-              mergeHash(url);
+              openPortalLink(url);
             }
           }}
         >

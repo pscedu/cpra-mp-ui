@@ -216,10 +216,20 @@ export const hashObjectAtom = <T>(defaultValue: { [key: string]: T }) => {
   return hashAtom(defaultValue, { fromHash, updateHash });
 };
 
-export const mergeHash = (url: string) => {
-  const params = getHashParams();
-  const mergeParams = new URLSearchParams(url.split("#")[1]);
-  for (const [key] of mergeParams) params.delete(key);
-  for (const [key, value] of mergeParams) params.append(key, value);
+// Where the reader is in the portal, not what a link shows: permalinks never
+// carry these (see `dataPermalinkAtom`), so following one keeps the reader's.
+const NAVIGATION_KEYS = ["activity", "issue"];
+
+// Opens a portal permalink in place, replacing the current view state rather
+// than merging into it. Permalinks omit keys at their default values, so a
+// merge would let any non-default state the reader already had (a derived
+// `analysis`, selected `geography`, filters) leak into the linked view.
+export const openPortalLink = (url: string) => {
+  const current = getHashParams();
+  const params = new URLSearchParams(url.split("#")[1]);
+  for (const key of NAVIGATION_KEYS) {
+    params.delete(key);
+    for (const value of current.getAll(key)) params.append(key, value);
+  }
   window.location.hash = getHashString(params);
 };
