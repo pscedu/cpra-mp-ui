@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.4](https://github.com/pscedu/cpra-mp-ui/compare/v0.8.3...v0.8.4) (2026-11-19)
+
+
+### Bug Fixes
+
+* **hash:** only exclude navigation keys from link merge ([4c32782](https://github.com/pscedu/cpra-mp-ui/commit/4c32782d7bd48f0b9100f21e208c0d0e4ec1554a))
+
 ## [0.8.3](https://github.com/pscedu/cpra-mp-ui/compare/v0.8.2...v0.8.3) (2026-11-18)
 
 
